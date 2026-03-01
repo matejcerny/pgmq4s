@@ -1,0 +1,35 @@
+package pgmq4s
+
+trait PgmqBackend[F[_]]:
+
+  // Queue Management
+  protected def createQueueRaw(queue: String): F[Unit]
+  protected def createPartitionedQueueRaw(
+      queue: String,
+      partitionInterval: String,
+      retentionInterval: String
+  ): F[Unit]
+  protected def dropQueueRaw(queue: String): F[Boolean]
+
+  // Publishing — body already encoded to JSON String
+  protected def sendRaw(queue: String, body: String): F[Long]
+  protected def sendRaw(queue: String, body: String, delay: Int): F[Long]
+  protected def sendBatchRaw(queue: String, bodies: List[String]): F[List[Long]]
+  protected def sendBatchRaw(queue: String, bodies: List[String], delay: Int): F[List[Long]]
+
+  // Consuming — returns RawMessage (String body, not yet decoded)
+  protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]]
+  protected def popRaw(queue: String): F[Option[RawMessage]]
+
+  // Lifecycle
+  protected def archiveRaw(queue: String, msgId: Long): F[Boolean]
+  protected def archiveBatchRaw(queue: String, msgIds: List[Long]): F[List[Long]]
+  protected def deleteRaw(queue: String, msgId: Long): F[Boolean]
+  protected def deleteBatchRaw(queue: String, msgIds: List[Long]): F[List[Long]]
+  protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]]
+  protected def purgeQueueRaw(queue: String): F[Long]
+  protected def detachArchiveRaw(queue: String): F[Unit]
+
+  // Observability
+  protected def metricsRaw(queue: String): F[Option[QueueMetrics]]
+  protected def metricsAllRaw: F[List[QueueMetrics]]
