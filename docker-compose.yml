@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: ghcr.io/pgmq/pg18-pgmq:v1.10.0
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: pgmq
+      POSTGRES_PASSWORD: pgmq
+      POSTGRES_DB: pgmq
+    volumes:
+      - ./it/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pgmq"]
+      interval: 2s
+      timeout: 5s
+      retries: 5

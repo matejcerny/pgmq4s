@@ -64,3 +64,6 @@ Session.vim
 Thumbs.db
 Desktop.ini
 app.version
+# Build conf (keep root build.conf, ignore subproject copies)
+**/build.conf
+!/build.conf

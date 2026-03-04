@@ -22,6 +22,17 @@ lazy val root = (project in file("."))
     publish / skip := true
   )
 
+lazy val integration = (project in file("it"))
+  .dependsOn(doobie, circe.jvm)
+  .settings(
+    name := "pgmq4s-it",
+    publish / skip := true,
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "weaver-cats" % WeaverV % Test,
+      "org.tpolecat" %% "doobie-hikari" % DoobieV % Test
+    )
+  )
+
 lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("core"))
