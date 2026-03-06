@@ -1,14 +1,11 @@
 package pgmq4s
 
-trait PgmqBackend[F[_]]:
+trait PgmqBackend:
+  type F[A]
 
   // Queue Management
   protected def createQueueRaw(queue: String): F[Unit]
-  protected def createPartitionedQueueRaw(
-      queue: String,
-      partitionInterval: String,
-      retentionInterval: String
-  ): F[Unit]
+  protected def createPartitionedQueueRaw(queue: String, partitionInterval: String, retentionInterval: String): F[Unit]
   protected def dropQueueRaw(queue: String): F[Boolean]
 
   // Publishing — body already encoded to JSON String

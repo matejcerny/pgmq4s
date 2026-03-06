@@ -16,7 +16,7 @@ object DoobiePgmqClientSuite extends IOSuite:
 
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
 
-  type Res = PgmqClient[IO]
+  type Res = PgmqClientF[IO]
 
   override def sharedResource: Resource[IO, Res] =
     for xa <- HikariTransactor.newHikariTransactor[IO](
@@ -28,137 +28,111 @@ object DoobiePgmqClientSuite extends IOSuite:
       )
     yield DoobiePgmqClient[IO](xa)
 
-  private def withQueue(client: PgmqClient[IO])(f: QueueName => IO[Expectations]): IO[Expectations] =
-    val queue = QueueName(s"test_${UUID.randomUUID().toString.replace("-", "")}")
-    client.createQueue(queue) *> f(queue).guarantee(client.dropQueue(queue).void)
+  private def pgmqTest(name: String)(body: PgmqClientF[IO] ?=> QueueName => IO[Expectations]): Unit =
+    test(name) { client =>
+      given PgmqClientF[IO] = client
+      val queue = QueueName(s"test_${UUID.randomUUID().toString.replace("-", "")}")
 
-  test("send and read a message") { client =>
-    withQueue(client) { queue =>
-      val payload = TestPayload(1, "hello")
-      for
-        msgId <- client.send(queue, payload)
-        msgs <- client.read[TestPayload](queue, vt = 30, qty = 1)
-      yield
-        expect.same(msgs.size, 1) and
-          expect.same(msgs.head.message, payload) and
-          expect.same(msgs.head.msgId, msgId)
+      (PgmqClient.createQueue(queue) *> body(queue)).guarantee(PgmqClient.dropQueue(queue).void)
     }
+
+  pgmqTest("send and read a message") { queue =>
+    val payload = TestPayload(1, "hello")
+    for
+      msgId <- PgmqClient.send(queue, payload)
+      msgs <- PgmqClient.read[TestPayload](queue, vt = 30, qty = 1)
+    yield expect.same(msgs.size, 1) and
+      expect.same(msgs.head.message, payload) and
+      expect.same(msgs.head.msgId, msgId)
   }
 
-  test("send and pop a message") { client =>
-    withQueue(client) { queue =>
-      val payload = TestPayload(2, "pop me")
-      for
-        _ <- client.send(queue, payload)
-        msg <- client.pop[TestPayload](queue)
-      yield expect.same(msg.map(_.message), Some(payload))
-    }
+  pgmqTest("send and pop a message") { queue =>
+    val payload = TestPayload(2, "pop me")
+    for
+      _ <- PgmqClient.send(queue, payload)
+      msg <- PgmqClient.pop[TestPayload](queue)
+    yield expect.same(msg.map(_.message), Some(payload))
   }
 
-  test("send batch and read") { client =>
-    withQueue(client) { queue =>
-      val payloads = List(TestPayload(10, "a"), TestPayload(11, "b"), TestPayload(12, "c"))
-      for
-        ids <- client.sendBatch(queue, payloads)
-        msgs <- client.read[TestPayload](queue, vt = 30, qty = 10)
-      yield
-        expect.same(ids.size, 3) and
-          expect.same(msgs.map(_.message).toSet, payloads.toSet)
-    }
+  pgmqTest("send batch and read") { queue =>
+    val payloads = List(TestPayload(10, "a"), TestPayload(11, "b"), TestPayload(12, "c"))
+    for
+      ids <- PgmqClient.sendBatch(queue, payloads)
+      msgs <- PgmqClient.read[TestPayload](queue, vt = 30, qty = 10)
+    yield expect.same(ids.size, 3) and
+      expect.same(msgs.map(_.message).toSet, payloads.toSet)
   }
 
-  test("archive a message") { client =>
-    withQueue(client) { queue =>
-      val payload = TestPayload(20, "archive me")
-      for
-        msgId <- client.send(queue, payload)
-        archived <- client.archive(queue, msgId)
-      yield expect.same(archived, true)
-    }
+  pgmqTest("archive a message") { queue =>
+    val payload = TestPayload(20, "archive me")
+    for
+      msgId <- PgmqClient.send(queue, payload)
+      archived <- PgmqClient.archive(queue, msgId)
+    yield expect.same(archived, true)
   }
 
-  test("delete a message") { client =>
-    withQueue(client) { queue =>
-      val payload = TestPayload(30, "delete me")
-      for
-        msgId <- client.send(queue, payload)
-        deleted <- client.delete(queue, msgId)
-      yield expect.same(deleted, true)
-    }
+  pgmqTest("delete a message") { queue =>
+    val payload = TestPayload(30, "delete me")
+    for
+      msgId <- PgmqClient.send(queue, payload)
+      deleted <- PgmqClient.delete(queue, msgId)
+    yield expect.same(deleted, true)
   }
 
-  test("purge queue") { client =>
-    withQueue(client) { queue =>
-      for
-        _ <- client.send(queue, TestPayload(40, "purge"))
-        _ <- client.send(queue, TestPayload(41, "purge"))
-        purged <- client.purgeQueue(queue)
-      yield expect.same(purged, 2L)
-    }
+  pgmqTest("purge queue") { queue =>
+    for
+      _ <- PgmqClient.send(queue, TestPayload(40, "purge"))
+      _ <- PgmqClient.send(queue, TestPayload(41, "purge"))
+      purged <- PgmqClient.purgeQueue(queue)
+    yield expect.same(purged, 2L)
   }
 
-  test("send with delay") { client =>
-    withQueue(client) { queue =>
-      val payload = TestPayload(3, "delayed")
-      for msgId <- client.send(queue, payload, delay = 0)
-      yield expect(msgId.value > 0L)
-    }
+  pgmqTest("send with delay") { queue =>
+    val payload = TestPayload(3, "delayed")
+    for msgId <- PgmqClient.send(queue, payload, delay = 0)
+    yield expect(msgId.value > 0L)
   }
 
-  test("send batch with delay") { client =>
-    withQueue(client) { queue =>
-      val payloads = List(TestPayload(13, "d1"), TestPayload(14, "d2"))
-      for ids <- client.sendBatch(queue, payloads, delay = 0)
-      yield expect.same(ids.size, 2)
-    }
+  pgmqTest("send batch with delay") { queue =>
+    val payloads = List(TestPayload(13, "d1"), TestPayload(14, "d2"))
+    for ids <- PgmqClient.sendBatch(queue, payloads, delay = 0)
+    yield expect.same(ids.size, 2)
   }
 
-  test("archive batch") { client =>
-    withQueue(client) { queue =>
-      for
-        id1 <- client.send(queue, TestPayload(21, "a1"))
-        id2 <- client.send(queue, TestPayload(22, "a2"))
-        archived <- client.archiveBatch(queue, List(id1, id2))
-      yield expect.same(archived.toSet, Set(id1, id2))
-    }
+  pgmqTest("archive batch") { queue =>
+    for
+      id1 <- PgmqClient.send(queue, TestPayload(21, "a1"))
+      id2 <- PgmqClient.send(queue, TestPayload(22, "a2"))
+      archived <- PgmqClient.archiveBatch(queue, List(id1, id2))
+    yield expect.same(archived.toSet, Set(id1, id2))
   }
 
-  test("delete batch") { client =>
-    withQueue(client) { queue =>
-      for
-        id1 <- client.send(queue, TestPayload(31, "d1"))
-        id2 <- client.send(queue, TestPayload(32, "d2"))
-        deleted <- client.deleteBatch(queue, List(id1, id2))
-      yield expect.same(deleted.toSet, Set(id1, id2))
-    }
+  pgmqTest("delete batch") { queue =>
+    for
+      id1 <- PgmqClient.send(queue, TestPayload(31, "d1"))
+      id2 <- PgmqClient.send(queue, TestPayload(32, "d2"))
+      deleted <- PgmqClient.deleteBatch(queue, List(id1, id2))
+    yield expect.same(deleted.toSet, Set(id1, id2))
   }
 
-  test("set visibility timeout") { client =>
-    withQueue(client) { queue =>
-      for
-        msgId <- client.send(queue, TestPayload(50, "vt"))
-        updated <- client.setVt[TestPayload](queue, msgId, vtOffset = 60)
-      yield expect.same(updated.map(_.msgId), Some(msgId))
-    }
+  pgmqTest("set visibility timeout") { queue =>
+    for
+      msgId <- PgmqClient.send(queue, TestPayload(50, "vt"))
+      updated <- PgmqClient.setVt[TestPayload](queue, msgId, vtOffset = 60)
+    yield expect.same(updated.map(_.msgId), Some(msgId))
   }
 
-  test("detach archive") { client =>
-    withQueue(client) { queue =>
-      for _ <- client.detachArchive(queue)
-      yield success
-    }
+  pgmqTest("detach archive") { queue =>
+    for _ <- PgmqClient.detachArchive(queue)
+    yield success
   }
 
-  test("metrics all") { client =>
-    withQueue(client) { queue =>
-      for all <- client.metricsAll
-      yield expect(all.exists(_.queueName == queue))
-    }
+  pgmqTest("metrics all") { queue =>
+    for all <- PgmqClient.metricsAll
+    yield expect(all.exists(_.queueName == queue))
   }
 
-  test("metrics") { client =>
-    withQueue(client) { queue =>
-      for m <- client.metrics(queue)
-      yield expect.same(m.isDefined, true) and expect.same(m.map(_.queueName), Some(queue))
-    }
+  pgmqTest("metrics") { queue =>
+    for m <- PgmqClient.metrics(queue)
+    yield expect.same(m.isDefined, true) and expect.same(m.map(_.queueName), Some(queue))
   }
