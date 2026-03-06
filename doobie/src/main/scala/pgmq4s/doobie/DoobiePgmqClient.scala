@@ -1,15 +1,18 @@
 package pgmq4s.doobie
 
-import java.time.OffsetDateTime
-
+import cats.MonadThrow
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
 import doobie.postgres.implicits.*
 import pgmq4s.*
 
-class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
+import java.time.OffsetDateTime
+
+class DoobiePgmqClient[G[_]: Sync](xa: Transactor[G]) extends PgmqClient:
+  type F[A] = G[A]
+
+  given effectMonadThrow: MonadThrow[F] = summon[Sync[G]]
 
   // Queue Management
 
