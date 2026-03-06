@@ -5,6 +5,7 @@ ThisBuild / scalaVersion := "3.3.7"
 val CatsEffectV = "3.6.3"
 val CirceV = "0.14.8"
 val DoobieV = "1.0.0-RC12"
+val SkunkV = "0.6.5"
 val ScalaJavaTimeV = "2.6.0"
 val WeaverV = "0.11.3"
 
@@ -16,21 +17,24 @@ lazy val root = (project in file("."))
     circe.jvm,
     circe.js,
     circe.native,
-    doobie
+    doobie,
+    skunk
   )
   .settings(
     publish / skip := true
   )
 
 lazy val integration = (project in file("it"))
-  .dependsOn(doobie, circe.jvm)
+  .dependsOn(doobie, skunk, circe.jvm)
   .settings(
     name := "pgmq4s-it",
     publish / skip := true,
     libraryDependencies ++= Seq(
       "org.typelevel" %% "weaver-cats" % WeaverV % Test,
-      "org.tpolecat" %% "doobie-hikari" % DoobieV % Test
-    )
+      "org.tpolecat" %% "doobie-hikari" % DoobieV % Test,
+      "org.tpolecat" %% "skunk-core" % SkunkV % Test
+    ),
+    Test / parallelExecution := false
   )
 
 lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -53,6 +57,16 @@ lazy val doobie = (project in file("doobie"))
     libraryDependencies ++= Seq(
       "org.tpolecat" %% "doobie-core" % DoobieV,
       "org.tpolecat" %% "doobie-postgres" % DoobieV
+    )
+  )
+
+lazy val skunk = (project in file("skunk"))
+  .dependsOn(core.jvm)
+  .settings(
+    name := "pgmq4s-skunk",
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "skunk-core" % SkunkV,
+      "org.typelevel" %% "weaver-cats" % WeaverV % Test
     )
   )
 

@@ -24,12 +24,12 @@ object CirceCodecsSuite extends SimpleIOSuite:
   pureTest("decoder returns Left on invalid JSON"):
     val decoder = summon[PgmqDecoder[Payload]]
     val result = decoder.decode("""not json""")
-    expect(result.isLeft)
+    expect(clue(result).isLeft)
 
   pureTest("decoder returns Left on missing field"):
     val decoder = summon[PgmqDecoder[Payload]]
     val result = decoder.decode("""{"name":"x"}""")
-    expect(result.isLeft)
+    expect(clue(result).isLeft)
 
   pureTest("codec round-trips through encode then decode"):
     val codec = summon[PgmqCodec[Payload]]

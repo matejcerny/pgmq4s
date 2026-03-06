@@ -25,4 +25,4 @@ object CodecsSuite extends SimpleIOSuite:
       PgmqDecoder[String].emap(s => s.toIntOption.toRight(new NumberFormatException(s"Not a number: $s")))
 
     expect.same(intDecoder.decode("42"), Right(42)) and
-      expect(intDecoder.decode("nope").isLeft)
+      expect(clue(intDecoder.decode("nope")).isLeft)
