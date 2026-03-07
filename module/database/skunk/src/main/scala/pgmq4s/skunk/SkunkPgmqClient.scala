@@ -1,19 +1,15 @@
 package pgmq4s.skunk
 
-import cats.MonadThrow
-import cats.effect.kernel.Resource
-import cats.effect.std.Console
-import cats.effect.Temporal
-import cats.syntax.all.*
-import pgmq4s.*
 import _root_.skunk.*
 import _root_.skunk.codec.all.*
 import _root_.skunk.data.{ Arr, Type }
 import _root_.skunk.implicits.*
+import cats.MonadThrow
+import cats.effect.{ Resource, Temporal }
+import cats.syntax.all.*
+import pgmq4s.*
 
-import java.time.OffsetDateTime
-
-class SkunkPgmqClient[G[_]: Temporal: Console](pool: Resource[G, Session[G]]) extends PgmqClient:
+class SkunkPgmqClient[G[_]: Temporal](pool: Resource[G, Session[G]]) extends PgmqClient:
   type F[A] = G[A]
 
   given effectMonadThrow: MonadThrow[F] = summon[Temporal[G]]
@@ -131,7 +127,7 @@ class SkunkPgmqClient[G[_]: Temporal: Console](pool: Resource[G, Session[G]]) ex
     pool.use(
       _.prepare(
         sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-              FROM pgmq.metrics($text)""".query(metricsDecoder)
+                FROM pgmq.metrics($text)""".query(metricsDecoder)
       ).flatMap(_.option(queue))
     )
 
@@ -139,6 +135,6 @@ class SkunkPgmqClient[G[_]: Temporal: Console](pool: Resource[G, Session[G]]) ex
     pool.use(
       _.execute(
         sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-              FROM pgmq.metrics_all()""".query(metricsDecoder)
+                FROM pgmq.metrics_all()""".query(metricsDecoder)
       )
     )
