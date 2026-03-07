@@ -1,7 +1,7 @@
 package pgmq4s.doobie
 
 import cats.MonadThrow
-import cats.effect.kernel.Sync
+import cats.effect.Sync
 import doobie.*
 import doobie.implicits.*
 import doobie.postgres.implicits.*

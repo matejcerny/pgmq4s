@@ -7,6 +7,7 @@ val CirceV = "0.14.8"
 val DoobieV = "1.0.0-RC12"
 val SkunkV = "0.6.5"
 val ScalaJavaTimeV = "2.6.0"
+val JsoniterV = "2.30.2"
 val WeaverV = "0.11.3"
 
 lazy val root = (project in file("."))
@@ -17,6 +18,7 @@ lazy val root = (project in file("."))
     circe.jvm,
     circe.js,
     circe.native,
+    jsoniter.jvm,
     doobie,
     skunk
   )
@@ -50,7 +52,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
 
 // === DATABASE ===
-lazy val doobie = (project in file("doobie"))
+lazy val doobie = (project in file("module/database/doobie"))
   .dependsOn(core.jvm)
   .settings(
     name := "pgmq4s-doobie",
@@ -60,7 +62,7 @@ lazy val doobie = (project in file("doobie"))
     )
   )
 
-lazy val skunk = (project in file("skunk"))
+lazy val skunk = (project in file("module/database/skunk"))
   .dependsOn(core.jvm)
   .settings(
     name := "pgmq4s-skunk",
@@ -73,13 +75,26 @@ lazy val skunk = (project in file("skunk"))
 // === JSON ===
 lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
-  .in(file("circe"))
+  .in(file("module/json/circe"))
   .dependsOn(core)
   .settings(
     name := "pgmq4s-circe",
     libraryDependencies ++= Seq(
       "io.circe" %%% "circe-core" % CirceV,
       "io.circe" %%% "circe-parser" % CirceV
+    ),
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
+  )
+
+lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("module/json/jsoniter"))
+  .dependsOn(core)
+  .settings(
+    name := "pgmq4s-jsoniter",
+    libraryDependencies ++= Seq(
+      "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % JsoniterV,
+      "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % JsoniterV % Provided
     ),
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
