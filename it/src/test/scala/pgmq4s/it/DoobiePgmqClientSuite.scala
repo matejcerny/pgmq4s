@@ -5,7 +5,6 @@ import scala.concurrent.ExecutionContext
 
 import cats.effect.*
 import cats.syntax.foldable.*
-import doobie.*
 import doobie.hikari.HikariTransactor
 import io.circe.*
 import pgmq4s.*
