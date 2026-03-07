@@ -1,19 +1,18 @@
 package pgmq4s.it
 
 import java.util.UUID
-import scala.concurrent.ExecutionContext
 
 import cats.effect.*
 import cats.syntax.foldable.*
-import doobie.*
-import doobie.hikari.HikariTransactor
 import io.circe.*
+import natchez.Trace.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
-import pgmq4s.doobie.DoobiePgmqClient
+import pgmq4s.skunk.SkunkPgmqClient
+import _root_.skunk.Session
 import weaver.*
 
-object DoobiePgmqClientSuite extends IOSuite:
+object SkunkPgmqClientSuite extends IOSuite:
 
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
 
@@ -21,14 +20,15 @@ object DoobiePgmqClientSuite extends IOSuite:
 
   override def sharedResource: Resource[IO, Res] =
     for
-      xa <- HikariTransactor.newHikariTransactor[IO](
-        driverClassName = "org.postgresql.Driver",
-        url = "jdbc:postgresql://localhost:5432/pgmq",
+      pool <- Session.pooled[IO](
+        host = "localhost",
+        port = 5432,
         user = "pgmq",
-        pass = "pgmq",
-        connectEC = ExecutionContext.global
+        database = "pgmq",
+        password = Some("pgmq"),
+        max = 10
       )
-      client = DoobiePgmqClient[IO](xa)
+      client = SkunkPgmqClient[IO](pool)
       queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
 
       _ <- Resource.make(IO.unit): _ =>
