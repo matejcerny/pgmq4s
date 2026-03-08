@@ -31,7 +31,6 @@ object QueueName:
 opaque type MessageId = Long
 object MessageId:
   def apply(id: Long): MessageId = id
-  given Ordering[MessageId] = Ordering.Long
   extension (id: MessageId) def value: Long = id
 
 case class Message[A](

@@ -325,3 +325,31 @@ object PgmqClientSuite extends SimpleIOSuite:
     for list <- PgmqClient.metricsAll
     yield expect.same(list.size, 1) and
       expect.same(list.map(_.totalMessages), List(42L))
+
+  // --- program combinators ---
+
+  pgmqTest("PgmqProgram.map transforms successful result", Returns(send = 11L)): captured =>
+    for
+      idValue <- PgmqClient.send[String](q, "mapped").map(_.value + 1L)
+      c <- captured
+    yield expect.same(idValue, 12L) and
+      expect.same(c.body, "mapped")
+
+  pgmqTest("PgmqProgram.flatMap composes dependent programs", Returns(send = 9L)): captured =>
+    val program = PgmqClient.send[String](q, "flat-mapped").flatMap(PgmqClient.delete(q, _))
+    for
+      deleted <- program
+      c <- captured
+    yield expect(clue(deleted)) and
+      expect.same(c.msgId, 9L)
+
+  pgmqTest("PgmqProgram.handleErrorWith recovers with fallback program", Returns(send = 77L)): captured =>
+    val failed: PgmqProgram[PgmqClient, MessageId] = (client: PgmqClient) ?=>
+      import client.effectMonadThrow
+      effectMonadThrow.raiseError(RuntimeException("boom"))
+
+    for
+      id <- failed.handleErrorWith(_ => PgmqClient.send[String](q, "fallback"))
+      c <- captured
+    yield expect.same(id.value, 77L) and
+      expect.same(c.body, "fallback")
