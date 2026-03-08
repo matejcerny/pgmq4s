@@ -1,6 +1,35 @@
-import sbtcrossproject.CrossPlugin.autoImport.*
-
+ThisBuild / tlBaseVersion := "0.1"
 ThisBuild / scalaVersion := "3.3.7"
+ThisBuild / organization := "io.github.matejcerny"
+ThisBuild / organizationName := "Matej Cerny"
+ThisBuild / startYear := Some(2026)
+ThisBuild / licenses := Seq(License.MIT)
+ThisBuild / developers := List(tlGitHubDev("matejcerny", "Matej Cerny"))
+
+ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
+
+ThisBuild / githubWorkflowBuildPostamble ++= Seq(
+  WorkflowStep.Run(
+    name = Some("Start Postgres for integration tests"),
+    cond = Some("matrix.project == 'rootJVM'"),
+    commands = List(
+      "docker compose up -d postgres",
+      "for i in {1..30}; do docker compose exec -T postgres pg_isready -U pgmq && break; sleep 2; done",
+      "docker compose exec -T postgres psql -U pgmq -d pgmq -c \"CREATE EXTENSION IF NOT EXISTS pgmq;\""
+    )
+  ),
+  WorkflowStep.Run(
+    name = Some("Run coverage"),
+    cond = Some("matrix.project == 'rootJVM'"),
+    commands = List("sbt clean coverage rootJVM/test integration/test rootJVM/coverageAggregate")
+  ),
+  WorkflowStep.Use(
+    UseRef.Public("codecov", "codecov-action", "v5"),
+    name = Some("Upload coverage to Codecov"),
+    cond = Some("matrix.project == 'rootJVM'"),
+    params = Map("token" -> "${{ secrets.CODECOV_TOKEN }}")
+  )
+)
 
 val CatsEffectV = "3.6.3"
 val CirceV = "0.14.8"
@@ -10,21 +39,8 @@ val ScalaJavaTimeV = "2.6.0"
 val JsoniterV = "2.30.2"
 val WeaverV = "0.11.3"
 
-lazy val root = (project in file("."))
-  .aggregate(
-    core.jvm,
-    core.js,
-    core.native,
-    circe.jvm,
-    circe.js,
-    circe.native,
-    jsoniter.jvm,
-    doobie,
-    skunk
-  )
-  .settings(
-    publish / skip := true
-  )
+lazy val root = tlCrossRootProject
+  .aggregate(core, circe, jsoniter, doobie, skunk)
 
 lazy val integration = (project in file("it"))
   .dependsOn(doobie, skunk, circe.jvm)
@@ -98,3 +114,9 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     ),
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
+
+lazy val docs = project
+  .in(file("site"))
+  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk)
+  .enablePlugins(TypelevelSitePlugin)
+  .settings(tlSitePublishBranch := Some("main"))
