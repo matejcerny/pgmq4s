@@ -68,10 +68,12 @@
   </div>
 
   <ul class="nav-list">
-    <li class="level1 nav-leaf"><a href="doobie-better-encoding.html">Doobie / Better Encoding</a></li>
-    <li class="level1 nav-leaf"><a href="doobie-tagless-final.html">Doobie / Classic Tagless Final</a></li>
-    <li class="level1 nav-leaf"><a href="skunk-better-encoding.html">Skunk / Better Encoding</a></li>
-    <li class="level1 nav-leaf"><a href="skunk-tagless-final.html">Skunk / Classic Tagless Final</a></li>
+    <li class="level1 nav-node"><a href="better-encoding/">Better Encoding</a></li>
+    <li class="level2 nav-leaf"><a href="better-encoding/doobie.html">Doobie</a></li>
+    <li class="level2 nav-leaf"><a href="better-encoding/skunk.html">Skunk</a></li>
+    <li class="level1 nav-node"><a href="tagless-final/">Classic Tagless Final</a></li>
+    <li class="level2 nav-leaf"><a href="tagless-final/doobie.html">Doobie</a></li>
+    <li class="level2 nav-leaf"><a href="tagless-final/skunk.html">Skunk</a></li>
   </ul>
 
 </nav>
@@ -107,9 +109,9 @@
         <h2 id="getting-started" class="section"><a class="anchor-link left" href="#getting-started"><i class="icofont-laika link">&#xef71;</i></a>Getting Started</h2>
         <p>Add to your <code>build.sbt</code>:</p>
         <pre class="keep-together pdf epub"><code class="nohighlight"><span class="identifier">libraryDependencies</span><span> ++= </span><span class="type-name">Seq</span><span>(
-  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-core&quot;</span><span>   % </span><span class="string-literal">&quot;0.1-5bee0da-SNAPSHOT&quot;</span><span>,
-  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.1-5bee0da-SNAPSHOT&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter
-</span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.1-5bee0da-SNAPSHOT&quot;</span><span>   </span><span class="comment">// or pgmq4s-skunk
+  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-core&quot;</span><span>   % </span><span class="string-literal">&quot;0.1-0b5193b-SNAPSHOT&quot;</span><span>,
+  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.1-0b5193b-SNAPSHOT&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter
+</span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.1-0b5193b-SNAPSHOT&quot;</span><span>   </span><span class="comment">// or pgmq4s-skunk
 </span><span>)</span></code></pre>
         <p>All available artifacts:</p>
         <table>
@@ -138,7 +140,7 @@
             </tr>
             <tr>
               <td><code>pgmq4s-skunk</code></td>
-              <td>Skunk backend (JVM only)</td>
+              <td>Skunk backend (JVM, JS, Native)</td>
             </tr>
           </tbody>
         </table>
