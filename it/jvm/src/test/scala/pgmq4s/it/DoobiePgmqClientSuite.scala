@@ -21,7 +21,8 @@ object DoobiePgmqClientSuite extends PgmqClientSuite:
         connectEC = ExecutionContext.global
       )
       client = DoobiePgmqClient[IO](xa)
-      queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
+      queues  <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
+      counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:
         given PgmqClientF[IO] = client
@@ -30,4 +31,4 @@ object DoobiePgmqClientSuite extends PgmqClientSuite:
           .flatMap(_.traverse_(PgmqClient.dropQueue))
           .attempt
           .void
-    yield (client, queues)
+    yield (client, queues, counter)
