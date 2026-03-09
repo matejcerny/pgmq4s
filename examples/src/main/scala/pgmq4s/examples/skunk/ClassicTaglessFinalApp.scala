@@ -1,8 +1,5 @@
-# Skunk
+package pgmq4s.examples.skunk
 
-The classic tagless final style passes the `PgmqClientF[F]` explicitly, making dependencies visible and injectable:
-
-```scala
 import _root_.skunk.Session
 import cats.MonadThrow
 import cats.effect.{ IO, IOApp }
@@ -56,4 +53,3 @@ object ClassicTaglessFinalApp extends IOApp.Simple:
           messages <- service.publishAndFetch(event)
           _        <- IO.println(s"skunk tagless-final read: ${messages.map(_.message)}")
         yield ()
-```

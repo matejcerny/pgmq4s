@@ -94,6 +94,7 @@ trait PgmqClient extends PgmqBackend:
 
   def metricsAll: F[List[QueueMetrics]] =
     metricsAllRaw
+end PgmqClient
 
 type PgmqClientF[G[_]] = PgmqClient { type F[x] = G[x] }
 
@@ -185,3 +186,4 @@ object PgmqClient:
 
   def metricsAll: PgmqProgram[PgmqClient, List[QueueMetrics]] =
     summon[PgmqClient].metricsAll
+end PgmqClient

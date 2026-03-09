@@ -1,17 +1,14 @@
-# Skunk
+package pgmq4s.examples.doobie
 
-The classic tagless final style passes the `PgmqClientF[F]` explicitly, making dependencies visible and injectable:
-
-```scala
-import _root_.skunk.Session
 import cats.MonadThrow
-import cats.effect.{ IO, IOApp }
+import cats.effect.{ IO, IOApp, Resource }
 import cats.syntax.all.*
+import doobie.ExecutionContexts
+import doobie.hikari.HikariTransactor
 import io.circe.{ Decoder, Encoder }
-import natchez.Trace.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
-import pgmq4s.skunk.SkunkPgmqClient
+import pgmq4s.doobie.DoobiePgmqClient
 
 case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, Decoder
 
@@ -34,26 +31,27 @@ class OrderService[F[_]: MonadThrow](queue: OrderQueue[F]):
     yield messages
 
 object ClassicTaglessFinalApp extends IOApp.Simple:
-  private val queue = QueueName("orders_skunk_tagless_final")
+  private val queue = QueueName("orders_tagless_final")
   private val event = OrderCreated(2L, "dev@example.com")
 
-  val run: IO[Unit] =
-    Session
-      .pooled[IO](
-        host = "localhost",
-        port = 5432,
+  private val hikariTransactor: Resource[IO, HikariTransactor[IO]] =
+    for
+      ce <- ExecutionContexts.fixedThreadPool[IO](32)
+      xa <- HikariTransactor.newHikariTransactor[IO](
+        driverClassName = "org.postgresql.Driver",
+        url = "jdbc:postgresql://localhost:5432/pgmq",
         user = "pgmq",
-        database = "pgmq",
-        password = Some("pgmq"),
-        max = 10
+        pass = "pgmq",
+        connectEC = ce
       )
-      .use: pool =>
-        val client: PgmqClientF[IO] = SkunkPgmqClient[IO](pool)
-        val service                 = OrderService[IO](OrderQueue.make(queue, client))
+    yield xa
 
-        for
-          _        <- client.createQueue(queue)
-          messages <- service.publishAndFetch(event)
-          _        <- IO.println(s"skunk tagless-final read: ${messages.map(_.message)}")
-        yield ()
-```
+  val run: IO[Unit] = hikariTransactor.use: xa =>
+    val client: PgmqClientF[IO] = DoobiePgmqClient[IO](xa)
+    val service                 = OrderService[IO](OrderQueue.make(queue, client))
+
+    for
+      _        <- client.createQueue(queue)
+      messages <- service.publishAndFetch(event)
+      _        <- IO.println(s"tagless-final read: ${messages.map(_.message)}")
+    yield ()
