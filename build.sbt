@@ -40,7 +40,7 @@ val JsoniterV = "2.30.2"
 val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
-  .aggregate(core, circe, jsoniter, doobie, skunk)
+  .aggregate(core, circe, jsoniter, doobie, skunk, examples)
 
 lazy val integration = (project in file("it"))
   .dependsOn(doobie, skunk, circe.jvm)
@@ -85,6 +85,17 @@ lazy val skunk = (project in file("module/database/skunk"))
     libraryDependencies ++= Seq(
       "org.tpolecat" %% "skunk-core" % SkunkV,
       "org.typelevel" %% "weaver-cats" % WeaverV % Test
+    )
+  )
+
+lazy val examples = (project in file("examples"))
+  .dependsOn(core.jvm, circe.jvm, doobie)
+  .settings(
+    name := "pgmq4s-examples",
+    publish / skip := true,
+    coverageEnabled := false,
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "doobie-hikari" % DoobieV
     )
   )
 

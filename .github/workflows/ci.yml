@@ -100,11 +100,11 @@ jobs:
 
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: mkdir -p module/json/jsoniter/.js/target module/json/circe/.jvm/target it/target module/database/doobie/target core/.native/target module/database/skunk/target module/json/jsoniter/.jvm/target core/.js/target module/json/circe/.js/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
+        run: mkdir -p examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target it/target module/database/doobie/target core/.native/target module/database/skunk/target module/json/jsoniter/.jvm/target core/.js/target module/json/circe/.js/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: tar cf targets.tar module/json/jsoniter/.js/target module/json/circe/.jvm/target it/target module/database/doobie/target core/.native/target module/database/skunk/target module/json/jsoniter/.jvm/target core/.js/target module/json/circe/.js/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
+        run: tar cf targets.tar examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target it/target module/database/doobie/target core/.native/target module/database/skunk/target module/json/jsoniter/.jvm/target core/.js/target module/json/circe/.js/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
