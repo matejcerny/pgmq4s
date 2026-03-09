@@ -6,116 +6,26 @@
 [![Build Status](https://github.com/matejcerny/pgmq4s/actions/workflows/ci.yml/badge.svg)](https://github.com/matejcerny/pgmq4s/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/matejcerny/pgmq4s/graph/badge.svg?token=IS8K9HLPT1)](https://codecov.io/gh/matejcerny/pgmq4s)
 
-Typed Scala client for [pgmq](https://github.com/tembo-io/pgmq), with support for multiple backends (Doobie, Skunk) and JSON codecs (Circe, Jsoniter).
+A purely functional, fully typed Scala 3 client for [pgmq](https://github.com/tembo-io/pgmq) (Postgres Message Queue).
 
-## Examples
+Built with modern Scala in mind, `pgmq4s` provides a boilerplate-free API using context functions, while maintaining 100% compatibility with classic tagless final architectures.
 
-Both approaches are implemented as runnable `IOApp.Simple` programs in:
+## Features
 
-- `examples/src/main/scala/pgmq4s/examples/BetterEncodingExample.scala`
-- `examples/src/main/scala/pgmq4s/examples/ClassicTaglessFinalExample.scala`
+* **Cross-Platform**: Full support for JVM, **Scala.js**, and **Scala Native**.
+* **Database Backends**: Doobie, Skunk
+* **JSON Codecs**: Circe, Jsoniter-scala
 
-### A Better Encoding
+## Getting Started
 
-Inspired by Noel Welsh's [book](https://scalawithcats.com/dist/scala-with-cats.html#a-better-encoding) and [conference talk](https://www.youtube.com/watch?v=nyMwp7--rY4).
-
-```scala
-import cats.effect.{ IO, IOApp }
-import doobie.hikari.HikariTransactor
-import io.circe.{ Decoder, Encoder }
-import pgmq4s.*
-import pgmq4s.circe.given
-import pgmq4s.doobie.DoobiePgmqClient
-
-import scala.concurrent.ExecutionContext
-
-final case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, Decoder
-
-object BetterEncodingApp extends IOApp.Simple:
-  private val queue: QueueName = QueueName("orders_better_encoding")
-  private val event = OrderCreated(1L, "dev@example.com")
-
-  private val hikariTransactor =
-    HikariTransactor.newHikariTransactor[IO](
-      driverClassName = "org.postgresql.Driver",
-      url = "jdbc:postgresql://localhost:5432/pgmq",
-      user = "pgmq",
-      pass = "pgmq",
-      connectEC = ExecutionContext.global
-    )
-
-  val run: IO[Unit] = hikariTransactor.use: xa =>
-    given DoobiePgmqClient[IO] = DoobiePgmqClient[IO](xa)
-    for
-      _        <- PgmqClient.createQueue(queue)
-      _        <- PgmqClient.send(queue, event)
-      messages <- PgmqClient.read[OrderCreated](queue, vt = 30, qty = 10)
-      _        <- IO.println(s"better-encoding read: ${messages.map(_.message)}")
-    yield ()
-```
-
-### Classic tagless final (`F[_]`)
+Add to your `build.sbt` (replace `<version>` with the latest version shown in the badge above):
 
 ```scala
-import cats.MonadThrow
-import cats.effect.{ IO, IOApp }
-import cats.syntax.all.*
-import doobie.hikari.HikariTransactor
-import pgmq4s.*
-import pgmq4s.doobie.DoobiePgmqClient
-
-import scala.concurrent.ExecutionContext
-
-trait OrderQueue[F[_]]:
-  def send(event: OrderCreated): F[MessageId]
-  def read(vt: Int, qty: Int): F[List[Message[OrderCreated]]]
-
-object OrderQueue:
-  def make[F[_]](queue: QueueName, client: PgmqClientF[F]): OrderQueue[F] =
-    new OrderQueue[F]:
-      def send(event: OrderCreated): F[MessageId] = client.send(queue, event)
-      def read(vt: Int, qty: Int): F[List[Message[OrderCreated]]] =
-        client.read[OrderCreated](queue, vt, qty)
-
-class OrderService[F[_]: MonadThrow](queue: OrderQueue[F]):
-  def publishAndFetch(event: OrderCreated): F[List[Message[OrderCreated]]] =
-    for
-      _        <- queue.send(event)
-      messages <- queue.read(vt = 30, qty = 10)
-    yield messages
-
-object ClassicTaglessFinalApp extends IOApp.Simple:
-  private val queue = QueueName("orders_tagless_final")
-  private val event = OrderCreated(2L, "dev@example.com")
-
-  private val hikariTransactor =
-    HikariTransactor.newHikariTransactor[IO](
-      driverClassName = "org.postgresql.Driver",
-      url = "jdbc:postgresql://localhost:5432/pgmq",
-      user = "pgmq",
-      pass = "pgmq",
-      connectEC = ExecutionContext.global
-    )
-
-  val run: IO[Unit] = hikariTransactor.use: xa =>
-    val client: PgmqClientF[IO] = DoobiePgmqClient[IO](xa)
-    val service = OrderService[IO](OrderQueue.make(queue, client))
-    for
-      _        <- client.createQueue(queue)
-      messages <- service.publishAndFetch(event)
-      _        <- IO.println(s"tagless-final read: ${messages.map(_.message)}")
-    yield ()
+libraryDependencies ++= Seq(
+  "io.github.matejcerny" %% "pgmq4s-core"   % "<version>",
+  "io.github.matejcerny" %% "pgmq4s-circe"  % "<version>",  // or pgmq4s-jsoniter
+  "io.github.matejcerny" %% "pgmq4s-doobie" % "<version>"   // or pgmq4s-skunk
+)
 ```
 
-## Compile the examples
-
-```bash
-sbt examples/compile
-```
-
-## Run the examples
-
-```bash
-sbt "examples/runMain pgmq4s.examples.BetterEncodingApp"
-sbt "examples/runMain pgmq4s.examples.ClassicTaglessFinalApp"
-```
+See the [documentation](https://matejcerny.github.io/pgmq4s) for usage examples.
