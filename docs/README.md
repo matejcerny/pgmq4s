@@ -34,4 +34,4 @@ All available artifacts:
 | `pgmq4s-circe`    | Circe JSON codec bridge               |
 | `pgmq4s-jsoniter` | Jsoniter-scala JSON codec bridge      |
 | `pgmq4s-doobie`   | Doobie backend (JVM only)             |
-| `pgmq4s-skunk`    | Skunk backend (JVM only)              |
+| `pgmq4s-skunk`    | Skunk backend (JVM, JS, Native)       |

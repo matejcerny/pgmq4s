@@ -13,7 +13,7 @@ Built with modern Scala in mind, `pgmq4s` provides a boilerplate-free API using 
 ## Features
 
 * **Cross-Platform**: Full support for JVM, **Scala.js**, and **Scala Native**.
-* **Database Backends**: Doobie, Skunk
+* **Database Backends**: Doobie (JVM), Skunk (JVM, JS, Native)
 * **JSON Codecs**: Circe, Jsoniter-scala
 
 ## Getting Started

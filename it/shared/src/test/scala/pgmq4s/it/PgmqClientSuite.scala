@@ -7,24 +7,25 @@ import pgmq4s.*
 import pgmq4s.circe.given
 import weaver.*
 
-import java.util.UUID
-
 trait PgmqClientSuite extends IOSuite:
 
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
 
-  type Res = (PgmqClientF[IO], Ref[IO, List[QueueName]])
+  type Res = (PgmqClientF[IO], Ref[IO, List[QueueName]], Ref[IO, Int])
 
   private def pgmqTest(name: String, createQueue: Boolean = true)(
       body: PgmqClientF[IO] ?=> QueueName => IO[Expectations]
   ): Unit =
-    test(name) { case (client, queues) =>
+    test(name) { case (client, queues, counter) =>
       given PgmqClientF[IO] = client
 
-      val queue = QueueName(s"test_${UUID.randomUUID().toString.replace("-", "")}")
-      val setup = queues.update(queue :: _)
-
-      (if createQueue then setup *> PgmqClient.createQueue(queue) else setup) *> body(queue)
+      for
+        n <- counter.getAndUpdate(_ + 1)
+        queue = QueueName(s"test_$n")
+        _ <- queues.update(queue :: _)
+        _ <- if createQueue then PgmqClient.createQueue(queue) else IO.unit
+        result <- body(queue)
+      yield result
     }
 
   pgmqTest("send and read a message"): queue =>

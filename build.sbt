@@ -8,10 +8,18 @@ ThisBuild / developers := List(tlGitHubDev("matejcerny", "Matej Cerny"))
 
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 
+ThisBuild / githubWorkflowBuildPreamble ++= Seq(
+  WorkflowStep.Run(
+    name = Some("Install native dependencies"),
+    cond = Some("matrix.project == 'rootNative'"),
+    commands = List("sudo apt-get install -y libutf8proc-dev")
+  )
+)
+
 ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   WorkflowStep.Run(
     name = Some("Start Postgres for integration tests"),
-    cond = Some("matrix.project == 'rootJVM'"),
+    cond = Some("matrix.project == 'rootJVM' || matrix.project == 'rootNative'"),
     commands = List(
       "docker compose up -d postgres",
       "for i in {1..30}; do docker compose exec -T postgres pg_isready -U pgmq && break; sleep 2; done",
@@ -21,13 +29,18 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   WorkflowStep.Run(
     name = Some("Run coverage"),
     cond = Some("matrix.project == 'rootJVM'"),
-    commands = List("sbt clean coverage rootJVM/test integration/test rootJVM/coverageAggregate")
+    commands = List("sbt clean coverage rootJVM/test integrationJVM/test rootJVM/coverageAggregate")
   ),
   WorkflowStep.Use(
     UseRef.Public("codecov", "codecov-action", "v5"),
     name = Some("Upload coverage to Codecov"),
     cond = Some("matrix.project == 'rootJVM'"),
     params = Map("token" -> "${{ secrets.CODECOV_TOKEN }}")
+  ),
+  WorkflowStep.Run(
+    name = Some("Run Native integration tests"),
+    cond = Some("matrix.project == 'rootNative'"),
+    commands = List("sbt integrationNative/test")
   )
 )
 
@@ -42,17 +55,19 @@ val WeaverV = "0.11.3"
 lazy val root = tlCrossRootProject
   .aggregate(core, circe, jsoniter, doobie, skunk, examples)
 
-lazy val integration = (project in file("it"))
-  .dependsOn(doobie, skunk, circe.jvm)
+lazy val integration = crossProject(JVMPlatform, NativePlatform)
+  .crossType(CrossType.Full)
+  .in(file("it"))
+  .dependsOn(skunk, circe)
+  .jvmConfigure(_.dependsOn(doobie))
   .settings(
     name := "pgmq4s-it",
     publish / skip := true,
-    libraryDependencies ++= Seq(
-      "org.typelevel" %% "weaver-cats" % WeaverV % Test,
-      "org.tpolecat" %% "doobie-hikari" % DoobieV % Test,
-      "org.tpolecat" %% "skunk-core" % SkunkV % Test
-    ),
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
     Test / parallelExecution := false
+  )
+  .jvmSettings(
+    libraryDependencies += "org.tpolecat" %% "doobie-hikari" % DoobieV % Test
   )
 
 lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -78,13 +93,15 @@ lazy val doobie = (project in file("module/database/doobie"))
     )
   )
 
-lazy val skunk = (project in file("module/database/skunk"))
-  .dependsOn(core.jvm)
+lazy val skunk = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("module/database/skunk"))
+  .dependsOn(core)
   .settings(
     name := "pgmq4s-skunk",
     libraryDependencies ++= Seq(
-      "org.tpolecat" %% "skunk-core" % SkunkV,
-      "org.typelevel" %% "weaver-cats" % WeaverV % Test
+      "org.tpolecat" %%% "skunk-core" % SkunkV,
+      "org.typelevel" %%% "weaver-cats" % WeaverV % Test
     )
   )
 
@@ -128,6 +145,6 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 
 lazy val docs = project
   .in(file("site"))
-  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk)
+  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk.jvm)
   .enablePlugins(TypelevelSitePlugin)
   .settings(tlSitePublishBranch := Some("main"))

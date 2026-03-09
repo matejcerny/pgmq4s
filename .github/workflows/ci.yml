@@ -55,6 +55,10 @@ jobs:
         if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
         run: sbt +update
 
+      - name: Install native dependencies
+        if: matrix.project == 'rootNative'
+        run: sudo apt-get install -y libutf8proc-dev
+
       - name: Check that workflows are up to date
         run: sbt githubWorkflowCheck
 
@@ -82,7 +86,7 @@ jobs:
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' doc
 
       - name: Start Postgres for integration tests
-        if: matrix.project == 'rootJVM'
+        if: matrix.project == 'rootJVM' || matrix.project == 'rootNative'
         run: |
           docker compose up -d postgres
           for i in {1..30}; do docker compose exec -T postgres pg_isready -U pgmq && break; sleep 2; done
@@ -90,7 +94,7 @@ jobs:
 
       - name: Run coverage
         if: matrix.project == 'rootJVM'
-        run: sbt clean coverage rootJVM/test integration/test rootJVM/coverageAggregate
+        run: sbt clean coverage rootJVM/test integrationJVM/test rootJVM/coverageAggregate
 
       - name: Upload coverage to Codecov
         if: matrix.project == 'rootJVM'
@@ -98,13 +102,17 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Run Native integration tests
+        if: matrix.project == 'rootNative'
+        run: sbt integrationNative/test
+
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: mkdir -p examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target it/target module/database/doobie/target core/.native/target module/database/skunk/target module/json/jsoniter/.jvm/target core/.js/target module/json/circe/.js/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
+        run: mkdir -p module/database/skunk/.js/target examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target module/database/doobie/target core/.native/target module/database/skunk/.jvm/target module/json/jsoniter/.jvm/target core/.js/target it/native/target it/jvm/target module/json/circe/.js/target module/database/skunk/.native/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: tar cf targets.tar examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target it/target module/database/doobie/target core/.native/target module/database/skunk/target module/json/jsoniter/.jvm/target core/.js/target module/json/circe/.js/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
+        run: tar cf targets.tar module/database/skunk/.js/target examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target module/database/doobie/target core/.native/target module/database/skunk/.jvm/target module/json/jsoniter/.jvm/target core/.js/target it/native/target it/jvm/target module/json/circe/.js/target module/database/skunk/.native/target core/.jvm/target module/json/jsoniter/.native/target module/json/circe/.native/target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')

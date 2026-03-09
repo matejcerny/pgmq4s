@@ -1,4 +1,4 @@
-# Doobie / Classic Tagless Final
+# Doobie
 
 The classic tagless final style passes the `PgmqClientF[F]` explicitly, making dependencies visible in type signatures and compatible with any `F[_]` effect type.
 
