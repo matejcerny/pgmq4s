@@ -79,6 +79,11 @@
   <p class="header"><a href="#">pgmq4s</a></p>
 
   <ul class="nav-list">
+    <li class="level1 nav-node"><a href="#examples">Examples</a></li>
+    <li class="level2 nav-leaf"><a href="#a-better-encoding">A Better Encoding</a></li>
+    <li class="level2 nav-leaf"><a href="#classic-tagless-final-f-_">Classic tagless final (<code>F[_]</code>)</a></li>
+    <li class="level1 nav-leaf"><a href="#compile-the-examples">Compile the examples</a></li>
+    <li class="level1 nav-leaf"><a href="#run-the-examples">Run the examples</a></li>
   </ul>
 
   <p class="footer"></p>
@@ -88,6 +93,107 @@
       <main class="content">
 
         <h1 id="pgmq4s" class="title">pgmq4s</h1>
+        <p>Typed Scala client for <a href="https://github.com/tembo-io/pgmq">pgmq</a>, with support for multiple backends (Doobie, Skunk) and JSON codecs (Circe, Jsoniter).</p>
+        
+        <h2 id="examples" class="section"><a class="anchor-link left" href="#examples"><i class="icofont-laika link">&#xef71;</i></a>Examples</h2>
+        <p>Both approaches are implemented as runnable <code>IOApp.Simple</code> programs in:</p>
+        <ul>
+          <li><code>examples/src/main/scala/pgmq4s/examples/BetterEncodingExample.scala</code></li>
+          <li><code>examples/src/main/scala/pgmq4s/examples/ClassicTaglessFinalExample.scala</code></li>
+        </ul>
+        
+        <h3 id="a-better-encoding" class="section"><a class="anchor-link left" href="#a-better-encoding"><i class="icofont-laika link">&#xef71;</i></a>A Better Encoding</h3>
+        <p>Inspired by Noel Welsh&#39;s <a href="https://scalawithcats.com/dist/scala-with-cats.html#a-better-encoding">book</a> and <a href="https://www.youtube.com/watch?v=nyMwp7--rY4">conference talk</a>.</p>
+        <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">effect</span><span>.{ </span><span class="type-name">IO</span><span>, </span><span class="type-name">IOApp</span><span> }
+</span><span class="keyword">import</span><span> </span><span class="identifier">doobie</span><span>.</span><span class="identifier">hikari</span><span>.</span><span class="type-name">HikariTransactor</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">io</span><span>.</span><span class="identifier">circe</span><span>.{ </span><span class="type-name">Decoder</span><span>, </span><span class="type-name">Encoder</span><span> }
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">circe</span><span>.</span><span class="keyword">given</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">doobie</span><span>.</span><span class="type-name">DoobiePgmqClient</span><span>
+
+</span><span class="keyword">import</span><span> </span><span class="identifier">scala</span><span>.</span><span class="identifier">concurrent</span><span>.</span><span class="type-name">ExecutionContext</span><span>
+
+</span><span class="keyword">final</span><span> </span><span class="keyword">case</span><span> </span><span class="keyword">class</span><span> </span><span class="type-name">OrderCreated</span><span>(</span><span class="identifier">orderId</span><span>: </span><span class="type-name">Long</span><span>, </span><span class="identifier">email</span><span>: </span><span class="type-name">String</span><span>) </span><span class="keyword">derives</span><span> </span><span class="type-name">Encoder</span><span>.</span><span class="type-name">AsObject</span><span>, </span><span class="type-name">Decoder</span><span>
+
+</span><span class="keyword">object</span><span> </span><span class="type-name">BetterEncodingApp</span><span> </span><span class="keyword">extends</span><span> </span><span class="type-name">IOApp</span><span>.</span><span class="type-name">Simple</span><span>:
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">queue</span><span>: </span><span class="type-name">QueueName</span><span> = </span><span class="type-name">QueueName</span><span>(</span><span class="string-literal">&quot;orders_better_encoding&quot;</span><span>)
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">event</span><span> = </span><span class="type-name">OrderCreated</span><span>(</span><span class="number-literal">1L</span><span>, </span><span class="string-literal">&quot;dev@example.com&quot;</span><span>)
+
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">hikariTransactor</span><span> =
+    </span><span class="type-name">HikariTransactor</span><span>.</span><span class="identifier">newHikariTransactor</span><span>[</span><span class="type-name">IO</span><span>](
+      </span><span class="identifier">driverClassName</span><span> = </span><span class="string-literal">&quot;org.postgresql.Driver&quot;</span><span>,
+      </span><span class="identifier">url</span><span> = </span><span class="string-literal">&quot;jdbc:postgresql://localhost:5432/pgmq&quot;</span><span>,
+      </span><span class="identifier">user</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+      </span><span class="identifier">pass</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+      </span><span class="identifier">connectEC</span><span> = </span><span class="type-name">ExecutionContext</span><span>.</span><span class="identifier">global</span><span>
+    )
+
+  </span><span class="keyword">val</span><span> </span><span class="identifier">run</span><span>: </span><span class="type-name">IO</span><span>[</span><span class="type-name">Unit</span><span>] = </span><span class="identifier">hikariTransactor</span><span>.</span><span class="identifier">use</span><span>: </span><span class="identifier">xa</span><span> =&gt;
+    </span><span class="keyword">given</span><span> </span><span class="type-name">DoobiePgmqClient</span><span>[</span><span class="type-name">IO</span><span>] = </span><span class="type-name">DoobiePgmqClient</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="identifier">xa</span><span>)
+
+    </span><span class="keyword">for</span><span>
+      </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">PgmqClient</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
+      </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">PgmqClient</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
+      </span><span class="identifier">messages</span><span> &lt;- </span><span class="type-name">PgmqClient</span><span>.</span><span class="identifier">read</span><span>[</span><span class="type-name">OrderCreated</span><span>](</span><span class="identifier">queue</span><span>, </span><span class="identifier">vt</span><span> = </span><span class="number-literal">30</span><span>, </span><span class="identifier">qty</span><span> = </span><span class="number-literal">10</span><span>)
+      </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">IO</span><span>.</span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;better-encoding read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
+    </span><span class="keyword">yield</span><span> ()</span></code></pre>
+        
+        <h3 id="classic-tagless-final-f-_" class="section"><a class="anchor-link left" href="#classic-tagless-final-f-_"><i class="icofont-laika link">&#xef71;</i></a>Classic tagless final (<code>F[_]</code>)</h3>
+        <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="type-name">MonadThrow</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">effect</span><span>.{ </span><span class="type-name">IO</span><span>, </span><span class="type-name">IOApp</span><span> }
+</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">syntax</span><span>.</span><span class="identifier">all</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">doobie</span><span>.</span><span class="identifier">hikari</span><span>.</span><span class="type-name">HikariTransactor</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">doobie</span><span>.</span><span class="type-name">DoobiePgmqClient</span><span>
+
+</span><span class="keyword">import</span><span> </span><span class="identifier">scala</span><span>.</span><span class="identifier">concurrent</span><span>.</span><span class="type-name">ExecutionContext</span><span>
+
+</span><span class="keyword">trait</span><span> </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]]:
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>]
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">read</span><span>(</span><span class="identifier">vt</span><span>: </span><span class="type-name">Int</span><span>, </span><span class="identifier">qty</span><span>: </span><span class="type-name">Int</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]]
+
+</span><span class="keyword">object</span><span> </span><span class="type-name">OrderQueue</span><span>:
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">make</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]](</span><span class="identifier">queue</span><span>: </span><span class="type-name">QueueName</span><span>, </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClientF</span><span>[</span><span class="type-name">F</span><span>]): </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>] =
+    </span><span class="keyword">new</span><span> </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>]:
+      </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>] = </span><span class="identifier">client</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
+      </span><span class="keyword">def</span><span> </span><span class="declaration-name">read</span><span>(</span><span class="identifier">vt</span><span>: </span><span class="type-name">Int</span><span>, </span><span class="identifier">qty</span><span>: </span><span class="type-name">Int</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]] =
+        </span><span class="identifier">client</span><span>.</span><span class="identifier">read</span><span>[</span><span class="type-name">OrderCreated</span><span>](</span><span class="identifier">queue</span><span>, </span><span class="identifier">vt</span><span>, </span><span class="identifier">qty</span><span>)
+
+</span><span class="keyword">class</span><span> </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]: </span><span class="type-name">MonadThrow</span><span>](</span><span class="identifier">queue</span><span>: </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>]):
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">publishAndFetch</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]] =
+    </span><span class="keyword">for</span><span>
+      </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">queue</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">event</span><span>)
+      </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">queue</span><span>.</span><span class="identifier">read</span><span>(</span><span class="identifier">vt</span><span> = </span><span class="number-literal">30</span><span>, </span><span class="identifier">qty</span><span> = </span><span class="number-literal">10</span><span>)
+    </span><span class="keyword">yield</span><span> </span><span class="identifier">messages</span><span>
+
+</span><span class="keyword">object</span><span> </span><span class="type-name">ClassicTaglessFinalApp</span><span> </span><span class="keyword">extends</span><span> </span><span class="type-name">IOApp</span><span>.</span><span class="type-name">Simple</span><span>:
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">queue</span><span> = </span><span class="type-name">QueueName</span><span>(</span><span class="string-literal">&quot;orders_tagless_final&quot;</span><span>)
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">event</span><span> = </span><span class="type-name">OrderCreated</span><span>(</span><span class="number-literal">2L</span><span>, </span><span class="string-literal">&quot;dev@example.com&quot;</span><span>)
+
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">hikariTransactor</span><span> =
+    </span><span class="type-name">HikariTransactor</span><span>.</span><span class="identifier">newHikariTransactor</span><span>[</span><span class="type-name">IO</span><span>](
+      </span><span class="identifier">driverClassName</span><span> = </span><span class="string-literal">&quot;org.postgresql.Driver&quot;</span><span>,
+      </span><span class="identifier">url</span><span> = </span><span class="string-literal">&quot;jdbc:postgresql://localhost:5432/pgmq&quot;</span><span>,
+      </span><span class="identifier">user</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+      </span><span class="identifier">pass</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+      </span><span class="identifier">connectEC</span><span> = </span><span class="type-name">ExecutionContext</span><span>.</span><span class="identifier">global</span><span>
+    )
+
+  </span><span class="keyword">val</span><span> </span><span class="identifier">run</span><span>: </span><span class="type-name">IO</span><span>[</span><span class="type-name">Unit</span><span>] = </span><span class="identifier">hikariTransactor</span><span>.</span><span class="identifier">use</span><span>: </span><span class="identifier">xa</span><span> =&gt;
+    </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClientF</span><span>[</span><span class="type-name">IO</span><span>] = </span><span class="type-name">DoobiePgmqClient</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="identifier">xa</span><span>)
+    </span><span class="keyword">val</span><span> </span><span class="identifier">service</span><span> = </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="type-name">OrderQueue</span><span>.</span><span class="identifier">make</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">client</span><span>))
+    </span><span class="keyword">for</span><span>
+      </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
+      </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">service</span><span>.</span><span class="identifier">publishAndFetch</span><span>(</span><span class="identifier">event</span><span>)
+      </span><span class="identifier">_</span><span> &lt;- </span><span class="type-name">IO</span><span>.</span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;tagless-final read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
+    </span><span class="keyword">yield</span><span> ()</span></code></pre>
+        
+        <h2 id="compile-the-examples" class="section"><a class="anchor-link left" href="#compile-the-examples"><i class="icofont-laika link">&#xef71;</i></a>Compile the examples</h2>
+        <pre class="keep-together pdf epub"><code class="nohighlight"><span>sbt examples/compile</span></code></pre>
+        
+        <h2 id="run-the-examples" class="section"><a class="anchor-link left" href="#run-the-examples"><i class="icofont-laika link">&#xef71;</i></a>Run the examples</h2>
+        <pre class="keep-together pdf epub"><code class="nohighlight"><span>sbt </span><span class="string-literal">&quot;examples/runMain pgmq4s.examples.BetterEncodingApp&quot;</span><span>
+sbt </span><span class="string-literal">&quot;examples/runMain pgmq4s.examples.ClassicTaglessFinalApp&quot;</span></code></pre>
 
         
 <hr class="footer-rule"/>
