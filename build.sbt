@@ -8,6 +8,14 @@ ThisBuild / developers := List(tlGitHubDev("matejcerny", "Matej Cerny"))
 
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 
+ThisBuild / githubWorkflowBuildPreamble ++= Seq(
+  WorkflowStep.Run(
+    name = Some("Install native dependencies"),
+    cond = Some("matrix.project == 'rootNative'"),
+    commands = List("sudo apt-get install -y libutf8proc-dev")
+  )
+)
+
 ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   WorkflowStep.Run(
     name = Some("Start Postgres for integration tests"),
