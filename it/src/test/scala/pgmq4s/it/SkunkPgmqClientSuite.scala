@@ -1,7 +1,6 @@
 package pgmq4s.it
 
-import java.util.UUID
-
+import _root_.skunk.Session
 import cats.effect.*
 import cats.syntax.foldable.*
 import io.circe.*
@@ -9,8 +8,9 @@ import natchez.Trace.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
 import pgmq4s.skunk.SkunkPgmqClient
-import _root_.skunk.Session
 import weaver.*
+
+import java.util.UUID
 
 object SkunkPgmqClientSuite extends IOSuite:
 
@@ -40,12 +40,15 @@ object SkunkPgmqClientSuite extends IOSuite:
           .void
     yield (client, queues)
 
-  private def pgmqTest(name: String)(body: PgmqClientF[IO] ?=> QueueName => IO[Expectations]): Unit =
+  private def pgmqTest(name: String, createQueue: Boolean = true)(
+      body: PgmqClientF[IO] ?=> QueueName => IO[Expectations]
+  ): Unit =
     test(name) { case (client, queues) =>
       given PgmqClientF[IO] = client
       val queue = QueueName(s"test_${UUID.randomUUID().toString.replace("-", "")}")
+      val setup = queues.update(queue :: _)
 
-      queues.update(queue :: _) *> PgmqClient.createQueue(queue) *> body(queue)
+      (if createQueue then setup *> PgmqClient.createQueue(queue) else setup) *> body(queue)
     }
 
   pgmqTest("send and read a message"): queue =>
@@ -137,3 +140,11 @@ object SkunkPgmqClientSuite extends IOSuite:
     for m <- PgmqClient.metrics(queue)
     yield expect(clue(m).isDefined) and
       expect.same(m.map(_.queueName), Some(queue))
+
+  pgmqTest("create partitioned queue", createQueue = false): queue =>
+    PgmqClient
+      .createPartitionedQueue(queue, "10000", "100000")
+      .attempt
+      .map:
+        case Right(_) => success
+        case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))

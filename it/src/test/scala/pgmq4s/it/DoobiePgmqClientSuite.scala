@@ -1,8 +1,5 @@
 package pgmq4s.it
 
-import java.util.UUID
-import scala.concurrent.ExecutionContext
-
 import cats.effect.*
 import cats.syntax.foldable.*
 import doobie.hikari.HikariTransactor
@@ -11,6 +8,9 @@ import pgmq4s.*
 import pgmq4s.circe.given
 import pgmq4s.doobie.DoobiePgmqClient
 import weaver.*
+
+import java.util.UUID
+import scala.concurrent.ExecutionContext
 
 object DoobiePgmqClientSuite extends IOSuite:
 
@@ -39,12 +39,15 @@ object DoobiePgmqClientSuite extends IOSuite:
           .void
     yield (client, queues)
 
-  private def pgmqTest(name: String)(body: PgmqClientF[IO] ?=> QueueName => IO[Expectations]): Unit =
+  private def pgmqTest(name: String, createQueue: Boolean = true)(
+      body: PgmqClientF[IO] ?=> QueueName => IO[Expectations]
+  ): Unit =
     test(name) { case (client, queues) =>
       given PgmqClientF[IO] = client
       val queue = QueueName(s"test_${UUID.randomUUID().toString.replace("-", "")}")
+      val setup = queues.update(queue :: _)
 
-      queues.update(queue :: _) *> PgmqClient.createQueue(queue) *> body(queue)
+      (if createQueue then setup *> PgmqClient.createQueue(queue) else setup) *> body(queue)
     }
 
   pgmqTest("send and read a message"): queue =>
@@ -136,3 +139,11 @@ object DoobiePgmqClientSuite extends IOSuite:
     for m <- PgmqClient.metrics(queue)
     yield expect(clue(m).isDefined) and
       expect.same(m.map(_.queueName), Some(queue))
+
+  pgmqTest("create partitioned queue", createQueue = false): queue =>
+    PgmqClient
+      .createPartitionedQueue(queue, "10000", "100000")
+      .attempt
+      .map:
+        case Right(_) => success
+        case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))
