@@ -93,8 +93,60 @@
       <main class="content">
 
         <h1 id="skunk" class="title">Skunk</h1>
-        <blockquote><strong>Coming soon.</strong> Skunk backend examples are not yet available.</blockquote>
-        <p>See <a href="doobie.html">Doobie</a> for a complete example using the same pattern with the Doobie backend.</p>
+        <p>The classic tagless final style passes the <code>PgmqClientF[F]</code> explicitly, making dependencies visible and injectable:</p>
+        <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">_root_</span><span>.</span><span class="identifier">skunk</span><span>.</span><span class="type-name">Session</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="type-name">MonadThrow</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">effect</span><span>.{ </span><span class="type-name">IO</span><span>, </span><span class="type-name">IOApp</span><span> }
+</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">syntax</span><span>.</span><span class="identifier">all</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">io</span><span>.</span><span class="identifier">circe</span><span>.{ </span><span class="type-name">Decoder</span><span>, </span><span class="type-name">Encoder</span><span> }
+</span><span class="keyword">import</span><span> </span><span class="identifier">natchez</span><span>.</span><span class="type-name">Trace</span><span>.</span><span class="type-name">Implicits</span><span>.</span><span class="identifier">noop</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">circe</span><span>.</span><span class="keyword">given</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">skunk</span><span>.</span><span class="type-name">SkunkPgmqClient</span><span>
+
+</span><span class="keyword">case</span><span> </span><span class="keyword">class</span><span> </span><span class="type-name">OrderCreated</span><span>(</span><span class="identifier">orderId</span><span>: </span><span class="type-name">Long</span><span>, </span><span class="identifier">email</span><span>: </span><span class="type-name">String</span><span>) </span><span class="keyword">derives</span><span> </span><span class="type-name">Encoder</span><span>.</span><span class="type-name">AsObject</span><span>, </span><span class="type-name">Decoder</span><span>
+
+</span><span class="keyword">trait</span><span> </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]]:
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>]
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">read</span><span>(</span><span class="identifier">vt</span><span>: </span><span class="type-name">Int</span><span>, </span><span class="identifier">qty</span><span>: </span><span class="type-name">Int</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]]
+
+</span><span class="keyword">object</span><span> </span><span class="type-name">OrderQueue</span><span>:
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">make</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]](</span><span class="identifier">queue</span><span>: </span><span class="type-name">QueueName</span><span>, </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClientF</span><span>[</span><span class="type-name">F</span><span>]): </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>] =
+    </span><span class="keyword">new</span><span> </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>]:
+      </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>]                 = </span><span class="identifier">client</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
+      </span><span class="keyword">def</span><span> </span><span class="declaration-name">read</span><span>(</span><span class="identifier">vt</span><span>: </span><span class="type-name">Int</span><span>, </span><span class="identifier">qty</span><span>: </span><span class="type-name">Int</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]] =
+        </span><span class="identifier">client</span><span>.</span><span class="identifier">read</span><span>[</span><span class="type-name">OrderCreated</span><span>](</span><span class="identifier">queue</span><span>, </span><span class="identifier">vt</span><span>, </span><span class="identifier">qty</span><span>)
+
+</span><span class="keyword">class</span><span> </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]: </span><span class="type-name">MonadThrow</span><span>](</span><span class="identifier">queue</span><span>: </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>]):
+  </span><span class="keyword">def</span><span> </span><span class="declaration-name">publishAndFetch</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]] =
+    </span><span class="keyword">for</span><span>
+      </span><span class="identifier">_</span><span>        &lt;- </span><span class="identifier">queue</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">event</span><span>)
+      </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">queue</span><span>.</span><span class="identifier">read</span><span>(</span><span class="identifier">vt</span><span> = </span><span class="number-literal">30</span><span>, </span><span class="identifier">qty</span><span> = </span><span class="number-literal">10</span><span>)
+    </span><span class="keyword">yield</span><span> </span><span class="identifier">messages</span><span>
+
+</span><span class="keyword">object</span><span> </span><span class="type-name">ClassicTaglessFinalApp</span><span> </span><span class="keyword">extends</span><span> </span><span class="type-name">IOApp</span><span>.</span><span class="type-name">Simple</span><span>:
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">queue</span><span> = </span><span class="type-name">QueueName</span><span>(</span><span class="string-literal">&quot;orders_skunk_tagless_final&quot;</span><span>)
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">event</span><span> = </span><span class="type-name">OrderCreated</span><span>(</span><span class="number-literal">2L</span><span>, </span><span class="string-literal">&quot;dev@example.com&quot;</span><span>)
+
+  </span><span class="keyword">val</span><span> </span><span class="identifier">run</span><span>: </span><span class="type-name">IO</span><span>[</span><span class="type-name">Unit</span><span>] =
+    </span><span class="type-name">Session</span><span>
+      .</span><span class="identifier">pooled</span><span>[</span><span class="type-name">IO</span><span>](
+        </span><span class="identifier">host</span><span> = </span><span class="string-literal">&quot;localhost&quot;</span><span>,
+        </span><span class="identifier">port</span><span> = </span><span class="number-literal">5432</span><span>,
+        </span><span class="identifier">user</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+        </span><span class="identifier">database</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+        </span><span class="identifier">password</span><span> = </span><span class="type-name">Some</span><span>(</span><span class="string-literal">&quot;pgmq&quot;</span><span>),
+        </span><span class="identifier">max</span><span> = </span><span class="number-literal">10</span><span>
+      )
+      .</span><span class="identifier">use</span><span>: </span><span class="identifier">pool</span><span> =&gt;
+        </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClientF</span><span>[</span><span class="type-name">IO</span><span>] = </span><span class="type-name">SkunkPgmqClient</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="identifier">pool</span><span>)
+        </span><span class="keyword">val</span><span> </span><span class="identifier">service</span><span>                 = </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="type-name">OrderQueue</span><span>.</span><span class="identifier">make</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">client</span><span>))
+
+        </span><span class="keyword">for</span><span>
+          </span><span class="identifier">_</span><span>        &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
+          </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">service</span><span>.</span><span class="identifier">publishAndFetch</span><span>(</span><span class="identifier">event</span><span>)
+          </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">IO</span><span>.</span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;skunk tagless-final read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
+        </span><span class="keyword">yield</span><span> ()</span></code></pre>
 
         
 <hr class="footer-rule"/>

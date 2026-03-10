@@ -95,16 +95,16 @@
         <h1 id="doobie" class="title">Doobie</h1>
         <p>The classic tagless final style passes the <code>PgmqClientF[F]</code> explicitly, making dependencies visible in type signatures and compatible with any <code>F[_]</code> effect type.</p>
         <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="type-name">MonadThrow</span><span>
-</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">effect</span><span>.{ </span><span class="type-name">IO</span><span>, </span><span class="type-name">IOApp</span><span> }
+</span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">effect</span><span>.{ </span><span class="type-name">IO</span><span>, </span><span class="type-name">IOApp</span><span>, </span><span class="type-name">Resource</span><span> }
 </span><span class="keyword">import</span><span> </span><span class="identifier">cats</span><span>.</span><span class="identifier">syntax</span><span>.</span><span class="identifier">all</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">doobie</span><span>.</span><span class="type-name">ExecutionContexts</span><span>
 </span><span class="keyword">import</span><span> </span><span class="identifier">doobie</span><span>.</span><span class="identifier">hikari</span><span>.</span><span class="type-name">HikariTransactor</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">io</span><span>.</span><span class="identifier">circe</span><span>.{ </span><span class="type-name">Decoder</span><span>, </span><span class="type-name">Encoder</span><span> }
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">circe</span><span>.</span><span class="keyword">given</span><span>
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">doobie</span><span>.</span><span class="type-name">DoobiePgmqClient</span><span>
 
-</span><span class="keyword">import</span><span> </span><span class="identifier">scala</span><span>.</span><span class="identifier">concurrent</span><span>.</span><span class="type-name">ExecutionContext</span><span>
-
-</span><span class="keyword">final</span><span> </span><span class="keyword">case</span><span> </span><span class="keyword">class</span><span> </span><span class="type-name">OrderCreated</span><span>(</span><span class="identifier">orderId</span><span>: </span><span class="type-name">Long</span><span>, </span><span class="identifier">email</span><span>: </span><span class="type-name">String</span><span>)
+</span><span class="keyword">case</span><span> </span><span class="keyword">class</span><span> </span><span class="type-name">OrderCreated</span><span>(</span><span class="identifier">orderId</span><span>: </span><span class="type-name">Long</span><span>, </span><span class="identifier">email</span><span>: </span><span class="type-name">String</span><span>) </span><span class="keyword">derives</span><span> </span><span class="type-name">Encoder</span><span>.</span><span class="type-name">AsObject</span><span>, </span><span class="type-name">Decoder</span><span>
 
 </span><span class="keyword">trait</span><span> </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]]:
   </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>]
@@ -113,7 +113,7 @@
 </span><span class="keyword">object</span><span> </span><span class="type-name">OrderQueue</span><span>:
   </span><span class="keyword">def</span><span> </span><span class="declaration-name">make</span><span>[</span><span class="type-name">F</span><span>[</span><span class="identifier">_</span><span>]](</span><span class="identifier">queue</span><span>: </span><span class="type-name">QueueName</span><span>, </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClientF</span><span>[</span><span class="type-name">F</span><span>]): </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>] =
     </span><span class="keyword">new</span><span> </span><span class="type-name">OrderQueue</span><span>[</span><span class="type-name">F</span><span>]:
-      </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>] = </span><span class="identifier">client</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
+      </span><span class="keyword">def</span><span> </span><span class="declaration-name">send</span><span>(</span><span class="identifier">event</span><span>: </span><span class="type-name">OrderCreated</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">MessageId</span><span>]                 = </span><span class="identifier">client</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
       </span><span class="keyword">def</span><span> </span><span class="declaration-name">read</span><span>(</span><span class="identifier">vt</span><span>: </span><span class="type-name">Int</span><span>, </span><span class="identifier">qty</span><span>: </span><span class="type-name">Int</span><span>): </span><span class="type-name">F</span><span>[</span><span class="type-name">List</span><span>[</span><span class="type-name">Message</span><span>[</span><span class="type-name">OrderCreated</span><span>]]] =
         </span><span class="identifier">client</span><span>.</span><span class="identifier">read</span><span>[</span><span class="type-name">OrderCreated</span><span>](</span><span class="identifier">queue</span><span>, </span><span class="identifier">vt</span><span>, </span><span class="identifier">qty</span><span>)
 
@@ -128,23 +128,26 @@
   </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">queue</span><span> = </span><span class="type-name">QueueName</span><span>(</span><span class="string-literal">&quot;orders_tagless_final&quot;</span><span>)
   </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">event</span><span> = </span><span class="type-name">OrderCreated</span><span>(</span><span class="number-literal">2L</span><span>, </span><span class="string-literal">&quot;dev@example.com&quot;</span><span>)
 
-  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">hikariTransactor</span><span> =
-    </span><span class="type-name">HikariTransactor</span><span>.</span><span class="identifier">newHikariTransactor</span><span>[</span><span class="type-name">IO</span><span>](
-      </span><span class="identifier">driverClassName</span><span> = </span><span class="string-literal">&quot;org.postgresql.Driver&quot;</span><span>,
-      </span><span class="identifier">url</span><span> = </span><span class="string-literal">&quot;jdbc:postgresql://localhost:5432/pgmq&quot;</span><span>,
-      </span><span class="identifier">user</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
-      </span><span class="identifier">pass</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
-      </span><span class="identifier">connectEC</span><span> = </span><span class="type-name">ExecutionContext</span><span>.</span><span class="identifier">global</span><span>
-    )
+  </span><span class="keyword">private</span><span> </span><span class="keyword">val</span><span> </span><span class="identifier">hikariTransactor</span><span>: </span><span class="type-name">Resource</span><span>[</span><span class="type-name">IO</span><span>, </span><span class="type-name">HikariTransactor</span><span>[</span><span class="type-name">IO</span><span>]] =
+    </span><span class="keyword">for</span><span>
+      </span><span class="identifier">ce</span><span> &lt;- </span><span class="type-name">ExecutionContexts</span><span>.</span><span class="identifier">fixedThreadPool</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="number-literal">32</span><span>)
+      </span><span class="identifier">xa</span><span> &lt;- </span><span class="type-name">HikariTransactor</span><span>.</span><span class="identifier">newHikariTransactor</span><span>[</span><span class="type-name">IO</span><span>](
+        </span><span class="identifier">driverClassName</span><span> = </span><span class="string-literal">&quot;org.postgresql.Driver&quot;</span><span>,
+        </span><span class="identifier">url</span><span> = </span><span class="string-literal">&quot;jdbc:postgresql://localhost:5432/pgmq&quot;</span><span>,
+        </span><span class="identifier">user</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+        </span><span class="identifier">pass</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
+        </span><span class="identifier">connectEC</span><span> = </span><span class="identifier">ce</span><span>
+      )
+    </span><span class="keyword">yield</span><span> </span><span class="identifier">xa</span><span>
 
   </span><span class="keyword">val</span><span> </span><span class="identifier">run</span><span>: </span><span class="type-name">IO</span><span>[</span><span class="type-name">Unit</span><span>] = </span><span class="identifier">hikariTransactor</span><span>.</span><span class="identifier">use</span><span>: </span><span class="identifier">xa</span><span> =&gt;
     </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClientF</span><span>[</span><span class="type-name">IO</span><span>] = </span><span class="type-name">DoobiePgmqClient</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="identifier">xa</span><span>)
-    </span><span class="keyword">val</span><span> </span><span class="identifier">service</span><span> = </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="type-name">OrderQueue</span><span>.</span><span class="identifier">make</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">client</span><span>))
+    </span><span class="keyword">val</span><span> </span><span class="identifier">service</span><span>                 = </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="type-name">OrderQueue</span><span>.</span><span class="identifier">make</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">client</span><span>))
 
     </span><span class="keyword">for</span><span>
       </span><span class="identifier">_</span><span>        &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
       </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">service</span><span>.</span><span class="identifier">publishAndFetch</span><span>(</span><span class="identifier">event</span><span>)
-      </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">IO</span><span>.</span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
+      </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">IO</span><span>.</span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;tagless-final read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
     </span><span class="keyword">yield</span><span> ()</span></code></pre>
 
         
