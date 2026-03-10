@@ -6,8 +6,8 @@ ThisBuild / startYear := Some(2026)
 ThisBuild / licenses := Seq(License.MIT)
 ThisBuild / developers := List(tlGitHubDev("matejcerny", "Matej Cerny"))
 
+// === CI/CD WORKFLOWS ===
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
-
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Run(
     name = Some("Install native dependencies"),
@@ -44,6 +44,7 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   )
 )
 
+// === VERSIONS ===
 val CatsEffectV = "3.6.3"
 val CirceV = "0.14.8"
 val DoobieV = "1.0.0-RC12"
@@ -105,17 +106,6 @@ lazy val skunk = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
-lazy val examples = (project in file("examples"))
-  .dependsOn(core.jvm, circe.jvm, doobie)
-  .settings(
-    name := "pgmq4s-examples",
-    publish / skip := true,
-    coverageEnabled := false,
-    libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-hikari" % DoobieV
-    )
-  )
-
 // === JSON ===
 lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
@@ -143,8 +133,21 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
+// === DOCUMENTATION ===
 lazy val docs = project
   .in(file("site"))
   .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk.jvm)
   .enablePlugins(TypelevelSitePlugin)
   .settings(tlSitePublishBranch := Some("main"))
+
+lazy val examples = (project in file("examples"))
+  .dependsOn(core.jvm, circe.jvm, doobie, skunk.jvm)
+  .disablePlugins(HeaderPlugin)
+  .settings(
+    name := "pgmq4s-examples",
+    publish / skip := true,
+    coverageEnabled := false,
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "doobie-hikari" % DoobieV
+    )
+  )

@@ -1,8 +1,5 @@
-# Skunk
+package pgmq4s.examples.skunk
 
-Given a `SkunkPgmqClient[F]` in implicit scope, `PgmqClient.*` methods resolve it automatically:
-
-```scala
 import _root_.skunk.Session
 import cats.effect.{ IO, IOApp }
 import io.circe.{ Decoder, Encoder }
@@ -36,4 +33,3 @@ object BetterEncodingApp extends IOApp.Simple:
           messages <- PgmqClient.read[OrderCreated](queue, vt = 30, qty = 10)
           _        <- IO.println(s"skunk better-encoding read: ${messages.map(_.message)}")
         yield ()
-```

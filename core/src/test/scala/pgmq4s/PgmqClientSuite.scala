@@ -152,7 +152,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("send encodes message and wraps result in MessageId", Returns(send = 42L)): captured =>
     for
       id <- PgmqClient.send[String](q, "hello")
-      c <- captured
+      c  <- captured
     yield List(
       expect.same(id.value, 42L),
       expect.same(c.queue, "my-queue"),
@@ -162,7 +162,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("send with delay forwards delay to raw method", Returns(send = 7L)): captured =>
     for
       id <- PgmqClient.send[String](q, "delayed", 30)
-      c <- captured
+      c  <- captured
     yield expect.same(id.value, 7L) and
       expect.same(c.delay, 30)
 
@@ -171,14 +171,14 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatch encodes all messages and wraps results", Returns(sendBatch = List(10L, 20L))): captured =>
     for
       ids <- PgmqClient.sendBatch[String](q, List("a", "b"))
-      c <- captured
+      c   <- captured
     yield expect.same(ids.map(_.value), List(10L, 20L)) and
       expect.same(c.bodies, List("a", "b"))
 
   pgmqTest("sendBatch with delay forwards delay", Returns(sendBatch = List(1L))): captured =>
     for
       ids <- PgmqClient.sendBatch[String](q, List("x"), 60)
-      c <- captured
+      c   <- captured
     yield expect.same(ids.map(_.value), List(1L)) and
       expect.same(c.delay, 60)
 
@@ -187,7 +187,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read decodes raw messages into Message[A]", Returns(read = List(rawMsg(1L, "payload")))): captured =>
     for
       msgs <- PgmqClient.read[String](q, vt = 30, qty = 5)
-      c <- captured
+      c    <- captured
     yield List(
       expect.same(msgs.size, 1),
       expect.same(msgs.map(_.msgId.value), List(1L)),
@@ -226,7 +226,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("setVt decodes and wraps optional result", Returns(setVt = Some(rawMsg(9L, "updated")))): captured =>
     for
       opt <- PgmqClient.setVt[String](q, MessageId(9L), vtOffset = 60)
-      c <- captured
+      c   <- captured
     yield List(
       expect(clue(opt).isDefined),
       expect.same(opt.map(_.msgId.value), Some(9L)),
@@ -243,7 +243,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("delete unwraps opaque types"): captured =>
     for
       ok <- PgmqClient.delete(q, MessageId(99L))
-      c <- captured
+      c  <- captured
     yield List(
       expect(clue(ok)),
       expect.same(c.msgId, 99L),
@@ -253,21 +253,21 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("archive unwraps opaque types"): captured =>
     for
       ok <- PgmqClient.archive(q, MessageId(55L))
-      c <- captured
+      c  <- captured
     yield expect(clue(ok)) and
       expect.same(c.msgId, 55L)
 
   pgmqTest("deleteBatch unwraps and rewraps ids", Returns(deleteBatch = List(1L, 3L))): captured =>
     for
       ids <- PgmqClient.deleteBatch(q, List(MessageId(1L), MessageId(2L), MessageId(3L)))
-      c <- captured
+      c   <- captured
     yield expect.same(ids.map(_.value), List(1L, 3L)) and
       expect.same(c.msgIds, List(1L, 2L, 3L))
 
   pgmqTest("archiveBatch unwraps and rewraps ids", Returns(archiveBatch = List(10L, 20L))): captured =>
     for
       ids <- PgmqClient.archiveBatch(q, List(MessageId(10L), MessageId(20L)))
-      c <- captured
+      c   <- captured
     yield expect.same(ids.map(_.value), List(10L, 20L)) and
       expect.same(c.msgIds, List(10L, 20L))
 
@@ -292,7 +292,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("dropQueue unwraps QueueName"): captured =>
     for
       ok <- PgmqClient.dropQueue(q)
-      c <- captured
+      c  <- captured
     yield expect(clue(ok)) and
       expect.same(c.queue, "my-queue")
 
@@ -314,7 +314,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("metrics passes through backend result", Returns(metrics = Some(sampleMetrics))): captured =>
     for
       opt <- PgmqClient.metrics(q)
-      c <- captured
+      c   <- captured
     yield List(
       expect(clue(opt).isDefined),
       expect.same(opt.map(_.queueLength), Some(5L)),
@@ -331,7 +331,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("PgmqProgram.map transforms successful result", Returns(send = 11L)): captured =>
     for
       idValue <- PgmqClient.send[String](q, "mapped").map(_.value + 1L)
-      c <- captured
+      c       <- captured
     yield expect.same(idValue, 12L) and
       expect.same(c.body, "mapped")
 
@@ -339,7 +339,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     val program = PgmqClient.send[String](q, "flat-mapped").flatMap(PgmqClient.delete(q, _))
     for
       deleted <- program
-      c <- captured
+      c       <- captured
     yield expect(clue(deleted)) and
       expect.same(c.msgId, 9L)
 
@@ -350,6 +350,6 @@ object PgmqClientSuite extends SimpleIOSuite:
 
     for
       id <- failed.handleErrorWith(_ => PgmqClient.send[String](q, "fallback"))
-      c <- captured
+      c  <- captured
     yield expect.same(id.value, 77L) and
       expect.same(c.body, "fallback")

@@ -1,8 +1,5 @@
-# Doobie
+package pgmq4s.examples.doobie
 
-Given a `DoobiePgmqClient[F]` in implicit scope, `PgmqClient.*` methods resolve it automatically:
-
-```scala
 import cats.effect.{ IO, IOApp, Resource }
 import doobie.ExecutionContexts
 import doobie.hikari.HikariTransactor
@@ -38,4 +35,3 @@ object BetterEncodingApp extends IOApp.Simple:
       messages <- PgmqClient.read[OrderCreated](queue, vt = 30, qty = 10)
       _        <- IO.println(s"better-encoding read: ${messages.map(_.message)}")
     yield ()
-```
