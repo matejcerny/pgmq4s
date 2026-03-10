@@ -32,19 +32,16 @@ trait PgmqClient extends PgmqBackend:
     effectMonadThrow.fromEither(
       PgmqDecoder[A]
         .decode(raw.message)
-        .map: a =>
-          Message(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a)
+        .map:
+          Message(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, _)
     )
 
   // Queue Management
-  def createQueue(queue: QueueName): F[Unit] =
-    createQueueRaw(queue.value)
-
+  def createQueue(queue: QueueName): F[Unit] = createQueueRaw(queue.value)
   def createPartitionedQueue(queue: QueueName, partitionInterval: String, retentionInterval: String): F[Unit] =
     createPartitionedQueueRaw(queue.value, partitionInterval, retentionInterval)
 
-  def dropQueue(queue: QueueName): F[Boolean] =
-    dropQueueRaw(queue.value)
+  def dropQueue(queue: QueueName): F[Boolean] = dropQueueRaw(queue.value)
 
   // Publishing
   def send[A: PgmqEncoder](queue: QueueName, message: A): F[MessageId] =
@@ -67,60 +64,35 @@ trait PgmqClient extends PgmqBackend:
     popRaw(queue.value).flatMap(_.traverse(decodeRaw[A]))
 
   // Lifecycle
-  def archive(queue: QueueName, msgId: MessageId): F[Boolean] =
-    archiveRaw(queue.value, msgId.value)
-
+  def archive(queue: QueueName, msgId: MessageId): F[Boolean]                     = archiveRaw(queue.value, msgId.value)
   def archiveBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     archiveBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
-  def delete(queue: QueueName, msgId: MessageId): F[Boolean] =
-    deleteRaw(queue.value, msgId.value)
-
+  def delete(queue: QueueName, msgId: MessageId): F[Boolean]                     = deleteRaw(queue.value, msgId.value)
   def deleteBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     deleteBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
   def setVt[A: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message[A]]] =
     setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A]))
 
-  def purgeQueue(queue: QueueName): F[Long] =
-    purgeQueueRaw(queue.value)
-
-  def detachArchive(queue: QueueName): F[Unit] =
-    detachArchiveRaw(queue.value)
+  def purgeQueue(queue: QueueName): F[Long]    = purgeQueueRaw(queue.value)
+  def detachArchive(queue: QueueName): F[Unit] = detachArchiveRaw(queue.value)
 
   // Observability
-  def metrics(queue: QueueName): F[Option[QueueMetrics]] =
-    metricsRaw(queue.value)
-
-  def metricsAll: F[List[QueueMetrics]] =
-    metricsAllRaw
-end PgmqClient
+  def metrics(queue: QueueName): F[Option[QueueMetrics]] = metricsRaw(queue.value)
+  def metricsAll: F[List[QueueMetrics]]                  = metricsAllRaw
 
 type PgmqClientF[G[_]] = PgmqClient { type F[x] = G[x] }
 
 type PgmqProgram[C <: PgmqClient, A] = (client: C) ?=> client.F[A]
 
 extension [C <: PgmqClient, A](prog: PgmqProgram[C, A])
-
-  def map[B](f: A => B): PgmqProgram[C, B] =
-    (client: C) ?=>
-      import client.effectMonadThrow
-      prog(using client).map(f)
-
-  def flatMap[B](f: A => PgmqProgram[C, B]): PgmqProgram[C, B] =
-    (client: C) ?=>
-      import client.effectMonadThrow
-      prog(using client).flatMap(a => f(a)(using client))
-
-  def handleErrorWith(f: Throwable => PgmqProgram[C, A]): PgmqProgram[C, A] =
-    (client: C) ?=>
-      import client.effectMonadThrow
-      prog(using client).handleErrorWith(e => f(e)(using client))
+  def map[B](f: A => B): PgmqProgram[C, B]                                  = (client: C) ?=> prog.map(f)
+  def flatMap[B](f: A => PgmqProgram[C, B]): PgmqProgram[C, B]              = (client: C) ?=> prog.flatMap(f(_))
+  def handleErrorWith(f: Throwable => PgmqProgram[C, A]): PgmqProgram[C, A] = (client: C) ?=> prog.handleErrorWith(f(_))
 
 object PgmqClient:
-  def createQueue(queue: QueueName): PgmqProgram[PgmqClient, Unit] =
-    summon[PgmqClient].createQueue(queue)
-
+  def createQueue(queue: QueueName): PgmqProgram[PgmqClient, Unit] = summon[PgmqClient].createQueue(queue)
   def createPartitionedQueue(
       queue: QueueName,
       partitionInterval: String,
@@ -128,9 +100,7 @@ object PgmqClient:
   ): PgmqProgram[PgmqClient, Unit] =
     summon[PgmqClient].createPartitionedQueue(queue, partitionInterval, retentionInterval)
 
-  def dropQueue(queue: QueueName): PgmqProgram[PgmqClient, Boolean] =
-    summon[PgmqClient].dropQueue(queue)
-
+  def dropQueue(queue: QueueName): PgmqProgram[PgmqClient, Boolean] = summon[PgmqClient].dropQueue(queue)
   def send[A: PgmqEncoder](queue: QueueName, message: A): PgmqProgram[PgmqClient, MessageId] =
     summon[PgmqClient].send[A](queue, message)
 
@@ -186,4 +156,3 @@ object PgmqClient:
 
   def metricsAll: PgmqProgram[PgmqClient, List[QueueMetrics]] =
     summon[PgmqClient].metricsAll
-end PgmqClient
