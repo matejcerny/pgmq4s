@@ -1,7 +1,5 @@
 # Doobie
 
-The classic tagless final style passes the `PgmqClientF[F]` explicitly, making dependencies visible in type signatures and compatible with any `F[_]` effect type.
-
 ```scala
 import cats.MonadThrow
 import cats.effect.{ IO, IOApp, Resource }
@@ -20,7 +18,7 @@ trait OrderQueue[F[_]]:
   def read(vt: Int, qty: Int): F[List[Message[OrderCreated]]]
 
 object OrderQueue:
-  def make[F[_]](queue: QueueName, client: PgmqClientF[F]): OrderQueue[F] =
+  def make[F[_]](queue: QueueName, client: PgmqClient[F]): OrderQueue[F] =
     new OrderQueue[F]:
       def send(event: OrderCreated): F[MessageId]                 = client.send(queue, event)
       def read(vt: Int, qty: Int): F[List[Message[OrderCreated]]] =
@@ -33,8 +31,8 @@ class OrderService[F[_]: MonadThrow](queue: OrderQueue[F]):
       messages <- queue.read(vt = 30, qty = 10)
     yield messages
 
-object ClassicTaglessFinalApp extends IOApp.Simple:
-  private val queue = QueueName("orders_tagless_final")
+object DoobiePgmqClientApp extends IOApp.Simple:
+  private val queue = QueueName("orders")
   private val event = OrderCreated(2L, "dev@example.com")
 
   private val hikariTransactor: Resource[IO, HikariTransactor[IO]] =
@@ -50,12 +48,12 @@ object ClassicTaglessFinalApp extends IOApp.Simple:
     yield xa
 
   val run: IO[Unit] = hikariTransactor.use: xa =>
-    val client: PgmqClientF[IO] = DoobiePgmqClient[IO](xa)
-    val service                 = OrderService[IO](OrderQueue.make(queue, client))
+    val client: PgmqClient[IO] = DoobiePgmqClient[IO](xa)
+    val service                = OrderService[IO](OrderQueue.make(queue, client))
 
     for
       _        <- client.createQueue(queue)
       messages <- service.publishAndFetch(event)
-      _        <- IO.println(s"tagless-final read: ${messages.map(_.message)}")
+      _        <- IO.println(s"read: ${messages.map(_.message)}")
     yield ()
 ```

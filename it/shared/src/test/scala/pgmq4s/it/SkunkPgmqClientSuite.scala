@@ -25,10 +25,8 @@ object SkunkPgmqClientSuite extends PgmqClientSuite:
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:
-        given PgmqClientF[IO] = client
-
         queues.get
-          .flatMap(_.traverse_(PgmqClient.dropQueue))
+          .flatMap(_.traverse_(client.dropQueue))
           .attempt
           .void
     yield (client, queues, counter)

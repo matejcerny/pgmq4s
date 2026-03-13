@@ -54,6 +54,7 @@ val JsoniterV = "2.30.2"
 val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
+  .settings(name := "pgmq4s")
   .aggregate(core, circe, jsoniter, doobie, skunk, examples)
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
