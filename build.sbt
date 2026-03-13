@@ -147,6 +147,7 @@ lazy val examples = (project in file("examples"))
   .settings(
     name := "pgmq4s-examples",
     publish / skip := true,
+    mimaPreviousArtifacts := Set.empty,
     coverageEnabled := false,
     libraryDependencies ++= Seq(
       "org.tpolecat" %% "doobie-hikari" % DoobieV
