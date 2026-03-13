@@ -21,8 +21,7 @@
 
 package pgmq4s
 
-import cats.MonadThrow
-import cats.effect.{ Async, IO, Ref }
+import cats.effect.{ IO, Ref }
 import cats.syntax.all.*
 import weaver.{ Expectations, SimpleIOSuite }
 
@@ -77,9 +76,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       metricsAll: List[QueueMetrics] = Nil
   )
 
-  private class StubClient(ref: Ref[IO, Captured], ret: Returns) extends PgmqClient:
-    type F[A] = IO[A]
-    given effectMonadThrow: MonadThrow[F] = summon[Async[IO]]
+  private class StubClient(ref: Ref[IO, Captured], ret: Returns) extends PgmqClient[IO]:
 
     def createQueueRaw(queue: String): IO[Unit] =
       ref.update(_.copy(queue = queue))
@@ -136,22 +133,22 @@ object PgmqClientSuite extends SimpleIOSuite:
       IO.pure(ret.metricsAll)
 
   private def pgmqTest(name: String, ret: Returns = Returns())(
-      body: PgmqClientF[IO] ?=> IO[Captured] => IO[Expectations]
+      body: (PgmqClient[IO], IO[Captured]) => IO[Expectations]
   ): Unit =
     test(name):
       for
         ref <- Ref.of[IO, Captured](Captured())
         client = StubClient(ref, ret)
-        res <- body(using StubClient(ref, ret))(ref.get)
+        res <- body(client, ref.get)
       yield res
 
   private val q = QueueName("my-queue")
 
   // --- send ---
 
-  pgmqTest("send encodes message and wraps result in MessageId", Returns(send = 42L)): captured =>
+  pgmqTest("send encodes message and wraps result in MessageId", Returns(send = 42L)): (client, captured) =>
     for
-      id <- PgmqClient.send[String](q, "hello")
+      id <- client.send[String](q, "hello")
       c  <- captured
     yield List(
       expect.same(id.value, 42L),
@@ -159,90 +156,94 @@ object PgmqClientSuite extends SimpleIOSuite:
       expect.same(c.body, "hello")
     ).combineAll
 
-  pgmqTest("send with delay forwards delay to raw method", Returns(send = 7L)): captured =>
+  pgmqTest("send with delay forwards delay to raw method", Returns(send = 7L)): (client, captured) =>
     for
-      id <- PgmqClient.send[String](q, "delayed", 30)
+      id <- client.send[String](q, "delayed", 30)
       c  <- captured
     yield expect.same(id.value, 7L) and
       expect.same(c.delay, 30)
 
   // --- sendBatch ---
 
-  pgmqTest("sendBatch encodes all messages and wraps results", Returns(sendBatch = List(10L, 20L))): captured =>
-    for
-      ids <- PgmqClient.sendBatch[String](q, List("a", "b"))
-      c   <- captured
-    yield expect.same(ids.map(_.value), List(10L, 20L)) and
-      expect.same(c.bodies, List("a", "b"))
+  pgmqTest("sendBatch encodes all messages and wraps results", Returns(sendBatch = List(10L, 20L))):
+    (client, captured) =>
+      for
+        ids <- client.sendBatch[String](q, List("a", "b"))
+        c   <- captured
+      yield expect.same(ids.map(_.value), List(10L, 20L)) and
+        expect.same(c.bodies, List("a", "b"))
 
-  pgmqTest("sendBatch with delay forwards delay", Returns(sendBatch = List(1L))): captured =>
+  pgmqTest("sendBatch with delay forwards delay", Returns(sendBatch = List(1L))): (client, captured) =>
     for
-      ids <- PgmqClient.sendBatch[String](q, List("x"), 60)
+      ids <- client.sendBatch[String](q, List("x"), 60)
       c   <- captured
     yield expect.same(ids.map(_.value), List(1L)) and
       expect.same(c.delay, 60)
 
   // --- read ---
 
-  pgmqTest("read decodes raw messages into Message[A]", Returns(read = List(rawMsg(1L, "payload")))): captured =>
-    for
-      msgs <- PgmqClient.read[String](q, vt = 30, qty = 5)
-      c    <- captured
-    yield List(
-      expect.same(msgs.size, 1),
-      expect.same(msgs.map(_.msgId.value), List(1L)),
-      expect.same(msgs.map(_.message), List("payload")),
-      expect.same(msgs.map(_.readCt), List(1)),
-      expect.same(c.vt, 30),
-      expect.same(c.qty, 5)
-    ).combineAll
+  pgmqTest("read decodes raw messages into Message[A]", Returns(read = List(rawMsg(1L, "payload")))):
+    (client, captured) =>
+      for
+        msgs <- client.read[String](q, vt = 30, qty = 5)
+        c    <- captured
+      yield List(
+        expect.same(msgs.size, 1),
+        expect.same(msgs.map(_.msgId.value), List(1L)),
+        expect.same(msgs.map(_.message), List("payload")),
+        expect.same(msgs.map(_.readCt), List(1)),
+        expect.same(c.vt, 30),
+        expect.same(c.qty, 5)
+      ).combineAll
 
-  pgmqTest("read with decode failure raises error in IO", Returns(read = List(rawMsg(1L, "not-an-int")))): _ =>
-    val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-    for result <- PgmqClient.read[Int](q, 30, 1)(using failing).attempt
-    yield expect(clue(result).isLeft)
+  pgmqTest("read with decode failure raises error in IO", Returns(read = List(rawMsg(1L, "not-an-int")))):
+    (client, _) =>
+      val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
+      for result <- client.read[Int](q, 30, 1)(using failing).attempt
+      yield expect(clue(result).isLeft)
 
   // --- pop ---
 
-  pgmqTest("pop decodes optional raw message", Returns(pop = Some(rawMsg(5L, "popped")))): _ =>
-    for opt <- PgmqClient.pop[String](q)
+  pgmqTest("pop decodes optional raw message", Returns(pop = Some(rawMsg(5L, "popped")))): (client, _) =>
+    for opt <- client.pop[String](q)
     yield List(
       expect(clue(opt).isDefined),
       expect.same(opt.map(_.msgId.value), Some(5L)),
       expect.same(opt.map(_.message), Some("popped"))
     ).combineAll
 
-  pgmqTest("pop returns None when backend returns None"): _ =>
-    for opt <- PgmqClient.pop[String](q)
+  pgmqTest("pop returns None when backend returns None"): (client, _) =>
+    for opt <- client.pop[String](q)
     yield expect(clue(opt).isEmpty)
 
-  pgmqTest("pop with decode failure raises error in IO", Returns(pop = Some(rawMsg(1L, "not-an-int")))): _ =>
+  pgmqTest("pop with decode failure raises error in IO", Returns(pop = Some(rawMsg(1L, "not-an-int")))): (client, _) =>
     val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-    for result <- PgmqClient.pop[Int](q)(using failing).attempt
+    for result <- client.pop[Int](q)(using failing).attempt
     yield expect(clue(result).isLeft)
 
   // --- setVt ---
 
-  pgmqTest("setVt decodes and wraps optional result", Returns(setVt = Some(rawMsg(9L, "updated")))): captured =>
-    for
-      opt <- PgmqClient.setVt[String](q, MessageId(9L), vtOffset = 60)
-      c   <- captured
-    yield List(
-      expect(clue(opt).isDefined),
-      expect.same(opt.map(_.msgId.value), Some(9L)),
-      expect.same(opt.map(_.message), Some("updated")),
-      expect.same(c.vtOffset, 60)
-    ).combineAll
+  pgmqTest("setVt decodes and wraps optional result", Returns(setVt = Some(rawMsg(9L, "updated")))):
+    (client, captured) =>
+      for
+        opt <- client.setVt[String](q, MessageId(9L), vtOffset = 60)
+        c   <- captured
+      yield List(
+        expect(clue(opt).isDefined),
+        expect.same(opt.map(_.msgId.value), Some(9L)),
+        expect.same(opt.map(_.message), Some("updated")),
+        expect.same(c.vtOffset, 60)
+      ).combineAll
 
-  pgmqTest("setVt returns None when backend returns None"): _ =>
-    for opt <- PgmqClient.setVt[String](q, MessageId(1L), 10)
+  pgmqTest("setVt returns None when backend returns None"): (client, _) =>
+    for opt <- client.setVt[String](q, MessageId(1L), 10)
     yield expect(clue(opt).isEmpty)
 
   // --- delete / archive ---
 
-  pgmqTest("delete unwraps opaque types"): captured =>
+  pgmqTest("delete unwraps opaque types"): (client, captured) =>
     for
-      ok <- PgmqClient.delete(q, MessageId(99L))
+      ok <- client.delete(q, MessageId(99L))
       c  <- captured
     yield List(
       expect(clue(ok)),
@@ -250,38 +251,38 @@ object PgmqClientSuite extends SimpleIOSuite:
       expect.same(c.queue, "my-queue")
     ).combineAll
 
-  pgmqTest("archive unwraps opaque types"): captured =>
+  pgmqTest("archive unwraps opaque types"): (client, captured) =>
     for
-      ok <- PgmqClient.archive(q, MessageId(55L))
+      ok <- client.archive(q, MessageId(55L))
       c  <- captured
     yield expect(clue(ok)) and
       expect.same(c.msgId, 55L)
 
-  pgmqTest("deleteBatch unwraps and rewraps ids", Returns(deleteBatch = List(1L, 3L))): captured =>
+  pgmqTest("deleteBatch unwraps and rewraps ids", Returns(deleteBatch = List(1L, 3L))): (client, captured) =>
     for
-      ids <- PgmqClient.deleteBatch(q, List(MessageId(1L), MessageId(2L), MessageId(3L)))
+      ids <- client.deleteBatch(q, List(MessageId(1L), MessageId(2L), MessageId(3L)))
       c   <- captured
     yield expect.same(ids.map(_.value), List(1L, 3L)) and
       expect.same(c.msgIds, List(1L, 2L, 3L))
 
-  pgmqTest("archiveBatch unwraps and rewraps ids", Returns(archiveBatch = List(10L, 20L))): captured =>
+  pgmqTest("archiveBatch unwraps and rewraps ids", Returns(archiveBatch = List(10L, 20L))): (client, captured) =>
     for
-      ids <- PgmqClient.archiveBatch(q, List(MessageId(10L), MessageId(20L)))
+      ids <- client.archiveBatch(q, List(MessageId(10L), MessageId(20L)))
       c   <- captured
     yield expect.same(ids.map(_.value), List(10L, 20L)) and
       expect.same(c.msgIds, List(10L, 20L))
 
   // --- queue management ---
 
-  pgmqTest("createQueue unwraps QueueName"): captured =>
+  pgmqTest("createQueue unwraps QueueName"): (client, captured) =>
     for
-      _ <- PgmqClient.createQueue(q)
+      _ <- client.createQueue(q)
       c <- captured
     yield expect.same(c.queue, "my-queue")
 
-  pgmqTest("createPartitionedQueue forwards all arguments"): captured =>
+  pgmqTest("createPartitionedQueue forwards all arguments"): (client, captured) =>
     for
-      _ <- PgmqClient.createPartitionedQueue(q, "daily", "30 days")
+      _ <- client.createPartitionedQueue(q, "daily", "30 days")
       c <- captured
     yield List(
       expect.same(c.queue, "my-queue"),
@@ -289,31 +290,31 @@ object PgmqClientSuite extends SimpleIOSuite:
       expect.same(c.retentionInterval, "30 days")
     ).combineAll
 
-  pgmqTest("dropQueue unwraps QueueName"): captured =>
+  pgmqTest("dropQueue unwraps QueueName"): (client, captured) =>
     for
-      ok <- PgmqClient.dropQueue(q)
+      ok <- client.dropQueue(q)
       c  <- captured
     yield expect(clue(ok)) and
       expect.same(c.queue, "my-queue")
 
-  pgmqTest("purgeQueue unwraps QueueName", Returns(purge = 10L)): captured =>
+  pgmqTest("purgeQueue unwraps QueueName", Returns(purge = 10L)): (client, captured) =>
     for
-      n <- PgmqClient.purgeQueue(q)
+      n <- client.purgeQueue(q)
       c <- captured
     yield expect.same(n, 10L) and
       expect.same(c.queue, "my-queue")
 
-  pgmqTest("detachArchive unwraps QueueName"): captured =>
+  pgmqTest("detachArchive unwraps QueueName"): (client, captured) =>
     for
-      _ <- PgmqClient.detachArchive(q)
+      _ <- client.detachArchive(q)
       c <- captured
     yield expect.same(c.queue, "my-queue")
 
   // --- metrics ---
 
-  pgmqTest("metrics passes through backend result", Returns(metrics = Some(sampleMetrics))): captured =>
+  pgmqTest("metrics passes through backend result", Returns(metrics = Some(sampleMetrics))): (client, captured) =>
     for
-      opt <- PgmqClient.metrics(q)
+      opt <- client.metrics(q)
       c   <- captured
     yield List(
       expect(clue(opt).isDefined),
@@ -321,35 +322,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       expect.same(c.queue, "my-queue")
     ).combineAll
 
-  pgmqTest("metricsAll passes through backend result", Returns(metricsAll = List(sampleMetrics))): _ =>
-    for list <- PgmqClient.metricsAll
+  pgmqTest("metricsAll passes through backend result", Returns(metricsAll = List(sampleMetrics))): (client, _) =>
+    for list <- client.metricsAll
     yield expect.same(list.size, 1) and
       expect.same(list.map(_.totalMessages), List(42L))
-
-  // --- program combinators ---
-
-  pgmqTest("PgmqProgram.map transforms successful result", Returns(send = 11L)): captured =>
-    for
-      idValue <- PgmqClient.send[String](q, "mapped").map(_.value + 1L)
-      c       <- captured
-    yield expect.same(idValue, 12L) and
-      expect.same(c.body, "mapped")
-
-  pgmqTest("PgmqProgram.flatMap composes dependent programs", Returns(send = 9L)): captured =>
-    val program = PgmqClient.send[String](q, "flat-mapped").flatMap(PgmqClient.delete(q, _))
-    for
-      deleted <- program
-      c       <- captured
-    yield expect(clue(deleted)) and
-      expect.same(c.msgId, 9L)
-
-  pgmqTest("PgmqProgram.handleErrorWith recovers with fallback program", Returns(send = 77L)): captured =>
-    val failed: PgmqProgram[PgmqClient, MessageId] = (client: PgmqClient) ?=>
-      import client.effectMonadThrow
-      effectMonadThrow.raiseError(RuntimeException("boom"))
-
-    for
-      id <- failed.handleErrorWith(_ => PgmqClient.send[String](q, "fallback"))
-      c  <- captured
-    yield expect.same(id.value, 77L) and
-      expect.same(c.body, "fallback")

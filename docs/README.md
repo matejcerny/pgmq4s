@@ -4,15 +4,9 @@ laika.title = pgmq4s
 
 # pgmq4s
 
-A purely functional, fully typed Scala 3 client for [pgmq](https://github.com/tembo-io/pgmq) (Postgres Message Queue).
+Scala 3 client for [pgmq](https://github.com/tembo-io/pgmq) (Postgres Message Queue).
 
-Built with modern Scala in mind, `pgmq4s` provides a boilerplate-free API using context functions, while maintaining 100% compatibility with classic tagless final architectures.
-
-## Features
-
-* **Cross-Platform**: Full support for JVM, **Scala.js**, and **Scala Native**.
-* **Database Backends**: Doobie, Skunk
-* **JSON Codecs**: Circe, Jsoniter-scala
+Supports JVM, Scala.js, and Scala Native.
 
 ## Getting Started
 

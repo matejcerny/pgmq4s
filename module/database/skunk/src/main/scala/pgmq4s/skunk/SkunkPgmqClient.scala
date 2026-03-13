@@ -26,15 +26,11 @@ import sk.*
 import sk.codec.all.*
 import sk.data.{ Arr, Type }
 import sk.implicits.*
-import cats.MonadThrow
 import cats.effect.{ Resource, Temporal }
 import cats.syntax.all.*
 import pgmq4s.*
 
-class SkunkPgmqClient[G[_]: Temporal](pool: Resource[G, Session[G]]) extends PgmqClient:
-  type F[A] = G[A]
-
-  given effectMonadThrow: MonadThrow[F] = summon[Temporal[G]]
+class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends PgmqClient[F]:
 
   private val voidCodec: Codec[Unit] =
     Codec.simple(_ => "", _ => Right(()), Type("void"))

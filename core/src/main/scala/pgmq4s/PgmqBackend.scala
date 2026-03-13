@@ -21,8 +21,7 @@
 
 package pgmq4s
 
-trait PgmqBackend:
-  type F[A]
+trait PgmqBackend[F[_]]:
 
   // Queue Management
   protected def createQueueRaw(queue: String): F[Unit]

@@ -21,7 +21,6 @@
 
 package pgmq4s.doobie
 
-import cats.MonadThrow
 import cats.effect.Sync
 import doobie.*
 import doobie.implicits.*
@@ -30,10 +29,7 @@ import pgmq4s.*
 
 import java.time.OffsetDateTime
 
-class DoobiePgmqClient[G[_]: Sync](xa: Transactor[G]) extends PgmqClient:
-  type F[A] = G[A]
-
-  given effectMonadThrow: MonadThrow[F] = summon[Sync[G]]
+class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
 
   // Queue Management
 

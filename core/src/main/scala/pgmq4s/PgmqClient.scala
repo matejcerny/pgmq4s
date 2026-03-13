@@ -24,12 +24,10 @@ package pgmq4s
 import cats.MonadThrow
 import cats.syntax.all.*
 
-trait PgmqClient extends PgmqBackend:
-  type F[A]
-  given effectMonadThrow: MonadThrow[F]
+trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
 
   private def decodeRaw[A: PgmqDecoder](raw: RawMessage): F[Message[A]] =
-    effectMonadThrow.fromEither(
+    MonadThrow[F].fromEither(
       PgmqDecoder[A]
         .decode(raw.message)
         .map:
@@ -81,78 +79,3 @@ trait PgmqClient extends PgmqBackend:
   // Observability
   def metrics(queue: QueueName): F[Option[QueueMetrics]] = metricsRaw(queue.value)
   def metricsAll: F[List[QueueMetrics]]                  = metricsAllRaw
-
-type PgmqClientF[G[_]] = PgmqClient { type F[x] = G[x] }
-
-type PgmqProgram[C <: PgmqClient, A] = (client: C) ?=> client.F[A]
-
-extension [C <: PgmqClient, A](prog: PgmqProgram[C, A])
-  def map[B](f: A => B): PgmqProgram[C, B]                                  = (client: C) ?=> prog.map(f)
-  def flatMap[B](f: A => PgmqProgram[C, B]): PgmqProgram[C, B]              = (client: C) ?=> prog.flatMap(f(_))
-  def handleErrorWith(f: Throwable => PgmqProgram[C, A]): PgmqProgram[C, A] = (client: C) ?=> prog.handleErrorWith(f(_))
-
-object PgmqClient:
-  def createQueue(queue: QueueName): PgmqProgram[PgmqClient, Unit] = summon[PgmqClient].createQueue(queue)
-  def createPartitionedQueue(
-      queue: QueueName,
-      partitionInterval: String,
-      retentionInterval: String
-  ): PgmqProgram[PgmqClient, Unit] =
-    summon[PgmqClient].createPartitionedQueue(queue, partitionInterval, retentionInterval)
-
-  def dropQueue(queue: QueueName): PgmqProgram[PgmqClient, Boolean] = summon[PgmqClient].dropQueue(queue)
-  def send[A: PgmqEncoder](queue: QueueName, message: A): PgmqProgram[PgmqClient, MessageId] =
-    summon[PgmqClient].send[A](queue, message)
-
-  def send[A: PgmqEncoder](queue: QueueName, message: A, delay: Int): PgmqProgram[PgmqClient, MessageId] =
-    summon[PgmqClient].send[A](queue, message, delay)
-
-  def sendBatch[A: PgmqEncoder](queue: QueueName, messages: List[A]): PgmqProgram[PgmqClient, List[MessageId]] =
-    summon[PgmqClient].sendBatch[A](queue, messages)
-
-  def sendBatch[A: PgmqEncoder](
-      queue: QueueName,
-      messages: List[A],
-      delay: Int
-  ): PgmqProgram[PgmqClient, List[MessageId]] =
-    summon[PgmqClient].sendBatch[A](queue, messages, delay)
-
-  // Consuming
-  def read[A: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): PgmqProgram[PgmqClient, List[Message[A]]] =
-    summon[PgmqClient].read[A](queue, vt, qty)
-
-  def pop[A: PgmqDecoder](queue: QueueName): PgmqProgram[PgmqClient, Option[Message[A]]] =
-    summon[PgmqClient].pop[A](queue)
-
-  // Lifecycle
-  def archive(queue: QueueName, msgId: MessageId): PgmqProgram[PgmqClient, Boolean] =
-    summon[PgmqClient].archive(queue, msgId)
-
-  def archiveBatch(queue: QueueName, msgIds: List[MessageId]): PgmqProgram[PgmqClient, List[MessageId]] =
-    summon[PgmqClient].archiveBatch(queue, msgIds)
-
-  def delete(queue: QueueName, msgId: MessageId): PgmqProgram[PgmqClient, Boolean] =
-    summon[PgmqClient].delete(queue, msgId)
-
-  def deleteBatch(queue: QueueName, msgIds: List[MessageId]): PgmqProgram[PgmqClient, List[MessageId]] =
-    summon[PgmqClient].deleteBatch(queue, msgIds)
-
-  def setVt[A: PgmqDecoder](
-      queue: QueueName,
-      msgId: MessageId,
-      vtOffset: Int
-  ): PgmqProgram[PgmqClient, Option[Message[A]]] =
-    summon[PgmqClient].setVt[A](queue, msgId, vtOffset)
-
-  def purgeQueue(queue: QueueName): PgmqProgram[PgmqClient, Long] =
-    summon[PgmqClient].purgeQueue(queue)
-
-  def detachArchive(queue: QueueName): PgmqProgram[PgmqClient, Unit] =
-    summon[PgmqClient].detachArchive(queue)
-
-  // Observability
-  def metrics(queue: QueueName): PgmqProgram[PgmqClient, Option[QueueMetrics]] =
-    summon[PgmqClient].metrics(queue)
-
-  def metricsAll: PgmqProgram[PgmqClient, List[QueueMetrics]] =
-    summon[PgmqClient].metricsAll
