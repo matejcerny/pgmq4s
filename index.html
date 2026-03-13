@@ -68,12 +68,8 @@
   </div>
 
   <ul class="nav-list">
-    <li class="level1 nav-node"><a href="better-encoding/">Better Encoding</a></li>
-    <li class="level2 nav-leaf"><a href="better-encoding/doobie.html">Doobie</a></li>
-    <li class="level2 nav-leaf"><a href="better-encoding/skunk.html">Skunk</a></li>
-    <li class="level1 nav-node"><a href="tagless-final/">Classic Tagless Final</a></li>
-    <li class="level2 nav-leaf"><a href="tagless-final/doobie.html">Doobie</a></li>
-    <li class="level2 nav-leaf"><a href="tagless-final/skunk.html">Skunk</a></li>
+    <li class="level1 nav-leaf"><a href="doobie.html">Doobie</a></li>
+    <li class="level1 nav-leaf"><a href="skunk.html">Skunk</a></li>
   </ul>
 
 </nav>
@@ -85,7 +81,6 @@
   <p class="header"><a href="#">pgmq4s</a></p>
 
   <ul class="nav-list">
-    <li class="level1 nav-leaf"><a href="#features">Features</a></li>
     <li class="level1 nav-leaf"><a href="#getting-started">Getting Started</a></li>
   </ul>
 
@@ -96,22 +91,15 @@
       <main class="content">
 
         <h1 id="pgmq4s" class="title">pgmq4s</h1>
-        <p>A purely functional, fully typed Scala 3 client for <a href="https://github.com/tembo-io/pgmq">pgmq</a> (Postgres Message Queue).</p>
-        <p>Built with modern Scala in mind, <code>pgmq4s</code> provides a boilerplate-free API using context functions, while maintaining 100% compatibility with classic tagless final architectures.</p>
-        
-        <h2 id="features" class="section"><a class="anchor-link left" href="#features"><i class="icofont-laika link">&#xef71;</i></a>Features</h2>
-        <ul>
-          <li><strong>Cross-Platform</strong>: Full support for JVM, <strong>Scala.js</strong>, and <strong>Scala Native</strong>.</li>
-          <li><strong>Database Backends</strong>: Doobie, Skunk</li>
-          <li><strong>JSON Codecs</strong>: Circe, Jsoniter-scala</li>
-        </ul>
+        <p>Scala 3 client for <a href="https://github.com/tembo-io/pgmq">pgmq</a> (Postgres Message Queue).</p>
+        <p>Supports JVM, Scala.js, and Scala Native.</p>
         
         <h2 id="getting-started" class="section"><a class="anchor-link left" href="#getting-started"><i class="icofont-laika link">&#xef71;</i></a>Getting Started</h2>
         <p>Add to your <code>build.sbt</code>:</p>
         <pre class="keep-together pdf epub"><code class="nohighlight"><span class="identifier">libraryDependencies</span><span> ++= </span><span class="type-name">Seq</span><span>(
-  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-core&quot;</span><span>   % </span><span class="string-literal">&quot;0.1-173939d-SNAPSHOT&quot;</span><span>,
-  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.1-173939d-SNAPSHOT&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter
-</span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.1-173939d-SNAPSHOT&quot;</span><span>   </span><span class="comment">// or pgmq4s-skunk
+  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-core&quot;</span><span>   % </span><span class="string-literal">&quot;0.1-014933f-SNAPSHOT&quot;</span><span>,
+  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.1-014933f-SNAPSHOT&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter
+</span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.1-014933f-SNAPSHOT&quot;</span><span>   </span><span class="comment">// or pgmq4s-skunk
 </span><span>)</span></code></pre>
         <p>All available artifacts:</p>
         <table>
