@@ -19,17 +19,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.circe
+package pgmq4s.playjson
 
-import io.circe.{ Decoder as CirceDecoder, Encoder as CirceEncoder }
 import pgmq4s.*
-import weaver.SimpleIOSuite
+import play.api.libs.json.{ Json, Reads as PlayReads, Writes as PlayWrites }
 
-object CirceCodecsSuite extends SimpleIOSuite with JsonCodecsSuite:
+import scala.util.Try
 
-  private given CirceEncoder[Payload] = CirceEncoder.forProduct2("name", "value")(c => (c.name, c.value))
-  private given CirceDecoder[Payload] = CirceDecoder.forProduct2("name", "value")(Payload.apply)
+given pgmqEncoderFromPlayJson[A](using pw: PlayWrites[A]): PgmqEncoder[A] =
+  PgmqEncoder.instance[A](a => Json.stringify(Json.toJson(a)(using pw)))
 
-  def payloadEncoder: PgmqEncoder[Payload] = summon
-  def payloadDecoder: PgmqDecoder[Payload] = summon
-  def payloadCodec: PgmqCodec[Payload] = summon
+given pgmqDecoderFromPlayJson[A](using pr: PlayReads[A]): PgmqDecoder[A] =
+  PgmqDecoder.instance[A]: json =>
+    Try(Json.parse(json)).toEither.flatMap: jsValue =>
+      jsValue
+        .validate[A](using pr)
+        .asEither
+        .left
+        .map: errors =>
+          new RuntimeException(
+            errors
+              .flatMap { case (path, validationErrors) =>
+                validationErrors.map(e => s"$path: ${e.messages.mkString(", ")}")
+              }
+              .mkString("; ")
+          )
+
+given pgmqCodecFromPlayJson[A](using pw: PlayWrites[A], pr: PlayReads[A]): PgmqCodec[A] =
+  PgmqCodec.from(pgmqEncoderFromPlayJson[A], pgmqDecoderFromPlayJson[A])
