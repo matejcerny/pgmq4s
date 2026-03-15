@@ -52,12 +52,13 @@ val SkunkV = "0.6.5"
 val ScalaJavaTimeV = "2.6.0"
 val JsoniterV = "2.30.2"
 val PostgresV = "42.7.5"
+val PlayJsonV = "3.0.4"
 val SlickV = "3.6.1"
 val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
-  .aggregate(core, circe, jsoniter, doobie, skunk, slick, examples)
+  .aggregate(core, circe, jsoniter, playJson, doobie, skunk, slick, examples)
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
@@ -125,7 +126,7 @@ lazy val slick = (project in file("module/database/slick"))
 lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("module/json/circe"))
-  .dependsOn(core)
+  .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "pgmq4s-circe",
     libraryDependencies ++= Seq(
@@ -138,7 +139,7 @@ lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("module/json/jsoniter"))
-  .dependsOn(core)
+  .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "pgmq4s-jsoniter",
     libraryDependencies ++= Seq(
@@ -148,10 +149,19 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
+lazy val playJson = (project in file("module/json/play-json"))
+  .dependsOn(core.jvm % "compile->compile;test->test")
+  .settings(
+    name := "pgmq4s-play-json",
+    libraryDependencies += "org.playframework" %% "play-json" % PlayJsonV,
+    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test,
+    mimaPreviousArtifacts := Set.empty
+  )
+
 // === DOCUMENTATION ===
 lazy val docs = project
   .in(file("site"))
-  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk.jvm, slick)
+  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, playJson, doobie, skunk.jvm, slick)
   .enablePlugins(TypelevelSitePlugin)
   .settings(tlSitePublishBranch := Some("main"))
 

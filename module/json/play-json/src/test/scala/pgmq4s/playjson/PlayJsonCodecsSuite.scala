@@ -19,16 +19,15 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.circe
+package pgmq4s.playjson
 
-import io.circe.{ Decoder as CirceDecoder, Encoder as CirceEncoder }
 import pgmq4s.*
+import play.api.libs.json.{ Format, Json }
 import weaver.SimpleIOSuite
 
-object CirceCodecsSuite extends SimpleIOSuite with JsonCodecsSuite:
+object PlayJsonCodecsSuite extends SimpleIOSuite with JsonCodecsSuite:
 
-  private given CirceEncoder[Payload] = CirceEncoder.forProduct2("name", "value")(c => (c.name, c.value))
-  private given CirceDecoder[Payload] = CirceDecoder.forProduct2("name", "value")(Payload.apply)
+  private given Format[Payload] = Json.format[Payload]
 
   def payloadEncoder: PgmqEncoder[Payload] = summon
   def payloadDecoder: PgmqDecoder[Payload] = summon
