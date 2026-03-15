@@ -16,13 +16,13 @@ trait OrderQueue[F[_]]:
 object OrderQueue:
   def make[F[_]](queue: QueueName, client: PgmqClient[F]): OrderQueue[F] =
     new OrderQueue[F]:
-      def send(event: OrderCreated): F[MessageId]                 = client.send(queue, event)
+      def send(event: OrderCreated): F[MessageId] = client.send(queue, event)
       def read(vt: Int, qty: Int): F[List[Message[OrderCreated]]] =
         client.read[OrderCreated](queue, vt, qty)
 
 class OrderService[F[_]: MonadThrow](queue: OrderQueue[F]):
   def publishAndFetch(event: OrderCreated): F[List[Message[OrderCreated]]] =
     for
-      _        <- queue.send(event)
+      _ <- queue.send(event)
       messages <- queue.read(vt = 30, qty = 10)
     yield messages

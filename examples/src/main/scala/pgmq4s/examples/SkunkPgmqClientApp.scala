@@ -22,10 +22,10 @@ object SkunkPgmqClientApp extends IOApp.Simple:
       )
       .use: pool =>
         val client: PgmqClient[IO] = SkunkPgmqClient[IO](pool)
-        val service                = OrderService[IO](OrderQueue.make(queue, client))
+        val service = OrderService[IO](OrderQueue.make(queue, client))
 
         for
-          _        <- client.createQueue(queue)
+          _ <- client.createQueue(queue)
           messages <- service.publishAndFetch(event)
-          _        <- IO.println(s"skunk tagless-final read: ${messages.map(_.message)}")
+          _ <- IO.println(s"skunk tagless-final read: ${messages.map(_.message)}")
         yield ()

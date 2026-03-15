@@ -21,7 +21,7 @@ object DoobiePgmqClientSuite extends PgmqClientSuite:
         connectEC = ExecutionContext.global
       )
       client = DoobiePgmqClient[IO](xa)
-      queues  <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
+      queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:

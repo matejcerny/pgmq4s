@@ -62,20 +62,24 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
     popRaw(queue.value).flatMap(_.traverse(decodeRaw[A]))
 
   // Lifecycle
-  def archive(queue: QueueName, msgId: MessageId): F[Boolean]                     = archiveRaw(queue.value, msgId.value)
+  def archive(queue: QueueName, msgId: MessageId): F[Boolean] =
+    archiveRaw(queue.value, msgId.value)
+
   def archiveBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     archiveBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
-  def delete(queue: QueueName, msgId: MessageId): F[Boolean]                     = deleteRaw(queue.value, msgId.value)
+  def delete(queue: QueueName, msgId: MessageId): F[Boolean] =
+    deleteRaw(queue.value, msgId.value)
+
   def deleteBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     deleteBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
   def setVt[A: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message[A]]] =
     setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A]))
 
-  def purgeQueue(queue: QueueName): F[Long]    = purgeQueueRaw(queue.value)
+  def purgeQueue(queue: QueueName): F[Long] = purgeQueueRaw(queue.value)
   def detachArchive(queue: QueueName): F[Unit] = detachArchiveRaw(queue.value)
 
   // Observability
   def metrics(queue: QueueName): F[Option[QueueMetrics]] = metricsRaw(queue.value)
-  def metricsAll: F[List[QueueMetrics]]                  = metricsAllRaw
+  def metricsAll: F[List[QueueMetrics]] = metricsAllRaw
