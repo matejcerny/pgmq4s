@@ -24,10 +24,10 @@ object DoobiePgmqClientApp extends IOApp.Simple:
 
   val run: IO[Unit] = hikariTransactor.use: xa =>
     val client: PgmqClient[IO] = DoobiePgmqClient[IO](xa)
-    val service                = OrderService[IO](OrderQueue.make(queue, client))
+    val service = OrderService[IO](OrderQueue.make(queue, client))
 
     for
-      _        <- client.createQueue(queue)
+      _ <- client.createQueue(queue)
       messages <- service.publishAndFetch(event)
-      _        <- IO.println(s"tagless-final read: ${messages.map(_.message)}")
+      _ <- IO.println(s"tagless-final read: ${messages.map(_.message)}")
     yield ()

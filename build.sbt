@@ -51,17 +51,19 @@ val DoobieV = "1.0.0-RC12"
 val SkunkV = "0.6.5"
 val ScalaJavaTimeV = "2.6.0"
 val JsoniterV = "2.30.2"
+val PostgresV = "42.7.5"
+val SlickV = "3.6.1"
 val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
-  .aggregate(core, circe, jsoniter, doobie, skunk, examples)
+  .aggregate(core, circe, jsoniter, doobie, skunk, slick, examples)
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .in(file("it"))
   .dependsOn(skunk, circe)
-  .jvmConfigure(_.dependsOn(doobie))
+  .jvmConfigure(_.dependsOn(doobie, slick))
   .settings(
     name := "pgmq4s-it",
     publish / skip := true,
@@ -69,7 +71,11 @@ lazy val integration = crossProject(JVMPlatform, NativePlatform)
     Test / parallelExecution := false
   )
   .jvmSettings(
-    libraryDependencies += "org.tpolecat" %% "doobie-hikari" % DoobieV % Test
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "doobie-hikari" % DoobieV % Test,
+      "com.typesafe.slick" %% "slick-hikaricp" % SlickV % Test,
+      "org.postgresql" % "postgresql" % PostgresV % Test
+    )
   )
 
 lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -107,6 +113,14 @@ lazy val skunk = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     )
   )
 
+lazy val slick = (project in file("module/database/slick"))
+  .dependsOn(core.jvm)
+  .settings(
+    name := "pgmq4s-slick",
+    libraryDependencies += "com.typesafe.slick" %% "slick" % SlickV,
+    mimaPreviousArtifacts := Set.empty
+  )
+
 // === JSON ===
 lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
@@ -137,12 +151,12 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 // === DOCUMENTATION ===
 lazy val docs = project
   .in(file("site"))
-  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk.jvm)
+  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, doobie, skunk.jvm, slick)
   .enablePlugins(TypelevelSitePlugin)
   .settings(tlSitePublishBranch := Some("main"))
 
 lazy val examples = (project in file("examples"))
-  .dependsOn(core.jvm, circe.jvm, doobie, skunk.jvm)
+  .dependsOn(core.jvm, circe.jvm, doobie, skunk.jvm, slick)
   .disablePlugins(HeaderPlugin)
   .settings(
     name := "pgmq4s-examples",

@@ -25,12 +25,12 @@ import java.time.OffsetDateTime
 
 opaque type QueueName = String
 object QueueName:
-  def apply(name: String): QueueName         = name
+  def apply(name: String): QueueName = name
   extension (q: QueueName) def value: String = q
 
 opaque type MessageId = Long
 object MessageId:
-  def apply(id: Long): MessageId            = id
+  def apply(id: Long): MessageId = id
   extension (id: MessageId) def value: Long = id
 
 case class Message[A](
