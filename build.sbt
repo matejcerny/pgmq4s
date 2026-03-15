@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.1"
+ThisBuild / tlBaseVersion := "0.2"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -54,11 +54,12 @@ val JsoniterV = "2.30.2"
 val PostgresV = "42.7.5"
 val PlayJsonV = "3.0.4"
 val SlickV = "3.6.1"
+val UpickleV = "3.2.0"
 val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
-  .aggregate(core, circe, jsoniter, playJson, doobie, skunk, slick, examples)
+  .aggregate(core, circe, jsoniter, playJson, upickle, doobie, skunk, slick, examples)
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
@@ -118,8 +119,7 @@ lazy val slick = (project in file("module/database/slick"))
   .dependsOn(core.jvm)
   .settings(
     name := "pgmq4s-slick",
-    libraryDependencies += "com.typesafe.slick" %% "slick" % SlickV,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "com.typesafe.slick" %% "slick" % SlickV
   )
 
 // === JSON ===
@@ -149,19 +149,29 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
+lazy val upickle = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("module/json/upickle"))
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "pgmq4s-upickle",
+    libraryDependencies += "com.lihaoyi" %%% "upickle" % UpickleV,
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
+    mimaPreviousArtifacts := Set.empty
+  )
+
 lazy val playJson = (project in file("module/json/play-json"))
   .dependsOn(core.jvm % "compile->compile;test->test")
   .settings(
     name := "pgmq4s-play-json",
     libraryDependencies += "org.playframework" %% "play-json" % PlayJsonV,
-    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test
   )
 
 // === DOCUMENTATION ===
 lazy val docs = project
   .in(file("site"))
-  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, playJson, doobie, skunk.jvm, slick)
+  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, playJson, upickle.jvm, doobie, skunk.jvm, slick)
   .enablePlugins(TypelevelSitePlugin)
   .settings(tlSitePublishBranch := Some("main"))
 
