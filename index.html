@@ -69,6 +69,7 @@
 
   <ul class="nav-list">
     <li class="level1 nav-node"><a href="examples/">Examples</a></li>
+    <li class="level2 nav-leaf"><a href="examples/anorm.html">Anorm</a></li>
     <li class="level2 nav-leaf"><a href="examples/doobie.html">Doobie</a></li>
     <li class="level2 nav-leaf"><a href="examples/skunk.html">Skunk</a></li>
     <li class="level2 nav-leaf"><a href="examples/slick.html">Slick</a></li>
@@ -97,6 +98,7 @@
         <p>Supports JVM, Scala.js, and Scala Native.</p>
         <p>Database backends:</p>
         <ul>
+          <li>Anorm</li>
           <li>Doobie</li>
           <li>Skunk</li>
           <li>Slick</li>
@@ -115,7 +117,7 @@
         <pre class="keep-together pdf epub"><code class="nohighlight"><span class="identifier">libraryDependencies</span><span> ++= </span><span class="type-name">Seq</span><span>(
   </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-core&quot;</span><span>   % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>,
   </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-upickle
-</span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>   </span><span class="comment">// or pgmq4s-skunk, pgmq4s-slick
+</span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>   </span><span class="comment">// or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick
 </span><span>)</span></code></pre>
         <p>All available artifacts:</p>
         <table>
@@ -145,6 +147,10 @@
             <tr>
               <td><code>pgmq4s-upickle</code></td>
               <td>uPickle JSON codec bridge</td>
+            </tr>
+            <tr>
+              <td><code>pgmq4s-anorm</code></td>
+              <td>Anorm backend (JVM only)</td>
             </tr>
             <tr>
               <td><code>pgmq4s-doobie</code></td>

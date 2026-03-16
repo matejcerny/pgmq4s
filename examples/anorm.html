@@ -6,7 +6,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="Typelevel Laika + Helium Theme" />
-  <title>Slick</title>
+  <title>Anorm</title>
   
   <meta name="author" content="Matej Cerny"/>
   
@@ -68,10 +68,10 @@
 
   <ul class="nav-list">
     <li class="level1 nav-node"><a href="index.html">Examples</a></li>
-    <li class="level2 nav-leaf"><a href="anorm.html">Anorm</a></li>
+    <li class="level2 active nav-leaf"><a href="#">Anorm</a></li>
     <li class="level2 nav-leaf"><a href="doobie.html">Doobie</a></li>
     <li class="level2 nav-leaf"><a href="skunk.html">Skunk</a></li>
-    <li class="level2 active nav-leaf"><a href="#">Slick</a></li>
+    <li class="level2 nav-leaf"><a href="slick.html">Slick</a></li>
   </ul>
 
 </nav>
@@ -80,7 +80,7 @@
 
       
 <nav id="page-nav">
-  <p class="header"><a href="#">Slick</a></p>
+  <p class="header"><a href="#">Anorm</a></p>
 
   <ul class="nav-list">
   </ul>
@@ -91,36 +91,33 @@
 
       <main class="content">
 
-        <h1 id="slick" class="title">Slick</h1>
-        <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">_root_</span><span>.</span><span class="identifier">slick</span><span>.</span><span class="identifier">jdbc</span><span>.</span><span class="type-name">PostgresProfile</span><span>.</span><span class="identifier">api</span><span>.*
-</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
+        <h1 id="anorm" class="title">Anorm</h1>
+        <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">anorm</span><span>.</span><span class="type-name">AnormPgmqClient</span><span>
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">circe</span><span>.</span><span class="keyword">given</span><span>
-</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">slick</span><span>.</span><span class="type-name">SlickPgmqClient</span><span>
 
 </span><span class="keyword">import</span><span> </span><span class="identifier">scala</span><span>.</span><span class="identifier">concurrent</span><span>.</span><span class="identifier">duration</span><span>.*
 </span><span class="keyword">import</span><span> </span><span class="identifier">scala</span><span>.</span><span class="identifier">concurrent</span><span>.{ </span><span class="type-name">Await</span><span>, </span><span class="type-name">ExecutionContext</span><span> }
 
-</span><span class="annotation">@main</span><span> </span><span class="keyword">def</span><span> </span><span class="declaration-name">slickPgmqClientApp</span><span>(): </span><span class="type-name">Unit</span><span> =
+</span><span class="annotation">@main</span><span> </span><span class="keyword">def</span><span> </span><span class="declaration-name">anormPgmqClientApp</span><span>(): </span><span class="type-name">Unit</span><span> =
   </span><span class="keyword">given</span><span> </span><span class="type-name">ExecutionContext</span><span> = </span><span class="type-name">ExecutionContext</span><span>.</span><span class="identifier">global</span><span>
 
-  </span><span class="keyword">val</span><span> </span><span class="identifier">queue</span><span> = </span><span class="type-name">QueueName</span><span>(</span><span class="string-literal">&quot;orders_slick&quot;</span><span>)
-  </span><span class="keyword">val</span><span> </span><span class="identifier">event</span><span> = </span><span class="type-name">OrderCreated</span><span>(</span><span class="number-literal">2L</span><span>, </span><span class="string-literal">&quot;dev@example.com&quot;</span><span>)
+  </span><span class="keyword">val</span><span> </span><span class="identifier">queue</span><span> = </span><span class="type-name">QueueName</span><span>(</span><span class="string-literal">&quot;orders_anorm&quot;</span><span>)
+  </span><span class="keyword">val</span><span> </span><span class="identifier">event</span><span> = </span><span class="type-name">OrderCreated</span><span>(</span><span class="number-literal">3L</span><span>, </span><span class="string-literal">&quot;dev@example.com&quot;</span><span>)
 
-  </span><span class="keyword">val</span><span> </span><span class="identifier">db</span><span> = </span><span class="type-name">Database</span><span>.</span><span class="identifier">forURL</span><span>(
-    </span><span class="identifier">url</span><span> = </span><span class="string-literal">&quot;jdbc:postgresql://localhost:5432/pgmq&quot;</span><span>,
-    </span><span class="identifier">user</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
-    </span><span class="identifier">password</span><span> = </span><span class="string-literal">&quot;pgmq&quot;</span><span>,
-    </span><span class="identifier">driver</span><span> = </span><span class="string-literal">&quot;org.postgresql.Driver&quot;</span><span>
-  )
+  </span><span class="keyword">val</span><span> </span><span class="identifier">ds</span><span> = </span><span class="keyword">new</span><span> </span><span class="identifier">org</span><span>.</span><span class="identifier">postgresql</span><span>.</span><span class="identifier">ds</span><span>.</span><span class="type-name">PGSimpleDataSource</span><span>()
+  </span><span class="identifier">ds</span><span>.</span><span class="identifier">setURL</span><span>(</span><span class="string-literal">&quot;jdbc:postgresql://localhost:5432/pgmq&quot;</span><span>)
+  </span><span class="identifier">ds</span><span>.</span><span class="identifier">setUser</span><span>(</span><span class="string-literal">&quot;pgmq&quot;</span><span>)
+  </span><span class="identifier">ds</span><span>.</span><span class="identifier">setPassword</span><span>(</span><span class="string-literal">&quot;pgmq&quot;</span><span>)
 
-  </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span> = </span><span class="type-name">SlickPgmqClient</span><span>(</span><span class="identifier">db</span><span>)
+  </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span> = </span><span class="type-name">AnormPgmqClient</span><span>(</span><span class="identifier">ds</span><span>)
 
   </span><span class="keyword">val</span><span> </span><span class="identifier">result</span><span> =
     </span><span class="keyword">for</span><span>
       </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
       </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
       </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">read</span><span>[</span><span class="type-name">OrderCreated</span><span>](</span><span class="identifier">queue</span><span>, </span><span class="identifier">vt</span><span> = </span><span class="number-literal">30</span><span>, </span><span class="identifier">qty</span><span> = </span><span class="number-literal">10</span><span>)
-    </span><span class="keyword">yield</span><span> </span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;slick read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
+    </span><span class="keyword">yield</span><span> </span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;anorm read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
 
   </span><span class="type-name">Await</span><span>.</span><span class="identifier">result</span><span>(</span><span class="identifier">result</span><span>, </span><span class="number-literal">10</span><span>.</span><span class="identifier">seconds</span><span>)</span></code></pre>
 
