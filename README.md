@@ -12,6 +12,7 @@ Scala 3 client for [pgmq](https://github.com/pgmq/pgmq) (Postgres Message Queue)
 Supports JVM, Scala.js, and Scala Native.
 
 Database backends:
+- Anorm
 - Doobie
 - Skunk
 - Slick
@@ -33,7 +34,7 @@ Add to your `build.sbt` (replace `<version>` with the latest version shown in th
 libraryDependencies ++= Seq(
   "io.github.matejcerny" %% "pgmq4s-core"   % "<version>",
   "io.github.matejcerny" %% "pgmq4s-circe"  % "<version>",  // or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-upickle
-  "io.github.matejcerny" %% "pgmq4s-doobie" % "<version>"   // or pgmq4s-skunk, pgmq4s-slick
+  "io.github.matejcerny" %% "pgmq4s-doobie" % "<version>"   // or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick
 )
 ```
 
