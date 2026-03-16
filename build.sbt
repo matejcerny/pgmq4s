@@ -45,6 +45,7 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 )
 
 // === VERSIONS ===
+val AnormV = "2.11.0"
 val CatsEffectV = "3.6.3"
 val CirceV = "0.14.8"
 val DoobieV = "1.0.0-RC12"
@@ -59,13 +60,13 @@ val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
-  .aggregate(core, circe, jsoniter, playJson, upickle, doobie, skunk, slick, examples)
+  .aggregate(core, circe, jsoniter, playJson, upickle, anorm, doobie, skunk, slick, examples)
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .in(file("it"))
   .dependsOn(skunk, circe)
-  .jvmConfigure(_.dependsOn(doobie, slick))
+  .jvmConfigure(_.dependsOn(anorm, doobie, slick))
   .settings(
     name := "pgmq4s-it",
     publish / skip := true,
@@ -93,6 +94,14 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
 
 // === DATABASE ===
+lazy val anorm = (project in file("module/database/anorm"))
+  .dependsOn(core.jvm)
+  .settings(
+    name := "pgmq4s-anorm",
+    libraryDependencies += "org.playframework.anorm" %% "anorm" % AnormV,
+    mimaPreviousArtifacts := Set.empty
+  )
+
 lazy val doobie = (project in file("module/database/doobie"))
   .dependsOn(core.jvm)
   .settings(
@@ -171,12 +180,12 @@ lazy val playJson = (project in file("module/json/play-json"))
 // === DOCUMENTATION ===
 lazy val docs = project
   .in(file("site"))
-  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, playJson, upickle.jvm, doobie, skunk.jvm, slick)
+  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, playJson, upickle.jvm, anorm, doobie, skunk.jvm, slick)
   .enablePlugins(TypelevelSitePlugin)
   .settings(tlSitePublishBranch := Some("main"))
 
 lazy val examples = (project in file("examples"))
-  .dependsOn(core.jvm, circe.jvm, doobie, skunk.jvm, slick)
+  .dependsOn(core.jvm, circe.jvm, anorm, doobie, skunk.jvm, slick)
   .disablePlugins(HeaderPlugin)
   .settings(
     name := "pgmq4s-examples",
