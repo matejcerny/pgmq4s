@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.3"
+ThisBuild / tlBaseVersion := "0.4"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -88,8 +88,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "pgmq4s-core",
     libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
   .jsSettings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV % Test
@@ -100,8 +99,7 @@ lazy val anorm = (project in file("module/database/anorm"))
   .dependsOn(core.jvm)
   .settings(
     name := "pgmq4s-anorm",
-    libraryDependencies += "org.playframework.anorm" %% "anorm" % AnormV,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.playframework.anorm" %% "anorm" % AnormV
   )
 
 lazy val doobie = (project in file("module/database/doobie"))
@@ -167,8 +165,7 @@ lazy val upickle = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "pgmq4s-upickle",
     libraryDependencies += "com.lihaoyi" %%% "upickle" % UpickleV,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
 lazy val playJson = (project in file("module/json/play-json"))
@@ -184,8 +181,7 @@ lazy val sprayJson = (project in file("module/json/spray-json"))
   .settings(
     name := "pgmq4s-spray-json",
     libraryDependencies += "io.spray" %% "spray-json" % SprayJsonV,
-    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test
   )
 
 // === DOCUMENTATION ===
