@@ -36,7 +36,7 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
   private def withConnection[A](f: Connection => A): Future[A] =
     Future(blocking(Using.resource(dataSource.getConnection())(f)))
 
-  private given Column[OffsetDateTime] = Column.nonNull: (value, meta) =>
+  private[pgmq4s] given Column[OffsetDateTime] = Column.nonNull: (value, meta) =>
     value match
       case ts: java.sql.Timestamp => Right(ts.toInstant.atOffset(ZoneOffset.UTC))
       case odt: OffsetDateTime    => Right(odt)
