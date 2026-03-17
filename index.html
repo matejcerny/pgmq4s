@@ -108,6 +108,7 @@
           <li>Circe</li>
           <li>Jsoniter-scala</li>
           <li>Play JSON</li>
+          <li>Spray JSON</li>
           <li>uPickle</li>
         </ul>
         <p>Need a specific DB backend or JSON bridge? Create an issue <a href="https://github.com/matejcerny/pgmq4s/issues/new">here</a>.</p>
@@ -116,7 +117,7 @@
         <p>Add to your <code>build.sbt</code>:</p>
         <pre class="keep-together pdf epub"><code class="nohighlight"><span class="identifier">libraryDependencies</span><span> ++= </span><span class="type-name">Seq</span><span>(
   </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-core&quot;</span><span>   % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>,
-  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-upickle
+  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-circe&quot;</span><span>  % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>,  </span><span class="comment">// or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-spray-json, pgmq4s-upickle
 </span><span>  </span><span class="string-literal">&quot;io.github.matejcerny&quot;</span><span> %% </span><span class="string-literal">&quot;pgmq4s-doobie&quot;</span><span> % </span><span class="string-literal">&quot;0.2.0&quot;</span><span>   </span><span class="comment">// or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick
 </span><span>)</span></code></pre>
         <p>All available artifacts:</p>
@@ -143,6 +144,10 @@
             <tr>
               <td><code>pgmq4s-play-json</code></td>
               <td>Play JSON codec bridge (JVM only)</td>
+            </tr>
+            <tr>
+              <td><code>pgmq4s-spray-json</code></td>
+              <td>Spray JSON codec bridge (JVM only)</td>
             </tr>
             <tr>
               <td><code>pgmq4s-upickle</code></td>
