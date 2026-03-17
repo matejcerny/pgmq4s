@@ -63,6 +63,18 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
       .unique
       .transact(xa)
 
+  protected def sendRaw(queue: String, body: String, headers: String): F[Long] =
+    sql"SELECT pgmq.send($queue, $body::jsonb, $headers::jsonb)"
+      .query[Long]
+      .unique
+      .transact(xa)
+
+  protected def sendRaw(queue: String, body: String, headers: String, delay: Int): F[Long] =
+    sql"SELECT pgmq.send($queue, $body::jsonb, $headers::jsonb, $delay)"
+      .query[Long]
+      .unique
+      .transact(xa)
+
   protected def sendBatchRaw(queue: String, bodies: List[String]): F[List[Long]] =
     sql"SELECT * FROM pgmq.send_batch($queue, ${bodies.toArray}::jsonb[])"
       .query[Long]
@@ -75,16 +87,28 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
       .to[List]
       .transact(xa)
 
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): F[List[Long]] =
+    sql"SELECT * FROM pgmq.send_batch($queue, ${bodies.toArray}::jsonb[], ${headers.toArray}::jsonb[])"
+      .query[Long]
+      .to[List]
+      .transact(xa)
+
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): F[List[Long]] =
+    sql"SELECT * FROM pgmq.send_batch($queue, ${bodies.toArray}::jsonb[], ${headers.toArray}::jsonb[], $delay)"
+      .query[Long]
+      .to[List]
+      .transact(xa)
+
   // Consuming
 
   protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]] =
-    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.read($queue, $vt, $qty)"
+    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read($queue, $vt, $qty)"
       .query[RawMessage]
       .to[List]
       .transact(xa)
 
   protected def popRaw(queue: String): F[Option[RawMessage]] =
-    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.pop($queue)"
+    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop($queue)"
       .query[RawMessage]
       .option
       .transact(xa)
@@ -110,7 +134,7 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
       .transact(xa)
 
   protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
-    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
+    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
       .query[RawMessage]
       .option
       .transact(xa)

@@ -31,8 +31,12 @@ trait PgmqBackend[F[_]]:
   // Publishing — body already encoded to JSON String
   protected def sendRaw(queue: String, body: String): F[Long]
   protected def sendRaw(queue: String, body: String, delay: Int): F[Long]
+  protected def sendRaw(queue: String, body: String, headers: String): F[Long]
+  protected def sendRaw(queue: String, body: String, headers: String, delay: Int): F[Long]
   protected def sendBatchRaw(queue: String, bodies: List[String]): F[List[Long]]
   protected def sendBatchRaw(queue: String, bodies: List[String], delay: Int): F[List[Long]]
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): F[List[Long]]
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): F[List[Long]]
 
   // Consuming — returns RawMessage (String body, not yet decoded)
   protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]]

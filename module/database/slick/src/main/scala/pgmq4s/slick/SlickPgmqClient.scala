@@ -38,7 +38,8 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
       r.nextInt(),
       r.nextTimestamp().toInstant.atOffset(ZoneOffset.UTC),
       r.nextTimestamp().toInstant.atOffset(ZoneOffset.UTC),
-      r.nextString()
+      r.nextString(),
+      r.nextStringOption()
     )
 
   private given GetResult[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)] =
@@ -75,6 +76,20 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
   protected def sendRaw(queue: String, body: String, delay: Int): Future[Long] =
     db.run(sql"SELECT pgmq.send($queue, #${"'" + body.replace("'", "''") + "'"}::jsonb, $delay)".as[Long].head)
 
+  protected def sendRaw(queue: String, body: String, headers: String): Future[Long] =
+    db.run(
+      sql"SELECT pgmq.send($queue, #${"'" + body.replace("'", "''") + "'"}::jsonb, #${"'" + headers.replace("'", "''") + "'"}::jsonb)"
+        .as[Long]
+        .head
+    )
+
+  protected def sendRaw(queue: String, body: String, headers: String, delay: Int): Future[Long] =
+    db.run(
+      sql"SELECT pgmq.send($queue, #${"'" + body.replace("'", "''") + "'"}::jsonb, #${"'" + headers.replace("'", "''") + "'"}::jsonb, $delay)"
+        .as[Long]
+        .head
+    )
+
   protected def sendBatchRaw(queue: String, bodies: List[String]): Future[List[Long]] =
     db.run:
       SimpleDBIO: session =>
@@ -106,16 +121,60 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
         ps.close()
         buf.result()
 
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): Future[List[Long]] =
+    db.run:
+      SimpleDBIO: session =>
+        val conn = session.connection
+        val bodyArr = conn.createArrayOf("jsonb", bodies.toArray)
+        val hdrArr = conn.createArrayOf("jsonb", headers.toArray)
+        val ps = conn.prepareStatement("SELECT * FROM pgmq.send_batch(?, ?, ?)")
+        ps.setString(1, queue)
+        ps.setArray(2, bodyArr)
+        ps.setArray(3, hdrArr)
+        val rs = ps.executeQuery()
+        val buf = List.newBuilder[Long]
+        while rs.next() do buf += rs.getLong(1)
+        rs.close()
+        ps.close()
+        buf.result()
+
+  protected def sendBatchRaw(
+      queue: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): Future[List[Long]] =
+    db.run:
+      SimpleDBIO: session =>
+        val conn = session.connection
+        val bodyArr = conn.createArrayOf("jsonb", bodies.toArray)
+        val hdrArr = conn.createArrayOf("jsonb", headers.toArray)
+        val ps = conn.prepareStatement("SELECT * FROM pgmq.send_batch(?, ?, ?, ?)")
+        ps.setString(1, queue)
+        ps.setArray(2, bodyArr)
+        ps.setArray(3, hdrArr)
+        ps.setInt(4, delay)
+        val rs = ps.executeQuery()
+        val buf = List.newBuilder[Long]
+        while rs.next() do buf += rs.getLong(1)
+        rs.close()
+        ps.close()
+        buf.result()
+
   // Consuming
 
   protected def readRaw(queue: String, vt: Int, qty: Int): Future[List[RawMessage]] =
     db.run:
-      sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.read($queue, $vt, $qty)"
+      sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read($queue, $vt, $qty)"
         .as[RawMessage]
         .map(_.toList)
 
   protected def popRaw(queue: String): Future[Option[RawMessage]] =
-    db.run(sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.pop($queue)".as[RawMessage].headOption)
+    db.run(
+      sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop($queue)"
+        .as[RawMessage]
+        .headOption
+    )
 
   // Lifecycle
 
@@ -157,7 +216,7 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
 
   protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
     db.run:
-      sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
+      sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
         .as[RawMessage]
         .headOption
 

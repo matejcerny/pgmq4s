@@ -25,6 +25,6 @@ import scala.concurrent.{ Await, ExecutionContext }
       _ <- client.createQueue(queue)
       _ <- client.send(queue, event)
       messages <- client.read[OrderCreated](queue, vt = 30, qty = 10)
-    yield println(s"anorm read: ${messages.map(_.message)}")
+    yield println(s"anorm read: ${messages.map(_.payload)}")
 
   Await.result(result, 10.seconds)

@@ -33,15 +33,38 @@ object MessageId:
   def apply(id: Long): MessageId = id
   extension (id: MessageId) def value: Long = id
 
-case class Message[A](
-    msgId: MessageId,
+enum Message[A, +H]:
+  def msgId: MessageId
+  def readCt: Int
+  def enqueuedAt: OffsetDateTime
+  def vt: OffsetDateTime
+  def payload: A
+
+  case Plain[P](
+      msgId: MessageId,
+      readCt: Int,
+      enqueuedAt: OffsetDateTime,
+      vt: OffsetDateTime,
+      payload: P
+  ) extends Message[P, Nothing]
+
+  case WithHeaders(
+      msgId: MessageId,
+      readCt: Int,
+      enqueuedAt: OffsetDateTime,
+      vt: OffsetDateTime,
+      payload: A,
+      headers: H
+  )
+
+case class RawMessage(
+    msgId: Long,
     readCt: Int,
     enqueuedAt: OffsetDateTime,
     vt: OffsetDateTime,
-    message: A
+    message: String,
+    headers: Option[String]
 )
-
-case class RawMessage(msgId: Long, readCt: Int, enqueuedAt: OffsetDateTime, vt: OffsetDateTime, message: String)
 
 case class QueueMetrics(
     queueName: QueueName,

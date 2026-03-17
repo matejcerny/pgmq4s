@@ -36,8 +36,9 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
     Codec.simple(_ => "", _ => Right(()), Type("void"))
 
   private val rawMessageDecoder: Decoder[RawMessage] =
-    (int8 ~ int4 ~ timestamptz ~ timestamptz ~ text).map { case msgId ~ readCt ~ enqueuedAt ~ vt ~ message =>
-      RawMessage(msgId, readCt, enqueuedAt, vt, message)
+    (int8 ~ int4 ~ timestamptz ~ timestamptz ~ text ~ text.opt).map {
+      case msgId ~ readCt ~ enqueuedAt ~ vt ~ message ~ headers =>
+        RawMessage(msgId, readCt, enqueuedAt, vt, message, headers)
     }
 
   private val metricsDecoder: Decoder[QueueMetrics] =
@@ -72,6 +73,16 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
       _.prepare(sql"SELECT pgmq.send($text, $text::jsonb, $int4)".query(int8))
         .flatMap(_.unique((queue, body, delay)))
 
+  protected def sendRaw(queue: String, body: String, headers: String): F[Long] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.send($text, $text::jsonb, $text::jsonb)".query(int8))
+        .flatMap(_.unique((queue, body, headers)))
+
+  protected def sendRaw(queue: String, body: String, headers: String, delay: Int): F[Long] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.send($text, $text::jsonb, $text::jsonb, $int4)".query(int8))
+        .flatMap(_.unique((queue, body, headers, delay)))
+
   protected def sendBatchRaw(queue: String, bodies: List[String]): F[List[Long]] =
     pool.use:
       _.prepare(sql"SELECT * FROM pgmq.send_batch($text, ${_text}::jsonb[])".query(int8))
@@ -82,19 +93,34 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
       _.prepare(sql"SELECT * FROM pgmq.send_batch($text, ${_text}::jsonb[], $int4)".query(int8))
         .flatMap(_.stream((queue, Arr.fromFoldable(bodies), delay), 64).compile.toList)
 
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): F[List[Long]] =
+    pool.use:
+      _.prepare(sql"SELECT * FROM pgmq.send_batch($text, ${_text}::jsonb[], ${_text}::jsonb[])".query(int8))
+        .flatMap(_.stream((queue, Arr.fromFoldable(bodies), Arr.fromFoldable(headers)), 64).compile.toList)
+
+  protected def sendBatchRaw(
+      queue: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): F[List[Long]] =
+    pool.use:
+      _.prepare(sql"SELECT * FROM pgmq.send_batch($text, ${_text}::jsonb[], ${_text}::jsonb[], $int4)".query(int8))
+        .flatMap(_.stream((queue, Arr.fromFoldable(bodies), Arr.fromFoldable(headers), delay), 64).compile.toList)
+
   // Consuming
 
   protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]] =
     pool.use:
       _.prepare(
-        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.read($text, $int4, $int4)"
+        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read($text, $int4, $int4)"
           .query(rawMessageDecoder)
       ).flatMap(_.stream((queue, vt, qty), 64).compile.toList)
 
   protected def popRaw(queue: String): F[Option[RawMessage]] =
     pool.use:
       _.prepare(
-        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.pop($text)"
+        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop($text)"
           .query(rawMessageDecoder)
       ).flatMap(_.option(queue))
 
@@ -119,7 +145,7 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
   protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
     pool.use:
       _.prepare(
-        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.set_vt($text, $int8, $int4)"
+        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($text, $int8, $int4)"
           .query(rawMessageDecoder)
       ).flatMap(_.option((queue, msgId, vtOffset)))
 

@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.2"
+ThisBuild / tlBaseVersion := "0.3"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -88,7 +88,8 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "pgmq4s-core",
     libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
+    mimaPreviousArtifacts := Set.empty
   )
   .jsSettings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV % Test
