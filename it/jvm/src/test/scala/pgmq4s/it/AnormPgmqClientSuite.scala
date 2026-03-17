@@ -1,11 +1,13 @@
 package pgmq4s.it
 
+import _root_.anorm.*
 import cats.effect.*
 import cats.syntax.foldable.*
 import pgmq4s.*
 import pgmq4s.anorm.AnormPgmqClient
 import weaver.*
 
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }
 
 object AnormPgmqClientSuite extends PgmqClientSuite:
@@ -63,16 +65,18 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     protected def metricsRaw(queue: String) = ???
     protected def metricsAllRaw = ???
 
+  private given ExecutionContext = ExecutionContext.global
+
+  private val ds = new org.postgresql.ds.PGSimpleDataSource()
+  ds.setURL("jdbc:postgresql://localhost:5432/pgmq")
+  ds.setUser("pgmq")
+  ds.setPassword("pgmq")
+
+  private val anormClient = AnormPgmqClient(ds)
+
   override def sharedResource: Resource[IO, Res] =
-    given ExecutionContext = ExecutionContext.global
-
-    val ds = new org.postgresql.ds.PGSimpleDataSource()
-    ds.setURL("jdbc:postgresql://localhost:5432/pgmq")
-    ds.setUser("pgmq")
-    ds.setPassword("pgmq")
-
     for
-      client <- Resource.pure[IO, PgmqClient[IO]](FutureToIO(AnormPgmqClient(ds)))
+      client <- Resource.pure[IO, PgmqClient[IO]](FutureToIO(anormClient))
       queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
@@ -82,3 +86,16 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
           .attempt
           .void
     yield (client, queues, counter)
+
+  pureTest("Column[OffsetDateTime] handles all input types"):
+    val col = summon[Column[OffsetDateTime]](using anormClient.given_Column_OffsetDateTime)
+    val meta = MetaDataItem(ColumnName("test_col", None), false, "java.sql.Timestamp")
+
+    val ts = java.sql.Timestamp.from(Instant.parse("2026-01-15T10:30:00Z"))
+    val odt = OffsetDateTime.of(2026, 3, 17, 12, 0, 0, 0, ZoneOffset.UTC)
+
+    List(
+      expect.same(col(ts, meta), Right(OffsetDateTime.of(2026, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC))),
+      expect.same(col(odt, meta), Right(odt)),
+      expect(col("not a timestamp", meta).isLeft)
+    ).combineAll

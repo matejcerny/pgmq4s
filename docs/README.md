@@ -18,6 +18,7 @@ JSON codecs
 - Circe
 - Jsoniter-scala
 - Play JSON
+- Spray JSON
 - uPickle
 
 Need a specific DB backend or JSON bridge? Create an issue [here](https://github.com/matejcerny/pgmq4s/issues/new).
@@ -29,7 +30,7 @@ Add to your `build.sbt`:
 ```scala
 libraryDependencies ++= Seq(
   "io.github.matejcerny" %% "pgmq4s-core"   % "@VERSION@",
-  "io.github.matejcerny" %% "pgmq4s-circe"  % "@VERSION@",  // or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-upickle
+  "io.github.matejcerny" %% "pgmq4s-circe"  % "@VERSION@",  // or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-spray-json, pgmq4s-upickle
   "io.github.matejcerny" %% "pgmq4s-doobie" % "@VERSION@"   // or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick
 )
 ```
@@ -42,6 +43,7 @@ All available artifacts:
 | `pgmq4s-circe`      | Circe JSON codec bridge           |
 | `pgmq4s-jsoniter`   | Jsoniter-scala JSON codec bridge  |
 | `pgmq4s-play-json`  | Play JSON codec bridge (JVM only) |
+| `pgmq4s-spray-json` | Spray JSON codec bridge (JVM only)|
 | `pgmq4s-upickle`    | uPickle JSON codec bridge         |
 | `pgmq4s-anorm`      | Anorm backend (JVM only)          |
 | `pgmq4s-doobie`     | Doobie backend (JVM only)         |
