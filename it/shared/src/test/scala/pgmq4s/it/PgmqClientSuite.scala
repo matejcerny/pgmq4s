@@ -10,6 +10,7 @@ import weaver.*
 trait PgmqClientSuite extends IOSuite:
 
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
+  case class TestHeaders(traceId: String) derives Encoder.AsObject, Decoder
 
   type Res = (PgmqClient[IO], Ref[IO, List[QueueName]], Ref[IO, Int])
 
@@ -33,7 +34,7 @@ trait PgmqClientSuite extends IOSuite:
       msgs  <- client.read[TestPayload](queue, vt = 30, qty = 1)
     yield List(
       expect.same(msgs.size, 1),
-      expect.same(msgs.head.message, payload),
+      expect.same(msgs.head.payload, payload),
       expect.same(msgs.head.msgId, msgId)
     ).combineAll
   }
@@ -43,7 +44,7 @@ trait PgmqClientSuite extends IOSuite:
     for
       _   <- client.send(queue, payload)
       msg <- client.pop[TestPayload](queue)
-    yield expect.same(msg.map(_.message), Some(payload))
+    yield expect.same(msg.map(_.payload), Some(payload))
   }
 
   pgmqTest("send batch and read") { (client, queue) =>
@@ -52,7 +53,7 @@ trait PgmqClientSuite extends IOSuite:
       ids  <- client.sendBatch(queue, payloads)
       msgs <- client.read[TestPayload](queue, vt = 30, qty = 10)
     yield expect.same(ids.size, 3) and
-      expect.same(msgs.map(_.message).toSet, payloads.toSet)
+      expect.same(msgs.map(_.payload).toSet, payloads.toSet)
   }
 
   pgmqTest("archive a message") { (client, queue) =>
@@ -137,4 +138,79 @@ trait PgmqClientSuite extends IOSuite:
       .map:
         case Right(_) => success
         case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))
+  }
+
+  pgmqTest("send with headers and read") { (client, queue) =>
+    val payload = TestPayload(100, "with headers")
+    val hdrs = TestHeaders("trace-abc")
+    for
+      msgId <- client.send(queue, payload, hdrs)
+      msgs  <- client.read[TestPayload, TestHeaders](queue, vt = 30, qty = 1)
+    yield
+      val msg = msgs.head
+      List(
+        expect.same(msgs.size, 1),
+        expect.same(msg.msgId, msgId),
+        expect.same(msg.payload, payload),
+        msg match
+          case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+          case _                                     => failure("expected WithHeaders")
+      ).combineAll
+  }
+
+  pgmqTest("send batch with headers") { (client, queue) =>
+    val payloads = List(TestPayload(101, "h1"), TestPayload(102, "h2"))
+    val hdrs = List(TestHeaders("t1"), TestHeaders("t2"))
+    for
+      ids  <- client.sendBatch(queue, payloads, hdrs)
+      msgs <- client.read[TestPayload, TestHeaders](queue, vt = 30, qty = 10)
+    yield expect.same(ids.size, 2) and
+      expect(msgs.forall(_.isInstanceOf[Message.WithHeaders[?, ?]]))
+  }
+
+  pgmqTest("send with headers and delay") { (client, queue) =>
+    val payload = TestPayload(105, "headers+delay")
+    val hdrs = TestHeaders("trace-delay")
+    for
+      msgId <- client.send(queue, payload, hdrs, delay = 0)
+      msgs  <- client.read[TestPayload, TestHeaders](queue, vt = 30, qty = 1)
+    yield
+      val msg = msgs.head
+      List(
+        expect.same(msg.msgId, msgId),
+        expect.same(msg.payload, payload),
+        msg match
+          case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+          case _                                     => failure("expected WithHeaders")
+      ).combineAll
+  }
+
+  pgmqTest("send batch with headers and delay") { (client, queue) =>
+    val payloads = List(TestPayload(106, "hd1"), TestPayload(107, "hd2"))
+    val hdrs = List(TestHeaders("td1"), TestHeaders("td2"))
+    for
+      ids  <- client.sendBatch(queue, payloads, hdrs, delay = 0)
+      msgs <- client.read[TestPayload, TestHeaders](queue, vt = 30, qty = 10)
+    yield expect.same(ids.size, 2) and
+      expect(msgs.forall(_.isInstanceOf[Message.WithHeaders[?, ?]]))
+  }
+
+  pgmqTest("read without headers returns Plain") { (client, queue) =>
+    val payload = TestPayload(103, "no headers")
+    for
+      _    <- client.send(queue, payload)
+      msgs <- client.read[TestPayload](queue, vt = 30, qty = 1)
+    yield expect.same(msgs.size, 1) and
+      expect(msgs.head.isInstanceOf[Message.Plain[?]]) and
+      expect.same(msgs.head.payload, payload)
+  }
+
+  pgmqTest("read with header type but no headers returns Plain") { (client, queue) =>
+    val payload = TestPayload(104, "no headers read")
+    for
+      _    <- client.send(queue, payload)
+      msgs <- client.read[TestPayload, TestHeaders](queue, vt = 30, qty = 1)
+    yield expect.same(msgs.size, 1) and
+      expect(msgs.head.isInstanceOf[Message.Plain[?]]) and
+      expect.same(msgs.head.payload, payload)
   }

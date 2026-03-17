@@ -27,5 +27,5 @@ object SkunkPgmqClientApp extends IOApp.Simple:
         for
           _ <- client.createQueue(queue)
           messages <- service.publishAndFetch(event)
-          _ <- IO.println(s"skunk tagless-final read: ${messages.map(_.message)}")
+          _ <- IO.println(s"skunk tagless-final read: ${messages.map(_.payload)}")
         yield ()

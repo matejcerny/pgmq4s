@@ -29,5 +29,5 @@ object DoobiePgmqClientApp extends IOApp.Simple:
     for
       _ <- client.createQueue(queue)
       messages <- service.publishAndFetch(event)
-      _ <- IO.println(s"tagless-final read: ${messages.map(_.message)}")
+      _ <- IO.println(s"tagless-final read: ${messages.map(_.payload)}")
     yield ()

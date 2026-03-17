@@ -26,13 +26,22 @@ import cats.syntax.all.*
 
 trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
 
-  private def decodeRaw[A: PgmqDecoder](raw: RawMessage): F[Message[A]] =
+  private def decodeRaw[A](raw: RawMessage)(using dec: PgmqDecoder[A]): F[Message.Plain[A]] =
     MonadThrow[F].fromEither(
-      PgmqDecoder[A]
+      dec
         .decode(raw.message)
         .map:
-          Message(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, _)
+          Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, _)
     )
+
+  private def decodeRaw[A, H](raw: RawMessage)(using decA: PgmqDecoder[A], decH: PgmqDecoder[H]): F[Message[A, H]] =
+    MonadThrow[F].fromEither:
+      for
+        a <- decA.decode(raw.message)
+        h <- raw.headers.traverse(decH.decode)
+      yield h match
+        case None    => Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a)
+        case Some(v) => Message.WithHeaders(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a, v)
 
   // Queue Management
   def createQueue(queue: QueueName): F[Unit] = createQueueRaw(queue.value)
@@ -42,24 +51,54 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
   def dropQueue(queue: QueueName): F[Boolean] = dropQueueRaw(queue.value)
 
   // Publishing
-  def send[A: PgmqEncoder](queue: QueueName, message: A): F[MessageId] =
-    sendRaw(queue.value, PgmqEncoder[A].encode(message)).map(MessageId(_))
+  def send[A](queue: QueueName, message: A)(using enc: PgmqEncoder[A]): F[MessageId] =
+    sendRaw(queue.value, enc.encode(message)).map(MessageId(_))
 
-  def send[A: PgmqEncoder](queue: QueueName, message: A, delay: Int): F[MessageId] =
-    sendRaw(queue.value, PgmqEncoder[A].encode(message), delay).map(MessageId(_))
+  def send[A](queue: QueueName, message: A, delay: Int)(using enc: PgmqEncoder[A]): F[MessageId] =
+    sendRaw(queue.value, enc.encode(message), delay).map(MessageId(_))
 
-  def sendBatch[A: PgmqEncoder](queue: QueueName, messages: List[A]): F[List[MessageId]] =
-    sendBatchRaw(queue.value, messages.map(PgmqEncoder[A].encode)).map(_.map(MessageId(_)))
+  def send[A, H](queue: QueueName, message: A, headers: H)(using
+      encA: PgmqEncoder[A],
+      encH: PgmqEncoder[H]
+  ): F[MessageId] =
+    sendRaw(queue.value, encA.encode(message), encH.encode(headers)).map(MessageId(_))
 
-  def sendBatch[A: PgmqEncoder](queue: QueueName, messages: List[A], delay: Int): F[List[MessageId]] =
-    sendBatchRaw(queue.value, messages.map(PgmqEncoder[A].encode), delay).map(_.map(MessageId(_)))
+  def send[A, H](queue: QueueName, message: A, headers: H, delay: Int)(using
+      encA: PgmqEncoder[A],
+      encH: PgmqEncoder[H]
+  ): F[MessageId] =
+    sendRaw(queue.value, encA.encode(message), encH.encode(headers), delay).map(MessageId(_))
+
+  def sendBatch[A](queue: QueueName, messages: List[A])(using enc: PgmqEncoder[A]): F[List[MessageId]] =
+    sendBatchRaw(queue.value, messages.map(enc.encode)).map(_.map(MessageId(_)))
+
+  def sendBatch[A](queue: QueueName, messages: List[A], delay: Int)(using enc: PgmqEncoder[A]): F[List[MessageId]] =
+    sendBatchRaw(queue.value, messages.map(enc.encode), delay).map(_.map(MessageId(_)))
+
+  def sendBatch[A, H](queue: QueueName, messages: List[A], headers: List[H])(using
+      encA: PgmqEncoder[A],
+      encH: PgmqEncoder[H]
+  ): F[List[MessageId]] =
+    sendBatchRaw(queue.value, messages.map(encA.encode), headers.map(encH.encode)).map(_.map(MessageId(_)))
+
+  def sendBatch[A, H](queue: QueueName, messages: List[A], headers: List[H], delay: Int)(using
+      encA: PgmqEncoder[A],
+      encH: PgmqEncoder[H]
+  ): F[List[MessageId]] =
+    sendBatchRaw(queue.value, messages.map(encA.encode), headers.map(encH.encode), delay).map(_.map(MessageId(_)))
 
   // Consuming
-  def read[A: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message[A]]] =
+  def read[A: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message.Plain[A]]] =
     readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[A]))
 
-  def pop[A: PgmqDecoder](queue: QueueName): F[Option[Message[A]]] =
+  def read[A: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message[A, H]]] =
+    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[A, H]))
+
+  def pop[A: PgmqDecoder](queue: QueueName): F[Option[Message.Plain[A]]] =
     popRaw(queue.value).flatMap(_.traverse(decodeRaw[A]))
+
+  def pop[A: PgmqDecoder, H: PgmqDecoder](queue: QueueName): F[Option[Message[A, H]]] =
+    popRaw(queue.value).flatMap(_.traverse(decodeRaw[A, H]))
 
   // Lifecycle
   def archive(queue: QueueName, msgId: MessageId): F[Boolean] =
@@ -74,8 +113,15 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
   def deleteBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     deleteBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
-  def setVt[A: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message[A]]] =
+  def setVt[A: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message.Plain[A]]] =
     setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A]))
+
+  def setVt[A: PgmqDecoder, H: PgmqDecoder](
+      queue: QueueName,
+      msgId: MessageId,
+      vtOffset: Int
+  ): F[Option[Message[A, H]]] =
+    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A, H]))
 
   def purgeQueue(queue: QueueName): F[Long] = purgeQueueRaw(queue.value)
   def detachArchive(queue: QueueName): F[Unit] = detachArchiveRaw(queue.value)

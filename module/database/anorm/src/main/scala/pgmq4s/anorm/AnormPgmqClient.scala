@@ -45,9 +45,9 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
 
   private val rawMessage: RowParser[RawMessage] =
     (long("msg_id") ~ int("read_ct") ~ get[OffsetDateTime]("enqueued_at") ~
-      get[OffsetDateTime]("vt") ~ str("message")).map:
-      case msgId ~ readCt ~ enqueuedAt ~ vt ~ message =>
-        RawMessage(msgId, readCt, enqueuedAt, vt, message)
+      get[OffsetDateTime]("vt") ~ str("message") ~ str("headers").?).map:
+      case msgId ~ readCt ~ enqueuedAt ~ vt ~ message ~ headers =>
+        RawMessage(msgId, readCt, enqueuedAt, vt, message, headers)
 
   private val queueMetrics: RowParser[QueueMetrics] =
     (str("queue_name") ~ long("queue_length") ~ long("newest_msg_age_sec").? ~
@@ -104,6 +104,20 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
         .on("queue" -> queue, "body" -> body, "delay" -> delay)
         .as(long(1).single)
 
+  protected def sendRaw(queue: String, body: String, headers: String): Future[Long] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.send({queue}, {body}::jsonb, {headers}::jsonb)")
+        .on("queue" -> queue, "body" -> body, "headers" -> headers)
+        .as(long(1).single)
+
+  protected def sendRaw(queue: String, body: String, headers: String, delay: Int): Future[Long] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.send({queue}, {body}::jsonb, {headers}::jsonb, {delay})")
+        .on("queue" -> queue, "body" -> body, "headers" -> headers, "delay" -> delay)
+        .as(long(1).single)
+
   protected def sendBatchRaw(queue: String, bodies: List[String]): Future[List[Long]] =
     withConnection: conn =>
       jdbcQuery("SELECT * FROM pgmq.send_batch(?, ?)", conn): ps =>
@@ -117,19 +131,41 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
         ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
         ps.setInt(3, delay)
 
+  protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): Future[List[Long]] =
+    withConnection: conn =>
+      jdbcQuery("SELECT * FROM pgmq.send_batch(?, ?, ?)", conn): ps =>
+        ps.setString(1, queue)
+        ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
+        ps.setArray(3, conn.createArrayOf("jsonb", headers.toArray))
+
+  protected def sendBatchRaw(
+      queue: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): Future[List[Long]] =
+    withConnection: conn =>
+      jdbcQuery("SELECT * FROM pgmq.send_batch(?, ?, ?, ?)", conn): ps =>
+        ps.setString(1, queue)
+        ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
+        ps.setArray(3, conn.createArrayOf("jsonb", headers.toArray))
+        ps.setInt(4, delay)
+
   // Consuming
 
   protected def readRaw(queue: String, vt: Int, qty: Int): Future[List[RawMessage]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.read({queue}, {vt}, {qty})")
+      SQL(
+        "SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read({queue}, {vt}, {qty})"
+      )
         .on("queue" -> queue, "vt" -> vt, "qty" -> qty)
         .as(rawMessage.*)
 
   protected def popRaw(queue: String): Future[Option[RawMessage]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.pop({queue})")
+      SQL("SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop({queue})")
         .on("queue" -> queue)
         .as(rawMessage.singleOpt)
 
@@ -164,7 +200,9 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
   protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT msg_id, read_ct, enqueued_at, vt, message::text FROM pgmq.set_vt({queue}, {msgId}, {vtOffset})")
+      SQL(
+        "SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt({queue}, {msgId}, {vtOffset})"
+      )
         .on("queue" -> queue, "msgId" -> msgId, "vtOffset" -> vtOffset)
         .as(rawMessage.singleOpt)
 

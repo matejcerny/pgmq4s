@@ -26,7 +26,6 @@ trait PgmqEncoder[A]:
   def contramap[B](f: B => A): PgmqEncoder[B] = (value: B) => this.encode(f(value))
 
 object PgmqEncoder:
-  def apply[A](using enc: PgmqEncoder[A]): PgmqEncoder[A] = enc
   def instance[A](f: A => String): PgmqEncoder[A] = (value: A) => f(value)
 
   given PgmqEncoder[String] = instance(identity)
@@ -37,7 +36,6 @@ trait PgmqDecoder[A]:
   def emap[B](f: A => Either[Throwable, B]): PgmqDecoder[B] = (json: String) => this.decode(json).flatMap(f)
 
 object PgmqDecoder:
-  def apply[A](using dec: PgmqDecoder[A]): PgmqDecoder[A] = dec
   def instance[A](f: String => Either[Throwable, A]): PgmqDecoder[A] = (json: String) => f(json)
 
   given PgmqDecoder[String] = instance(Right(_))
