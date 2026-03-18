@@ -100,7 +100,7 @@
 </span><span class="keyword">import</span><span> </span><span class="identifier">natchez</span><span>.</span><span class="type-name">Trace</span><span>.</span><span class="type-name">Implicits</span><span>.</span><span class="identifier">noop</span><span>
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">circe</span><span>.</span><span class="keyword">given</span><span>
-</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">skunk</span><span>.</span><span class="type-name">SkunkPgmqClient</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">skunk</span><span>.{ </span><span class="type-name">SkunkPgmqAdmin</span><span>, </span><span class="type-name">SkunkPgmqClient</span><span> }
 
 </span><span class="keyword">case</span><span> </span><span class="keyword">class</span><span> </span><span class="type-name">OrderCreated</span><span>(</span><span class="identifier">orderId</span><span>: </span><span class="type-name">Long</span><span>, </span><span class="identifier">email</span><span>: </span><span class="type-name">String</span><span>) </span><span class="keyword">derives</span><span> </span><span class="type-name">Encoder</span><span>.</span><span class="type-name">AsObject</span><span>, </span><span class="type-name">Decoder</span><span>
 
@@ -138,10 +138,11 @@
       )
       .</span><span class="identifier">use</span><span>: </span><span class="identifier">pool</span><span> =&gt;
         </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span>: </span><span class="type-name">PgmqClient</span><span>[</span><span class="type-name">IO</span><span>] = </span><span class="type-name">SkunkPgmqClient</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="identifier">pool</span><span>)
+        </span><span class="keyword">val</span><span> </span><span class="identifier">admin</span><span>: </span><span class="type-name">PgmqAdmin</span><span>[</span><span class="type-name">IO</span><span>]   = </span><span class="type-name">SkunkPgmqAdmin</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="identifier">pool</span><span>)
         </span><span class="keyword">val</span><span> </span><span class="identifier">service</span><span>                = </span><span class="type-name">OrderService</span><span>[</span><span class="type-name">IO</span><span>](</span><span class="type-name">OrderQueue</span><span>.</span><span class="identifier">make</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">client</span><span>))
 
         </span><span class="keyword">for</span><span>
-          </span><span class="identifier">_</span><span>        &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
+          </span><span class="identifier">_</span><span>        &lt;- </span><span class="identifier">admin</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
           </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">service</span><span>.</span><span class="identifier">publishAndFetch</span><span>(</span><span class="identifier">event</span><span>)
           </span><span class="identifier">_</span><span>        &lt;- </span><span class="type-name">IO</span><span>.</span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
         </span><span class="keyword">yield</span><span> ()</span></code></pre>

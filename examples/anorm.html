@@ -93,7 +93,7 @@
 
         <h1 id="anorm" class="title">Anorm</h1>
         <pre><code class="nohighlight"><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.*
-</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">anorm</span><span>.</span><span class="type-name">AnormPgmqClient</span><span>
+</span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">anorm</span><span>.{ </span><span class="type-name">AnormPgmqAdmin</span><span>, </span><span class="type-name">AnormPgmqClient</span><span> }
 </span><span class="keyword">import</span><span> </span><span class="identifier">pgmq4s</span><span>.</span><span class="identifier">circe</span><span>.</span><span class="keyword">given</span><span>
 
 </span><span class="keyword">import</span><span> </span><span class="identifier">scala</span><span>.</span><span class="identifier">concurrent</span><span>.</span><span class="identifier">duration</span><span>.*
@@ -111,10 +111,11 @@
   </span><span class="identifier">ds</span><span>.</span><span class="identifier">setPassword</span><span>(</span><span class="string-literal">&quot;pgmq&quot;</span><span>)
 
   </span><span class="keyword">val</span><span> </span><span class="identifier">client</span><span> = </span><span class="type-name">AnormPgmqClient</span><span>(</span><span class="identifier">ds</span><span>)
+  </span><span class="keyword">val</span><span> </span><span class="identifier">admin</span><span> = </span><span class="type-name">AnormPgmqAdmin</span><span>(</span><span class="identifier">ds</span><span>)
 
   </span><span class="keyword">val</span><span> </span><span class="identifier">result</span><span> =
     </span><span class="keyword">for</span><span>
-      </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
+      </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">admin</span><span>.</span><span class="identifier">createQueue</span><span>(</span><span class="identifier">queue</span><span>)
       </span><span class="identifier">_</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">send</span><span>(</span><span class="identifier">queue</span><span>, </span><span class="identifier">event</span><span>)
       </span><span class="identifier">messages</span><span> &lt;- </span><span class="identifier">client</span><span>.</span><span class="identifier">read</span><span>[</span><span class="type-name">OrderCreated</span><span>](</span><span class="identifier">queue</span><span>, </span><span class="identifier">vt</span><span> = </span><span class="number-literal">30</span><span>, </span><span class="identifier">qty</span><span> = </span><span class="number-literal">10</span><span>)
     </span><span class="keyword">yield</span><span> </span><span class="identifier">println</span><span>(</span><span class="string-literal">s&quot;anorm read: </span><span class="substitution">${messages.map(_.message)}</span><span class="string-literal">&quot;</span><span>)
