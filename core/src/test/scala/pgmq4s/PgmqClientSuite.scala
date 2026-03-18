@@ -34,15 +34,6 @@ object PgmqClientSuite extends SimpleIOSuite:
   private def rawMsg(id: Long, body: String, headers: Option[String] = None): RawMessage =
     RawMessage(id, readCt = 1, enqueuedAt = now, vt = now, message = body, headers = headers)
 
-  private val sampleMetrics = QueueMetrics(
-    queueName = QueueName("test"),
-    queueLength = 5,
-    newestMsgAgeSec = Some(10),
-    oldestMsgAgeSec = Some(100),
-    totalMessages = 42,
-    scrapeTime = now
-  )
-
   given PgmqEncoder[String] = PgmqEncoder.instance(identity)
   given PgmqDecoder[String] = PgmqDecoder.instance(Right(_))
 
@@ -57,9 +48,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       msgIds: List[Long] = Nil,
       vt: Int = -1,
       qty: Int = -1,
-      vtOffset: Int = -1,
-      partitionInterval: String = "",
-      retentionInterval: String = ""
+      vtOffset: Int = -1
   )
 
   private case class Returns(
@@ -71,23 +60,10 @@ object PgmqClientSuite extends SimpleIOSuite:
       archive: Boolean = true,
       archiveBatch: List[Long] = Nil,
       delete: Boolean = true,
-      deleteBatch: List[Long] = Nil,
-      drop: Boolean = true,
-      purge: Long = 0L,
-      metrics: Option[QueueMetrics] = None,
-      metricsAll: List[QueueMetrics] = Nil
+      deleteBatch: List[Long] = Nil
   )
 
   private class StubClient(ref: Ref[IO, Captured], ret: Returns) extends PgmqClient[IO]:
-
-    def createQueueRaw(queue: String): IO[Unit] =
-      ref.update(_.copy(queue = queue))
-
-    def createPartitionedQueueRaw(queue: String, partitionInterval: String, retentionInterval: String): IO[Unit] =
-      ref.update(_.copy(queue = queue, partitionInterval = partitionInterval, retentionInterval = retentionInterval))
-
-    def dropQueueRaw(queue: String): IO[Boolean] =
-      ref.update(_.copy(queue = queue)).as(ret.drop)
 
     def sendRaw(queue: String, body: String): IO[Long] =
       ref.update(_.copy(queue = queue, body = body)).as(ret.send)
@@ -133,18 +109,6 @@ object PgmqClientSuite extends SimpleIOSuite:
 
     def setVtRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] =
       ref.update(_.copy(queue = queue, msgId = msgId, vtOffset = vtOffset)).as(ret.setVt)
-
-    def purgeQueueRaw(queue: String): IO[Long] =
-      ref.update(_.copy(queue = queue)).as(ret.purge)
-
-    def detachArchiveRaw(queue: String): IO[Unit] =
-      ref.update(_.copy(queue = queue))
-
-    def metricsRaw(queue: String): IO[Option[QueueMetrics]] =
-      ref.update(_.copy(queue = queue)).as(ret.metrics)
-
-    def metricsAllRaw: IO[List[QueueMetrics]] =
-      IO.pure(ret.metricsAll)
 
   private def pgmqTest(name: String, ret: Returns = Returns())(
       body: (PgmqClient[IO], IO[Captured]) => IO[Expectations]
@@ -403,58 +367,3 @@ object PgmqClientSuite extends SimpleIOSuite:
       c <- captured
     yield expect.same(ids.map(_.value), List(10L, 20L)) and
       expect.same(c.msgIds, List(10L, 20L))
-
-  // --- queue management ---
-
-  pgmqTest("createQueue unwraps QueueName"): (client, captured) =>
-    for
-      _ <- client.createQueue(q)
-      c <- captured
-    yield expect.same(c.queue, "my-queue")
-
-  pgmqTest("createPartitionedQueue forwards all arguments"): (client, captured) =>
-    for
-      _ <- client.createPartitionedQueue(q, "daily", "30 days")
-      c <- captured
-    yield List(
-      expect.same(c.queue, "my-queue"),
-      expect.same(c.partitionInterval, "daily"),
-      expect.same(c.retentionInterval, "30 days")
-    ).combineAll
-
-  pgmqTest("dropQueue unwraps QueueName"): (client, captured) =>
-    for
-      ok <- client.dropQueue(q)
-      c <- captured
-    yield expect(clue(ok)) and
-      expect.same(c.queue, "my-queue")
-
-  pgmqTest("purgeQueue unwraps QueueName", Returns(purge = 10L)): (client, captured) =>
-    for
-      n <- client.purgeQueue(q)
-      c <- captured
-    yield expect.same(n, 10L) and
-      expect.same(c.queue, "my-queue")
-
-  pgmqTest("detachArchive unwraps QueueName"): (client, captured) =>
-    for
-      _ <- client.detachArchive(q)
-      c <- captured
-    yield expect.same(c.queue, "my-queue")
-
-  // --- metrics ---
-
-  pgmqTest("metrics passes through backend result", Returns(metrics = Some(sampleMetrics))): (client, captured) =>
-    for
-      opt <- client.metrics(q)
-      c <- captured
-    yield List(
-      expect(clue(opt).isDefined),
-      expect.same(opt.map(_.queueLength), Some(5L)),
-      expect.same(c.queue, "my-queue")
-    ).combineAll
-
-  pgmqTest("metricsAll passes through backend result", Returns(metricsAll = List(sampleMetrics))): (client, _) =>
-    for list <- client.metricsAll
-    yield expect.same(list.size, 1) and
-      expect.same(list.map(_.totalMessages), List(42L))

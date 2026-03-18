@@ -4,7 +4,7 @@ import cats.effect.{ IO, IOApp, Resource }
 import doobie.ExecutionContexts
 import doobie.hikari.HikariTransactor
 import pgmq4s.*
-import pgmq4s.doobie.DoobiePgmqClient
+import pgmq4s.doobie.{ DoobiePgmqAdmin, DoobiePgmqClient }
 
 object DoobiePgmqClientApp extends IOApp.Simple:
   private val queue = QueueName("orders_tagless_final")
@@ -24,10 +24,11 @@ object DoobiePgmqClientApp extends IOApp.Simple:
 
   val run: IO[Unit] = hikariTransactor.use: xa =>
     val client: PgmqClient[IO] = DoobiePgmqClient[IO](xa)
+    val admin: PgmqAdmin[IO] = DoobiePgmqAdmin[IO](xa)
     val service = OrderService[IO](OrderQueue.make(queue, client))
 
     for
-      _ <- client.createQueue(queue)
+      _ <- admin.createQueue(queue)
       messages <- service.publishAndFetch(event)
       _ <- IO.println(s"tagless-final read: ${messages.map(_.payload)}")
     yield ()

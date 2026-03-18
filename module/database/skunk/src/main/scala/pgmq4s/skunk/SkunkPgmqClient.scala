@@ -24,7 +24,7 @@ package pgmq4s.skunk
 import _root_.skunk as sk
 import sk.*
 import sk.codec.all.*
-import sk.data.{ Arr, Type }
+import sk.data.Arr
 import sk.implicits.*
 import cats.effect.{ Resource, Temporal }
 import cats.syntax.all.*
@@ -32,36 +32,11 @@ import pgmq4s.*
 
 class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends PgmqClient[F]:
 
-  private val voidCodec: Codec[Unit] =
-    Codec.simple(_ => "", _ => Right(()), Type("void"))
-
   private val rawMessageDecoder: Decoder[RawMessage] =
     (int8 ~ int4 ~ timestamptz ~ timestamptz ~ text ~ text.opt).map {
       case msgId ~ readCt ~ enqueuedAt ~ vt ~ message ~ headers =>
         RawMessage(msgId, readCt, enqueuedAt, vt, message, headers)
     }
-
-  private val metricsDecoder: Decoder[QueueMetrics] =
-    (text ~ int8 ~ int4.opt ~ int4.opt ~ int8 ~ timestamptz).map { case name ~ len ~ newest ~ oldest ~ total ~ scrape =>
-      QueueMetrics(QueueName(name), len, newest.map(_.toLong), oldest.map(_.toLong), total, scrape)
-    }
-
-  // Queue Management
-
-  protected def createQueueRaw(queue: String): F[Unit] =
-    pool.use(_.prepare(sql"SELECT pgmq.create($text)".query(voidCodec)).flatMap(_.unique(queue)))
-
-  protected def createPartitionedQueueRaw(
-      queue: String,
-      partitionInterval: String,
-      retentionInterval: String
-  ): F[Unit] =
-    pool.use:
-      _.prepare(sql"SELECT pgmq.create_partitioned($text, $text, $text)".query(voidCodec))
-        .flatMap(_.unique((queue, partitionInterval, retentionInterval)))
-
-  protected def dropQueueRaw(queue: String): F[Boolean] =
-    pool.use(_.prepare(sql"SELECT pgmq.drop_queue($text)".query(bool)).flatMap(_.unique(queue)))
 
   // Publishing
 
@@ -148,25 +123,3 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
         sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($text, $int8, $int4)"
           .query(rawMessageDecoder)
       ).flatMap(_.option((queue, msgId, vtOffset)))
-
-  protected def purgeQueueRaw(queue: String): F[Long] =
-    pool.use(_.prepare(sql"SELECT pgmq.purge_queue($text)".query(int8)).flatMap(_.unique(queue)))
-
-  protected def detachArchiveRaw(queue: String): F[Unit] =
-    pool.use(_.prepare(sql"SELECT pgmq.detach_archive($text)".query(voidCodec)).flatMap(_.unique(queue)))
-
-  // Observability
-
-  protected def metricsRaw(queue: String): F[Option[QueueMetrics]] =
-    pool.use:
-      _.prepare(
-        sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-                FROM pgmq.metrics($text)""".query(metricsDecoder)
-      ).flatMap(_.option(queue))
-
-  protected def metricsAllRaw: F[List[QueueMetrics]] =
-    pool.use:
-      _.execute(
-        sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-                FROM pgmq.metrics_all()""".query(metricsDecoder)
-      )

@@ -5,7 +5,7 @@ import cats.effect.*
 import cats.syntax.foldable.*
 import natchez.Trace.Implicits.noop
 import pgmq4s.*
-import pgmq4s.skunk.SkunkPgmqClient
+import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 import weaver.*
 
 object SkunkPgmqClientSuite extends PgmqClientSuite:
@@ -21,12 +21,13 @@ object SkunkPgmqClientSuite extends PgmqClientSuite:
         max = 10
       )
       client = SkunkPgmqClient[IO](pool)
+      admin = SkunkPgmqAdmin[IO](pool)
       queues  <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:
         queues.get
-          .flatMap(_.traverse_(client.dropQueue))
+          .flatMap(_.traverse_(admin.dropQueue))
           .attempt
           .void
-    yield (client, queues, counter)
+    yield (client, admin, queues, counter)

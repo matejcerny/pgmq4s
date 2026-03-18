@@ -4,7 +4,7 @@ import _root_.skunk.Session
 import cats.effect.{ IO, IOApp }
 import natchez.Trace.Implicits.noop
 import pgmq4s.*
-import pgmq4s.skunk.SkunkPgmqClient
+import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 
 object SkunkPgmqClientApp extends IOApp.Simple:
   private val queue = QueueName("orders_skunk_tagless_final")
@@ -22,10 +22,11 @@ object SkunkPgmqClientApp extends IOApp.Simple:
       )
       .use: pool =>
         val client: PgmqClient[IO] = SkunkPgmqClient[IO](pool)
+        val admin: PgmqAdmin[IO] = SkunkPgmqAdmin[IO](pool)
         val service = OrderService[IO](OrderQueue.make(queue, client))
 
         for
-          _ <- client.createQueue(queue)
+          _ <- admin.createQueue(queue)
           messages <- service.publishAndFetch(event)
           _ <- IO.println(s"skunk tagless-final read: ${messages.map(_.payload)}")
         yield ()

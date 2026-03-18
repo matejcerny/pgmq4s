@@ -74,3 +74,10 @@ case class QueueMetrics(
     totalMessages: Long,
     scrapeTime: OffsetDateTime
 )
+
+case class QueueInfo(
+    queueName: QueueName,
+    isPartitioned: Boolean,
+    isUnlogged: Boolean,
+    createdAt: OffsetDateTime
+)
