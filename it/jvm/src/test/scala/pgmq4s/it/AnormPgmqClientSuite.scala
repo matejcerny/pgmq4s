@@ -4,7 +4,7 @@ import _root_.anorm.*
 import cats.effect.*
 import cats.syntax.foldable.*
 import pgmq4s.*
-import pgmq4s.anorm.AnormPgmqClient
+import pgmq4s.anorm.{ AnormPgmqAdmin, AnormPgmqClient }
 import weaver.*
 
 import java.time.{ Instant, OffsetDateTime, ZoneOffset }
@@ -12,18 +12,8 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 object AnormPgmqClientSuite extends PgmqClientSuite:
 
-  private class FutureToIO(underlying: PgmqClient[Future]) extends PgmqClient[IO]:
+  private class FutureClientToIO(underlying: PgmqClient[Future]) extends PgmqClient[IO]:
     private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))
-
-    override def createQueue(queue: QueueName): IO[Unit] = liftF(underlying.createQueue(queue))
-    override def createPartitionedQueue(
-        queue: QueueName,
-        partitionInterval: String,
-        retentionInterval: String
-    ): IO[Unit] =
-      liftF(underlying.createPartitionedQueue(queue, partitionInterval, retentionInterval))
-
-    override def dropQueue(queue: QueueName): IO[Boolean] = liftF(underlying.dropQueue(queue))
 
     override def send[A: PgmqEncoder](queue: QueueName, message: A): IO[MessageId] =
       liftF(underlying.send(queue, message))
@@ -97,14 +87,6 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     ): IO[Option[Message[A, H]]] =
       liftF(underlying.setVt[A, H](queue, msgId, vtOffset))
 
-    override def purgeQueue(queue: QueueName): IO[Long] = liftF(underlying.purgeQueue(queue))
-    override def detachArchive(queue: QueueName): IO[Unit] = liftF(underlying.detachArchive(queue))
-    override def metrics(queue: QueueName): IO[Option[QueueMetrics]] = liftF(underlying.metrics(queue))
-    override def metricsAll: IO[List[QueueMetrics]] = liftF(underlying.metricsAll)
-
-    protected def createQueueRaw(queue: String): IO[Unit] = ???
-    protected def createPartitionedQueueRaw(queue: String, p: String, r: String): IO[Unit] = ???
-    protected def dropQueueRaw(queue: String): IO[Boolean] = ???
     protected def sendRaw(queue: String, body: String): IO[Long] = ???
     protected def sendRaw(queue: String, body: String, delay: Int): IO[Long] = ???
     protected def sendRaw(queue: String, body: String, headers: String): IO[Long] = ???
@@ -121,10 +103,33 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     protected def deleteRaw(queue: String, msgId: Long): IO[Boolean] = ???
     protected def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
     protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
+
+  private class FutureAdminToIO(underlying: PgmqAdmin[Future]) extends PgmqAdmin[IO]:
+    private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))
+
+    override def createQueue(queue: QueueName): IO[Unit] = liftF(underlying.createQueue(queue))
+    override def createPartitionedQueue(
+        queue: QueueName,
+        partitionInterval: String,
+        retentionInterval: String
+    ): IO[Unit] =
+      liftF(underlying.createPartitionedQueue(queue, partitionInterval, retentionInterval))
+
+    override def dropQueue(queue: QueueName): IO[Boolean] = liftF(underlying.dropQueue(queue))
+    override def purgeQueue(queue: QueueName): IO[Long] = liftF(underlying.purgeQueue(queue))
+    override def detachArchive(queue: QueueName): IO[Unit] = liftF(underlying.detachArchive(queue))
+    override def metrics(queue: QueueName): IO[Option[QueueMetrics]] = liftF(underlying.metrics(queue))
+    override def metricsAll: IO[List[QueueMetrics]] = liftF(underlying.metricsAll)
+    override def listQueues: IO[List[QueueInfo]] = liftF(underlying.listQueues)
+
+    protected def createQueueRaw(queue: String): IO[Unit] = ???
+    protected def createPartitionedQueueRaw(queue: String, p: String, r: String): IO[Unit] = ???
+    protected def dropQueueRaw(queue: String): IO[Boolean] = ???
     protected def purgeQueueRaw(queue: String): IO[Long] = ???
     protected def detachArchiveRaw(queue: String): IO[Unit] = ???
     protected def metricsRaw(queue: String): IO[Option[QueueMetrics]] = ???
     protected def metricsAllRaw: IO[List[QueueMetrics]] = ???
+    protected def listQueuesRaw: IO[List[QueueInfo]] = ???
 
   private given ExecutionContext = ExecutionContext.global
 
@@ -134,22 +139,24 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
   ds.setPassword("pgmq")
 
   private val anormClient = AnormPgmqClient(ds)
+  private val anormAdmin = AnormPgmqAdmin(ds)
 
   override def sharedResource: Resource[IO, Res] =
     for
-      client <- Resource.pure[IO, PgmqClient[IO]](FutureToIO(anormClient))
+      client <- Resource.pure[IO, PgmqClient[IO]](FutureClientToIO(anormClient))
+      admin <- Resource.pure[IO, PgmqAdmin[IO]](FutureAdminToIO(anormAdmin))
       queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:
         queues.get
-          .flatMap(_.traverse_(client.dropQueue))
+          .flatMap(_.traverse_(admin.dropQueue))
           .attempt
           .void
-    yield (client, queues, counter)
+    yield (client, admin, queues, counter)
 
   pureTest("Column[OffsetDateTime] handles all input types"):
-    val col = summon[Column[OffsetDateTime]](using anormClient.given_Column_OffsetDateTime)
+    val col = summon[Column[OffsetDateTime]](using anormAdmin.given_Column_OffsetDateTime)
     val meta = MetaDataItem(ColumnName("test_col", None), false, "java.sql.Timestamp")
 
     val ts = java.sql.Timestamp.from(Instant.parse("2026-01-15T10:30:00Z"))

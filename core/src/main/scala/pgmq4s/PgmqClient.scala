@@ -43,13 +43,6 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
         case None    => Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a)
         case Some(v) => Message.WithHeaders(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a, v)
 
-  // Queue Management
-  def createQueue(queue: QueueName): F[Unit] = createQueueRaw(queue.value)
-  def createPartitionedQueue(queue: QueueName, partitionInterval: String, retentionInterval: String): F[Unit] =
-    createPartitionedQueueRaw(queue.value, partitionInterval, retentionInterval)
-
-  def dropQueue(queue: QueueName): F[Boolean] = dropQueueRaw(queue.value)
-
   // Publishing
   def send[A](queue: QueueName, message: A)(using enc: PgmqEncoder[A]): F[MessageId] =
     sendRaw(queue.value, enc.encode(message)).map(MessageId(_))
@@ -122,10 +115,3 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
       vtOffset: Int
   ): F[Option[Message[A, H]]] =
     setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A, H]))
-
-  def purgeQueue(queue: QueueName): F[Long] = purgeQueueRaw(queue.value)
-  def detachArchive(queue: QueueName): F[Unit] = detachArchiveRaw(queue.value)
-
-  // Observability
-  def metrics(queue: QueueName): F[Option[QueueMetrics]] = metricsRaw(queue.value)
-  def metricsAll: F[List[QueueMetrics]] = metricsAllRaw

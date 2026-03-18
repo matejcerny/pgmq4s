@@ -12,22 +12,22 @@ trait PgmqClientSuite extends IOSuite:
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
   case class TestHeaders(traceId: String) derives Encoder.AsObject, Decoder
 
-  type Res = (PgmqClient[IO], Ref[IO, List[QueueName]], Ref[IO, Int])
+  type Res = (PgmqClient[IO], PgmqAdmin[IO], Ref[IO, List[QueueName]], Ref[IO, Int])
 
   private def pgmqTest(name: String, createQueue: Boolean = true)(
-      body: (PgmqClient[IO], QueueName) => IO[Expectations]
+      body: (PgmqClient[IO], PgmqAdmin[IO], QueueName) => IO[Expectations]
   ): Unit =
-    test(name) { case (client, queues, counter) =>
+    test(name) { case (client, admin, queues, counter) =>
       for
         n <- counter.getAndUpdate(_ + 1)
         queue = QueueName(s"test_$n")
         _ <- queues.update(queue :: _)
-        _ <- if createQueue then client.createQueue(queue) else IO.unit
-        result <- body(client, queue)
+        _ <- if createQueue then admin.createQueue(queue) else IO.unit
+        result <- body(client, admin, queue)
       yield result
     }
 
-  pgmqTest("send and read a message") { (client, queue) =>
+  pgmqTest("send and read a message") { (client, _, queue) =>
     val payload = TestPayload(1, "hello")
     for
       msgId <- client.send(queue, payload)
@@ -39,7 +39,7 @@ trait PgmqClientSuite extends IOSuite:
     ).combineAll
   }
 
-  pgmqTest("send and pop a message") { (client, queue) =>
+  pgmqTest("send and pop a message") { (client, _, queue) =>
     val payload = TestPayload(2, "pop me")
     for
       _   <- client.send(queue, payload)
@@ -47,7 +47,7 @@ trait PgmqClientSuite extends IOSuite:
     yield expect.same(msg.map(_.payload), Some(payload))
   }
 
-  pgmqTest("send batch and read") { (client, queue) =>
+  pgmqTest("send batch and read") { (client, _, queue) =>
     val payloads = List(TestPayload(10, "a"), TestPayload(11, "b"), TestPayload(12, "c"))
     for
       ids  <- client.sendBatch(queue, payloads)
@@ -56,7 +56,7 @@ trait PgmqClientSuite extends IOSuite:
       expect.same(msgs.map(_.payload).toSet, payloads.toSet)
   }
 
-  pgmqTest("archive a message") { (client, queue) =>
+  pgmqTest("archive a message") { (client, _, queue) =>
     val payload = TestPayload(20, "archive me")
     for
       msgId    <- client.send(queue, payload)
@@ -64,7 +64,7 @@ trait PgmqClientSuite extends IOSuite:
     yield expect(clue(archived))
   }
 
-  pgmqTest("delete a message") { (client, queue) =>
+  pgmqTest("delete a message") { (client, _, queue) =>
     val payload = TestPayload(30, "delete me")
     for
       msgId   <- client.send(queue, payload)
@@ -72,27 +72,27 @@ trait PgmqClientSuite extends IOSuite:
     yield expect(clue(deleted))
   }
 
-  pgmqTest("purge queue") { (client, queue) =>
+  pgmqTest("purge queue") { (client, admin, queue) =>
     for
       _      <- client.send(queue, TestPayload(40, "purge"))
       _      <- client.send(queue, TestPayload(41, "purge"))
-      purged <- client.purgeQueue(queue)
+      purged <- admin.purgeQueue(queue)
     yield expect.same(purged, 2L)
   }
 
-  pgmqTest("send with delay") { (client, queue) =>
+  pgmqTest("send with delay") { (client, _, queue) =>
     val payload = TestPayload(3, "delayed")
     for msgId <- client.send(queue, payload, delay = 0)
     yield expect(clue(msgId.value) > 0L)
   }
 
-  pgmqTest("send batch with delay") { (client, queue) =>
+  pgmqTest("send batch with delay") { (client, _, queue) =>
     val payloads = List(TestPayload(13, "d1"), TestPayload(14, "d2"))
     for ids <- client.sendBatch(queue, payloads, delay = 0)
     yield expect.same(ids.size, 2)
   }
 
-  pgmqTest("archive batch") { (client, queue) =>
+  pgmqTest("archive batch") { (client, _, queue) =>
     for
       id1      <- client.send(queue, TestPayload(21, "a1"))
       id2      <- client.send(queue, TestPayload(22, "a2"))
@@ -100,7 +100,7 @@ trait PgmqClientSuite extends IOSuite:
     yield expect.same(archived.toSet, Set(id1, id2))
   }
 
-  pgmqTest("delete batch") { (client, queue) =>
+  pgmqTest("delete batch") { (client, _, queue) =>
     for
       id1     <- client.send(queue, TestPayload(31, "d1"))
       id2     <- client.send(queue, TestPayload(32, "d2"))
@@ -108,31 +108,31 @@ trait PgmqClientSuite extends IOSuite:
     yield expect.same(deleted.toSet, Set(id1, id2))
   }
 
-  pgmqTest("set visibility timeout") { (client, queue) =>
+  pgmqTest("set visibility timeout") { (client, _, queue) =>
     for
       msgId   <- client.send(queue, TestPayload(50, "vt"))
       updated <- client.setVt[TestPayload](queue, msgId, vtOffset = 60)
     yield expect.same(updated.map(_.msgId), Some(msgId))
   }
 
-  pgmqTest("detach archive") { (client, queue) =>
-    for _ <- client.detachArchive(queue)
+  pgmqTest("detach archive") { (_, admin, queue) =>
+    for _ <- admin.detachArchive(queue)
     yield success
   }
 
-  pgmqTest("metrics all") { (client, queue) =>
-    for all <- client.metricsAll
+  pgmqTest("metrics all") { (_, admin, queue) =>
+    for all <- admin.metricsAll
     yield expect(clue(all).exists(_.queueName == queue))
   }
 
-  pgmqTest("metrics") { (client, queue) =>
-    for m <- client.metrics(queue)
+  pgmqTest("metrics") { (_, admin, queue) =>
+    for m <- admin.metrics(queue)
     yield expect(clue(m).isDefined) and
       expect.same(m.map(_.queueName), Some(queue))
   }
 
-  pgmqTest("create partitioned queue", createQueue = false) { (client, queue) =>
-    client
+  pgmqTest("create partitioned queue", createQueue = false) { (_, admin, queue) =>
+    admin
       .createPartitionedQueue(queue, "10000", "100000")
       .attempt
       .map:
@@ -140,7 +140,7 @@ trait PgmqClientSuite extends IOSuite:
         case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))
   }
 
-  pgmqTest("send with headers and read") { (client, queue) =>
+  pgmqTest("send with headers and read") { (client, _, queue) =>
     val payload = TestPayload(100, "with headers")
     val hdrs = TestHeaders("trace-abc")
     for
@@ -158,7 +158,7 @@ trait PgmqClientSuite extends IOSuite:
       ).combineAll
   }
 
-  pgmqTest("send batch with headers") { (client, queue) =>
+  pgmqTest("send batch with headers") { (client, _, queue) =>
     val payloads = List(TestPayload(101, "h1"), TestPayload(102, "h2"))
     val hdrs = List(TestHeaders("t1"), TestHeaders("t2"))
     for
@@ -168,7 +168,7 @@ trait PgmqClientSuite extends IOSuite:
       expect(msgs.forall(_.isInstanceOf[Message.WithHeaders[?, ?]]))
   }
 
-  pgmqTest("send with headers and delay") { (client, queue) =>
+  pgmqTest("send with headers and delay") { (client, _, queue) =>
     val payload = TestPayload(105, "headers+delay")
     val hdrs = TestHeaders("trace-delay")
     for
@@ -185,7 +185,7 @@ trait PgmqClientSuite extends IOSuite:
       ).combineAll
   }
 
-  pgmqTest("send batch with headers and delay") { (client, queue) =>
+  pgmqTest("send batch with headers and delay") { (client, _, queue) =>
     val payloads = List(TestPayload(106, "hd1"), TestPayload(107, "hd2"))
     val hdrs = List(TestHeaders("td1"), TestHeaders("td2"))
     for
@@ -195,7 +195,7 @@ trait PgmqClientSuite extends IOSuite:
       expect(msgs.forall(_.isInstanceOf[Message.WithHeaders[?, ?]]))
   }
 
-  pgmqTest("read without headers returns Plain") { (client, queue) =>
+  pgmqTest("read without headers returns Plain") { (client, _, queue) =>
     val payload = TestPayload(103, "no headers")
     for
       _    <- client.send(queue, payload)
@@ -205,7 +205,7 @@ trait PgmqClientSuite extends IOSuite:
       expect.same(msgs.head.payload, payload)
   }
 
-  pgmqTest("read with header type but no headers returns Plain") { (client, queue) =>
+  pgmqTest("read with header type but no headers returns Plain") { (client, _, queue) =>
     val payload = TestPayload(104, "no headers read")
     for
       _    <- client.send(queue, payload)
@@ -213,4 +213,12 @@ trait PgmqClientSuite extends IOSuite:
     yield expect.same(msgs.size, 1) and
       expect(msgs.head.isInstanceOf[Message.Plain[?]]) and
       expect.same(msgs.head.payload, payload)
+  }
+
+  pgmqTest("listQueues returns created queue") { (_, admin, queue) =>
+    for queues <- admin.listQueues
+    yield
+      val found = queues.find(_.queueName == queue)
+      expect(clue(found).isDefined) and
+        expect.same(found.map(_.isPartitioned), Some(false))
   }

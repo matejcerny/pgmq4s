@@ -26,6 +26,14 @@ JSON codecs
 
 Need a specific DB backend or JSON bridge? Create an issue [here](https://github.com/matejcerny/pgmq4s/issues/new).
 
+## Architecture
+
+pgmq4s provides two main traits:
+
+- **`PgmqClient[F]`** — message operations (send, read, pop, archive, delete)
+- **`PgmqAdmin[F]`** — queue management and observability (create, drop, list, metrics)
+
+Each database backend provides both: e.g. `DoobiePgmqClient` + `DoobiePgmqAdmin`.
 
 ## Getting Started
 

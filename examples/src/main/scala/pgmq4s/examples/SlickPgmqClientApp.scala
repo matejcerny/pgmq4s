@@ -3,7 +3,7 @@ package pgmq4s.examples
 import _root_.slick.jdbc.PostgresProfile.api.*
 import pgmq4s.*
 import pgmq4s.circe.given
-import pgmq4s.slick.SlickPgmqClient
+import pgmq4s.slick.{ SlickPgmqAdmin, SlickPgmqClient }
 
 import scala.concurrent.duration.*
 import scala.concurrent.{ Await, ExecutionContext }
@@ -22,10 +22,11 @@ import scala.concurrent.{ Await, ExecutionContext }
   )
 
   val client = SlickPgmqClient(db)
+  val admin = SlickPgmqAdmin(db)
 
   val result =
     for
-      _ <- client.createQueue(queue)
+      _ <- admin.createQueue(queue)
       _ <- client.send(queue, event)
       messages <- client.read[OrderCreated](queue, vt = 30, qty = 10)
     yield println(s"slick read: ${messages.map(_.payload)}")

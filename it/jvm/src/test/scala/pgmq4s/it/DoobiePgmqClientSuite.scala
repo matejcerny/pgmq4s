@@ -4,7 +4,7 @@ import cats.effect.*
 import cats.syntax.foldable.*
 import doobie.hikari.HikariTransactor
 import pgmq4s.*
-import pgmq4s.doobie.DoobiePgmqClient
+import pgmq4s.doobie.{ DoobiePgmqAdmin, DoobiePgmqClient }
 import weaver.*
 
 import scala.concurrent.ExecutionContext
@@ -21,12 +21,13 @@ object DoobiePgmqClientSuite extends PgmqClientSuite:
         connectEC = ExecutionContext.global
       )
       client = DoobiePgmqClient[IO](xa)
+      admin = DoobiePgmqAdmin[IO](xa)
       queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:
         queues.get
-          .flatMap(_.traverse_(client.dropQueue))
+          .flatMap(_.traverse_(admin.dropQueue))
           .attempt
           .void
-    yield (client, queues, counter)
+    yield (client, admin, queues, counter)

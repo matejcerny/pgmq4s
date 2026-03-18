@@ -27,27 +27,7 @@ import doobie.implicits.*
 import doobie.postgres.implicits.*
 import pgmq4s.*
 
-import java.time.OffsetDateTime
-
 class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
-
-  // Queue Management
-
-  protected def createQueueRaw(queue: String): F[Unit] =
-    sql"SELECT pgmq.create($queue)".query[Unit].unique.transact(xa)
-
-  protected def createPartitionedQueueRaw(
-      queue: String,
-      partitionInterval: String,
-      retentionInterval: String
-  ): F[Unit] =
-    sql"SELECT pgmq.create_partitioned($queue, $partitionInterval, $retentionInterval)"
-      .query[Unit]
-      .unique
-      .transact(xa)
-
-  protected def dropQueueRaw(queue: String): F[Boolean] =
-    sql"SELECT pgmq.drop_queue($queue)".query[Boolean].unique.transact(xa)
 
   // Publishing
 
@@ -137,32 +117,4 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
     sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
       .query[RawMessage]
       .option
-      .transact(xa)
-
-  protected def purgeQueueRaw(queue: String): F[Long] =
-    sql"SELECT pgmq.purge_queue($queue)".query[Long].unique.transact(xa)
-
-  protected def detachArchiveRaw(queue: String): F[Unit] =
-    sql"SELECT pgmq.detach_archive($queue)".query[Unit].unique.transact(xa)
-
-  // Observability
-
-  protected def metricsRaw(queue: String): F[Option[QueueMetrics]] =
-    sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-            FROM pgmq.metrics($queue)"""
-      .query[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
-      .option
-      .map(_.map { case (name, len, newest, oldest, total, scrape) =>
-        QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
-      })
-      .transact(xa)
-
-  protected def metricsAllRaw: F[List[QueueMetrics]] =
-    sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-            FROM pgmq.metrics_all()"""
-      .query[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
-      .to[List]
-      .map(_.map { case (name, len, newest, oldest, total, scrape) =>
-        QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
-      })
       .transact(xa)

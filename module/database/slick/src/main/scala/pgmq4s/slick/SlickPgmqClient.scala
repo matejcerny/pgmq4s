@@ -25,12 +25,10 @@ import _root_.slick.jdbc.GetResult
 import _root_.slick.jdbc.PostgresProfile.api.*
 import pgmq4s.*
 
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.ZoneOffset
 import scala.concurrent.{ ExecutionContext, Future }
 
 class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[Future]:
-
-  private given GetResult[Unit] = GetResult(_ => ())
 
   private given GetResult[RawMessage] = GetResult: r =>
     RawMessage(
@@ -41,32 +39,6 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
       r.nextString(),
       r.nextStringOption()
     )
-
-  private given GetResult[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)] =
-    GetResult: r =>
-      (
-        r.nextString(),
-        r.nextLong(),
-        r.nextLongOption(),
-        r.nextLongOption(),
-        r.nextLong(),
-        r.nextTimestamp().toInstant.atOffset(ZoneOffset.UTC)
-      )
-
-  // Queue Management
-
-  protected def createQueueRaw(queue: String): Future[Unit] =
-    db.run(sql"SELECT pgmq.create($queue)".as[Unit].head)
-
-  protected def createPartitionedQueueRaw(
-      queue: String,
-      partitionInterval: String,
-      retentionInterval: String
-  ): Future[Unit] =
-    db.run(sql"SELECT pgmq.create_partitioned($queue, $partitionInterval, $retentionInterval)".as[Unit].head)
-
-  protected def dropQueueRaw(queue: String): Future[Boolean] =
-    db.run(sql"SELECT pgmq.drop_queue($queue)".as[Boolean].head)
 
   // Publishing
 
@@ -219,30 +191,3 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
       sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
         .as[RawMessage]
         .headOption
-
-  protected def purgeQueueRaw(queue: String): Future[Long] =
-    db.run(sql"SELECT pgmq.purge_queue($queue)".as[Long].head)
-
-  protected def detachArchiveRaw(queue: String): Future[Unit] =
-    db.run(sql"SELECT pgmq.detach_archive($queue)".as[Unit].head)
-
-  // Observability
-
-  protected def metricsRaw(queue: String): Future[Option[QueueMetrics]] =
-    db.run:
-      sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-              FROM pgmq.metrics($queue)"""
-        .as[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
-        .headOption
-        .map(_.map { case (name, len, newest, oldest, total, scrape) =>
-          QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
-        })
-
-  protected def metricsAllRaw: Future[List[QueueMetrics]] =
-    db.run:
-      sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-              FROM pgmq.metrics_all()"""
-        .as[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
-        .map(_.toList.map { case (name, len, newest, oldest, total, scrape) =>
-          QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
-        })

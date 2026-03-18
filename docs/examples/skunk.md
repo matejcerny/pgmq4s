@@ -9,7 +9,7 @@ import io.circe.{ Decoder, Encoder }
 import natchez.Trace.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
-import pgmq4s.skunk.SkunkPgmqClient
+import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 
 case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, Decoder
 
@@ -47,10 +47,11 @@ object SkunkPgmqClientApp extends IOApp.Simple:
       )
       .use: pool =>
         val client: PgmqClient[IO] = SkunkPgmqClient[IO](pool)
+        val admin: PgmqAdmin[IO]   = SkunkPgmqAdmin[IO](pool)
         val service                = OrderService[IO](OrderQueue.make(queue, client))
 
         for
-          _        <- client.createQueue(queue)
+          _        <- admin.createQueue(queue)
           messages <- service.publishAndFetch(event)
           _        <- IO.println(s"read: ${messages.map(_.message)}")
         yield ()

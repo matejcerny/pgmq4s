@@ -2,7 +2,7 @@
 
 ```scala
 import pgmq4s.*
-import pgmq4s.anorm.AnormPgmqClient
+import pgmq4s.anorm.{ AnormPgmqAdmin, AnormPgmqClient }
 import pgmq4s.circe.given
 
 import scala.concurrent.duration.*
@@ -20,10 +20,11 @@ import scala.concurrent.{ Await, ExecutionContext }
   ds.setPassword("pgmq")
 
   val client = AnormPgmqClient(ds)
+  val admin = AnormPgmqAdmin(ds)
 
   val result =
     for
-      _ <- client.createQueue(queue)
+      _ <- admin.createQueue(queue)
       _ <- client.send(queue, event)
       messages <- client.read[OrderCreated](queue, vt = 30, qty = 10)
     yield println(s"anorm read: ${messages.map(_.message)}")

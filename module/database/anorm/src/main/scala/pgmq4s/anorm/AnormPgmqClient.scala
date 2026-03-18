@@ -49,12 +49,6 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
       case msgId ~ readCt ~ enqueuedAt ~ vt ~ message ~ headers =>
         RawMessage(msgId, readCt, enqueuedAt, vt, message, headers)
 
-  private val queueMetrics: RowParser[QueueMetrics] =
-    (str("queue_name") ~ long("queue_length") ~ long("newest_msg_age_sec").? ~
-      long("oldest_msg_age_sec").? ~ long("total_messages") ~ get[OffsetDateTime]("scrape_time")).map:
-      case name ~ length ~ newest ~ oldest ~ total ~ scrape =>
-        QueueMetrics(QueueName(name), length, newest, oldest, total, scrape)
-
   private def jdbcQuery(query: String, conn: Connection)(setup: java.sql.PreparedStatement => Unit): List[Long] =
     Using.resource(conn.prepareStatement(query)): ps =>
       setup(ps)
@@ -62,31 +56,6 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
       val buf = List.newBuilder[Long]
       while rs.next() do buf += rs.getLong(1)
       buf.result()
-
-  // Queue Management
-
-  protected def createQueueRaw(queue: String): Future[Unit] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("SELECT pgmq.create({queue})").on("queue" -> queue).execute()
-      ()
-
-  protected def createPartitionedQueueRaw(
-      queue: String,
-      partitionInterval: String,
-      retentionInterval: String
-  ): Future[Unit] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("SELECT pgmq.create_partitioned({queue}, {pi}, {ri})")
-        .on("queue" -> queue, "pi" -> partitionInterval, "ri" -> retentionInterval)
-        .execute()
-      ()
-
-  protected def dropQueueRaw(queue: String): Future[Boolean] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("SELECT pgmq.drop_queue({queue})").on("queue" -> queue).as(bool(1).single)
 
   // Publishing
 
@@ -205,31 +174,3 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
       )
         .on("queue" -> queue, "msgId" -> msgId, "vtOffset" -> vtOffset)
         .as(rawMessage.singleOpt)
-
-  protected def purgeQueueRaw(queue: String): Future[Long] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("SELECT pgmq.purge_queue({queue})").on("queue" -> queue).as(long(1).single)
-
-  protected def detachArchiveRaw(queue: String): Future[Unit] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("SELECT pgmq.detach_archive({queue})").on("queue" -> queue).execute()
-      ()
-
-  // Observability
-
-  protected def metricsRaw(queue: String): Future[Option[QueueMetrics]] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-               FROM pgmq.metrics({queue})""")
-        .on("queue" -> queue)
-        .as(queueMetrics.singleOpt)
-
-  protected def metricsAllRaw: Future[List[QueueMetrics]] =
-    withConnection: conn =>
-      given Connection = conn
-      SQL("""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
-               FROM pgmq.metrics_all()""")
-        .as(queueMetrics.*)
