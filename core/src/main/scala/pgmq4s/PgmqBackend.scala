@@ -21,6 +21,9 @@
 
 package pgmq4s
 
+/** Protected backend interface for raw (String-level) message operations. Implemented by each database backend; not
+  * intended for direct use.
+  */
 trait PgmqBackend[F[_]]:
 
   // Publishing — body already encoded to JSON String

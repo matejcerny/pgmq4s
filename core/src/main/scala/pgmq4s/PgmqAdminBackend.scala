@@ -21,6 +21,9 @@
 
 package pgmq4s
 
+/** Protected backend interface for raw queue management operations. Implemented by each database backend; not intended
+  * for direct use.
+  */
 trait PgmqAdminBackend[F[_]]:
 
   // Queue Management

@@ -208,7 +208,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   // --- read ---
 
-  pgmqTest("read decodes raw messages into Message[A]", Returns(read = List(rawMsg(1L, "payload")))):
+  pgmqTest("read decodes raw messages into Message[P]", Returns(read = List(rawMsg(1L, "payload")))):
     (client, captured) =>
       for
         msgs <- client.read[String](q, vt = 30, qty = 5)

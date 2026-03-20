@@ -14,55 +14,55 @@ object SlickPgmqClientSuite extends PgmqClientSuite:
   private class FutureClientToIO(underlying: PgmqClient[Future]) extends PgmqClient[IO]:
     private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))
 
-    override def send[A: PgmqEncoder](queue: QueueName, message: A): IO[MessageId] =
+    override def send[P: PgmqEncoder](queue: QueueName, message: P): IO[MessageId] =
       liftF(underlying.send(queue, message))
 
-    override def send[A: PgmqEncoder](queue: QueueName, message: A, delay: Int): IO[MessageId] =
+    override def send[P: PgmqEncoder](queue: QueueName, message: P, delay: Int): IO[MessageId] =
       liftF(underlying.send(queue, message, delay))
 
-    override def send[A: PgmqEncoder, H: PgmqEncoder](queue: QueueName, message: A, headers: H): IO[MessageId] =
+    override def send[P: PgmqEncoder, H: PgmqEncoder](queue: QueueName, message: P, headers: H): IO[MessageId] =
       liftF(underlying.send(queue, message, headers))
 
-    override def send[A: PgmqEncoder, H: PgmqEncoder](
+    override def send[P: PgmqEncoder, H: PgmqEncoder](
         queue: QueueName,
-        message: A,
+        message: P,
         headers: H,
         delay: Int
     ): IO[MessageId] =
       liftF(underlying.send(queue, message, headers, delay))
 
-    override def sendBatch[A: PgmqEncoder](queue: QueueName, messages: List[A]): IO[List[MessageId]] =
+    override def sendBatch[P: PgmqEncoder](queue: QueueName, messages: List[P]): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages))
 
-    override def sendBatch[A: PgmqEncoder](queue: QueueName, messages: List[A], delay: Int): IO[List[MessageId]] =
+    override def sendBatch[P: PgmqEncoder](queue: QueueName, messages: List[P], delay: Int): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages, delay))
 
-    override def sendBatch[A: PgmqEncoder, H: PgmqEncoder](
+    override def sendBatch[P: PgmqEncoder, H: PgmqEncoder](
         queue: QueueName,
-        messages: List[A],
+        messages: List[P],
         headers: List[H]
     ): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages, headers))
 
-    override def sendBatch[A: PgmqEncoder, H: PgmqEncoder](
+    override def sendBatch[P: PgmqEncoder, H: PgmqEncoder](
         queue: QueueName,
-        messages: List[A],
+        messages: List[P],
         headers: List[H],
         delay: Int
     ): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages, headers, delay))
 
-    override def read[A: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): IO[List[Message.Plain[A]]] =
+    override def read[P: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): IO[List[Message.Plain[P]]] =
       liftF(underlying.read(queue, vt, qty))
 
-    override def read[A: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): IO[List[Message[A, H]]] =
-      liftF(underlying.read[A, H](queue, vt, qty))
+    override def read[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): IO[List[Message[P, H]]] =
+      liftF(underlying.read[P, H](queue, vt, qty))
 
-    override def pop[A: PgmqDecoder](queue: QueueName): IO[Option[Message.Plain[A]]] =
+    override def pop[P: PgmqDecoder](queue: QueueName): IO[Option[Message.Plain[P]]] =
       liftF(underlying.pop(queue))
 
-    override def pop[A: PgmqDecoder, H: PgmqDecoder](queue: QueueName): IO[Option[Message[A, H]]] =
-      liftF(underlying.pop[A, H](queue))
+    override def pop[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName): IO[Option[Message[P, H]]] =
+      liftF(underlying.pop[P, H](queue))
 
     override def archive(queue: QueueName, msgId: MessageId): IO[Boolean] =
       liftF(underlying.archive(queue, msgId))
@@ -76,15 +76,15 @@ object SlickPgmqClientSuite extends PgmqClientSuite:
     override def deleteBatch(queue: QueueName, msgIds: List[MessageId]): IO[List[MessageId]] =
       liftF(underlying.deleteBatch(queue, msgIds))
 
-    override def setVt[A: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): IO[Option[Message.Plain[A]]] =
+    override def setVt[P: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): IO[Option[Message.Plain[P]]] =
       liftF(underlying.setVt(queue, msgId, vtOffset))
 
-    override def setVt[A: PgmqDecoder, H: PgmqDecoder](
+    override def setVt[P: PgmqDecoder, H: PgmqDecoder](
         queue: QueueName,
         msgId: MessageId,
         vtOffset: Int
-    ): IO[Option[Message[A, H]]] =
-      liftF(underlying.setVt[A, H](queue, msgId, vtOffset))
+    ): IO[Option[Message[P, H]]] =
+      liftF(underlying.setVt[P, H](queue, msgId, vtOffset))
 
     protected def sendRaw(queue: String, body: String): IO[Long] = ???
     protected def sendRaw(queue: String, body: String, delay: Int): IO[Long] = ???

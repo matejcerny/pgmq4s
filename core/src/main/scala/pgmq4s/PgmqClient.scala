@@ -24,9 +24,17 @@ package pgmq4s
 import cats.MonadThrow
 import cats.syntax.all.*
 
+/** Tagless-final algebra for PGMQ message operations.
+  *
+  * Provides typed send, read, pop, archive, delete, and visibility-timeout methods. Each database backend (Doobie,
+  * Skunk, Anorm, Slick) supplies a concrete implementation.
+  *
+  * @tparam F
+  *   effect type with `MonadThrow` capabilities
+  */
 trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
 
-  private def decodeRaw[A](raw: RawMessage)(using dec: PgmqDecoder[A]): F[Message.Plain[A]] =
+  private def decodeRaw[P](raw: RawMessage)(using dec: PgmqDecoder[P]): F[Message.Plain[P]] =
     MonadThrow[F].fromEither(
       dec
         .decode(raw.message)
@@ -34,84 +42,99 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
           Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, _)
     )
 
-  private def decodeRaw[A, H](raw: RawMessage)(using decA: PgmqDecoder[A], decH: PgmqDecoder[H]): F[Message[A, H]] =
+  private def decodeRaw[P, H](raw: RawMessage)(using decP: PgmqDecoder[P], decH: PgmqDecoder[H]): F[Message[P, H]] =
     MonadThrow[F].fromEither:
       for
-        a <- decA.decode(raw.message)
+        p <- decP.decode(raw.message)
         h <- raw.headers.traverse(decH.decode)
       yield h match
-        case None    => Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a)
-        case Some(v) => Message.WithHeaders(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, a, v)
+        case None    => Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, p)
+        case Some(v) => Message.WithHeaders(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, p, v)
 
-  // Publishing
-  def send[A](queue: QueueName, message: A)(using enc: PgmqEncoder[A]): F[MessageId] =
+  /** Send a single message to `queue`. */
+  def send[P](queue: QueueName, message: P)(using enc: PgmqEncoder[P]): F[MessageId] =
     sendRaw(queue.value, enc.encode(message)).map(MessageId(_))
 
-  def send[A](queue: QueueName, message: A, delay: Int)(using enc: PgmqEncoder[A]): F[MessageId] =
+  /** Send a single message with a visibility delay (in seconds). */
+  def send[P](queue: QueueName, message: P, delay: Int)(using enc: PgmqEncoder[P]): F[MessageId] =
     sendRaw(queue.value, enc.encode(message), delay).map(MessageId(_))
 
-  def send[A, H](queue: QueueName, message: A, headers: H)(using
-      encA: PgmqEncoder[A],
+  /** Send a single message with typed headers. */
+  def send[P, H](queue: QueueName, message: P, headers: H)(using
+      encP: PgmqEncoder[P],
       encH: PgmqEncoder[H]
   ): F[MessageId] =
-    sendRaw(queue.value, encA.encode(message), encH.encode(headers)).map(MessageId(_))
+    sendRaw(queue.value, encP.encode(message), encH.encode(headers)).map(MessageId(_))
 
-  def send[A, H](queue: QueueName, message: A, headers: H, delay: Int)(using
-      encA: PgmqEncoder[A],
+  /** Send a single message with typed headers and a visibility delay. */
+  def send[P, H](queue: QueueName, message: P, headers: H, delay: Int)(using
+      encP: PgmqEncoder[P],
       encH: PgmqEncoder[H]
   ): F[MessageId] =
-    sendRaw(queue.value, encA.encode(message), encH.encode(headers), delay).map(MessageId(_))
+    sendRaw(queue.value, encP.encode(message), encH.encode(headers), delay).map(MessageId(_))
 
-  def sendBatch[A](queue: QueueName, messages: List[A])(using enc: PgmqEncoder[A]): F[List[MessageId]] =
+  /** Send multiple messages in a single round-trip. */
+  def sendBatch[P](queue: QueueName, messages: List[P])(using enc: PgmqEncoder[P]): F[List[MessageId]] =
     sendBatchRaw(queue.value, messages.map(enc.encode)).map(_.map(MessageId(_)))
 
-  def sendBatch[A](queue: QueueName, messages: List[A], delay: Int)(using enc: PgmqEncoder[A]): F[List[MessageId]] =
+  /** Send multiple messages with a visibility delay. */
+  def sendBatch[P](queue: QueueName, messages: List[P], delay: Int)(using enc: PgmqEncoder[P]): F[List[MessageId]] =
     sendBatchRaw(queue.value, messages.map(enc.encode), delay).map(_.map(MessageId(_)))
 
-  def sendBatch[A, H](queue: QueueName, messages: List[A], headers: List[H])(using
-      encA: PgmqEncoder[A],
+  /** Send multiple messages with corresponding typed headers. */
+  def sendBatch[P, H](queue: QueueName, messages: List[P], headers: List[H])(using
+      encP: PgmqEncoder[P],
       encH: PgmqEncoder[H]
   ): F[List[MessageId]] =
-    sendBatchRaw(queue.value, messages.map(encA.encode), headers.map(encH.encode)).map(_.map(MessageId(_)))
+    sendBatchRaw(queue.value, messages.map(encP.encode), headers.map(encH.encode)).map(_.map(MessageId(_)))
 
-  def sendBatch[A, H](queue: QueueName, messages: List[A], headers: List[H], delay: Int)(using
-      encA: PgmqEncoder[A],
+  /** Send multiple messages with typed headers and a visibility delay. */
+  def sendBatch[P, H](queue: QueueName, messages: List[P], headers: List[H], delay: Int)(using
+      encP: PgmqEncoder[P],
       encH: PgmqEncoder[H]
   ): F[List[MessageId]] =
-    sendBatchRaw(queue.value, messages.map(encA.encode), headers.map(encH.encode), delay).map(_.map(MessageId(_)))
+    sendBatchRaw(queue.value, messages.map(encP.encode), headers.map(encH.encode), delay).map(_.map(MessageId(_)))
 
-  // Consuming
-  def read[A: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message.Plain[A]]] =
-    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[A]))
+  /** Read up to `qty` messages, setting their visibility timeout to `vt` seconds. */
+  def read[P: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message.Plain[P]]] =
+    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[P]))
 
-  def read[A: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message[A, H]]] =
-    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[A, H]))
+  /** Read up to `qty` messages with headers, setting their visibility timeout to `vt` seconds. */
+  def read[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message[P, H]]] =
+    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[P, H]))
 
-  def pop[A: PgmqDecoder](queue: QueueName): F[Option[Message.Plain[A]]] =
-    popRaw(queue.value).flatMap(_.traverse(decodeRaw[A]))
+  /** Pop (read and immediately delete) a single message. */
+  def pop[P: PgmqDecoder](queue: QueueName): F[Option[Message.Plain[P]]] =
+    popRaw(queue.value).flatMap(_.traverse(decodeRaw[P]))
 
-  def pop[A: PgmqDecoder, H: PgmqDecoder](queue: QueueName): F[Option[Message[A, H]]] =
-    popRaw(queue.value).flatMap(_.traverse(decodeRaw[A, H]))
+  /** Pop a single message, decoding both payload and headers. */
+  def pop[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName): F[Option[Message[P, H]]] =
+    popRaw(queue.value).flatMap(_.traverse(decodeRaw[P, H]))
 
-  // Lifecycle
+  /** Move a message to the archive table. Returns `true` if the message existed. */
   def archive(queue: QueueName, msgId: MessageId): F[Boolean] =
     archiveRaw(queue.value, msgId.value)
 
+  /** Archive multiple messages. Returns the IDs that were successfully archived. */
   def archiveBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     archiveBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
+  /** Permanently delete a message. Returns `true` if the message existed. */
   def delete(queue: QueueName, msgId: MessageId): F[Boolean] =
     deleteRaw(queue.value, msgId.value)
 
+  /** Permanently delete multiple messages. Returns the IDs that were successfully deleted. */
   def deleteBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     deleteBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
-  def setVt[A: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message.Plain[A]]] =
-    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A]))
+  /** Set the visibility timeout of a message to `vtOffset` seconds from now. */
+  def setVt[P: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message.Plain[P]]] =
+    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[P]))
 
-  def setVt[A: PgmqDecoder, H: PgmqDecoder](
+  /** Set the visibility timeout, decoding both payload and headers. */
+  def setVt[P: PgmqDecoder, H: PgmqDecoder](
       queue: QueueName,
       msgId: MessageId,
       vtOffset: Int
-  ): F[Option[Message[A, H]]] =
-    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[A, H]))
+  ): F[Option[Message[P, H]]] =
+    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[P, H]))

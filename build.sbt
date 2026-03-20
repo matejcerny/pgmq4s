@@ -61,7 +61,7 @@ val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
-  .aggregate(core, circe, jsoniter, playJson, sprayJson, upickle, anorm, doobie, skunk, slick, examples)
+  .aggregate(core, circe, jsoniter, playJson, sprayJson, upickle, anorm, doobie, skunk, slick)
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
@@ -90,6 +90,30 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV,
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
     mimaPreviousArtifacts := Set.empty
+  )
+  .jvmSettings(
+    // sbt-typelevel sets -project to the module name; replace with the top-level project name
+    Compile / doc / scalacOptions ~= (_.map { case "pgmq4s-core" => "pgmq4s"; case other => other }),
+    Compile / doc / scalacOptions ++= Seq(
+      "-siteroot",
+      ((ThisBuild / baseDirectory).value / "docs").getAbsolutePath,
+      "-social-links:github::https://github.com/matejcerny/pgmq4s",
+      "-project-logo", "docs/_assets/images/logo.png",
+      "-project-footer",
+      "Copyright Matej Cerny",
+      "-versions-dictionary-url",
+      "https://matejcerny.github.io/pgmq4s/versions.json",
+      "-snippet-compiler:nocompile"
+    ),
+    Compile / doc := {
+      val output = (Compile / doc).value
+      val assetsDir = (ThisBuild / baseDirectory).value / "docs" / "_assets"
+      val favicon = assetsDir / "images" / "favicon.ico"
+      if (favicon.exists()) IO.copyFile(favicon, output / "favicon.ico")
+      val customCss = assetsDir / "css" / "custom.css"
+      if (customCss.exists()) IO.copyFile(customCss, output / "styles" / "staticsitestyles.css")
+      output
+    }
   )
   .jsSettings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV % Test
@@ -193,13 +217,6 @@ lazy val sprayJson = (project in file("module/json/spray-json"))
     libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test,
     mimaPreviousArtifacts := Set.empty
   )
-
-// === DOCUMENTATION ===
-lazy val docs = project
-  .in(file("site"))
-  .dependsOn(core.jvm, circe.jvm, jsoniter.jvm, playJson, sprayJson, upickle.jvm, anorm, doobie, skunk.jvm, slick)
-  .enablePlugins(TypelevelSitePlugin)
-  .settings(tlSitePublishBranch := Some("main"))
 
 lazy val examples = (project in file("examples"))
   .dependsOn(core.jvm, circe.jvm, anorm, doobie, skunk.jvm, slick)

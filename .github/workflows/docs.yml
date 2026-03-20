@@ -1,0 +1,60 @@
+name: Website
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+      - uses: sbt/setup-sbt@v1
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(git describe --tags --abbrev=0 | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: sbt coreJVM/doc
+
+      - name: Prepare site
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SITE_URL: https://matejcerny.github.io/pgmq4s
+        run: |
+          mkdir -p "deploy/$VERSION"
+          cp -r core/.jvm/target/scala-3.3.7/api/* "deploy/$VERSION/"
+
+          curl -sf "$SITE_URL/versions.json" -o deploy/versions.json || echo '{"versions":{}}' > deploy/versions.json
+          jq --arg ver "$VERSION" --arg url "$SITE_URL/$VERSION/docs/index.html" \
+            '.versions[$ver] = $url' deploy/versions.json > deploy/versions.json.tmp
+          mv deploy/versions.json.tmp deploy/versions.json
+
+          cat > deploy/index.html << EOF
+          <!DOCTYPE html>
+          <html>
+            <head><meta http-equiv="refresh" content="0; url=$VERSION/docs/index.html"></head>
+            <body><a href="$VERSION/docs/index.html">Redirecting...</a></body>
+          </html>
+          EOF
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy
+          keep_files: true

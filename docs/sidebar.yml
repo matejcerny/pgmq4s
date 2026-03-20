@@ -1,0 +1,22 @@
+index: index.md
+subsection:
+  - page: index.md
+    title: Overview
+  - page: quick-example.md
+    title: Quick Example
+  - page: installation.md
+    title: Installation
+  - page: api-coverage.md
+    title: API Coverage
+  - page: json-codecs.md
+    title: JSON Codecs
+  - title: Backends
+    subsection:
+      - page: doobie.md
+        title: Doobie
+      - page: skunk.md
+        title: Skunk
+      - page: anorm.md
+        title: Anorm
+      - page: slick.md
+        title: Slick
