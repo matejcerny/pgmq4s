@@ -1,4 +1,4 @@
-# pgmq4s
+# <img src="docs/_assets/images/logo.png" alt="pgmq4s" height="40" style="padding-top:16px" /> pgmq4s
 
 ![](https://img.shields.io/badge/Scala%203-%23de3423.svg?logo=scala&logoColor=white)
 [![Scala.js](https://img.shields.io/badge/scala_native-0.4.17-337ab7?logoColor=white)](https://scala-native.org/)
