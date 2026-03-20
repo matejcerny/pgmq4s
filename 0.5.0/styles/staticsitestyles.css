@@ -1,0 +1,52 @@
+/* Base Admonition Styles */
+.admonition {
+  padding: 1rem 1rem 1rem 1.25rem !important;
+  margin: 1.5rem 0 !important;
+  border-left: 4px solid;
+  border-radius: 0.25rem;
+  line-height: 1.5;
+}
+
+.admonition-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admonition p {
+  margin: 0;
+}
+
+/* -----------------------------------
+   LIGHT THEME (Default)
+----------------------------------- */
+
+.admonition.info {
+  background-color: #e8f4fd;
+  border-color: #007bff;
+  color: #004a99;
+}
+
+.admonition.warning {
+  background-color: #fff4e5;
+  border-color: #ff9800;
+  color: #995b00;
+}
+
+/* -----------------------------------
+   DARK THEME OVERRIDES
+----------------------------------- */
+
+:root.theme-dark .admonition.info {
+  background-color: #002b5e;
+  border-color: #3399ff;
+  color: #cce5ff;
+}
+
+:root.theme-dark .admonition.warning {
+  background-color: #4d2e00;
+  border-color: #ffb74d;
+  color: #ffe0b2;
+}
