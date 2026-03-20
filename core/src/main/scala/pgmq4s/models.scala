@@ -24,39 +24,53 @@ package pgmq4s
 import java.time.OffsetDateTime
 
 opaque type QueueName = String
+
+/** Queue name, wrapping a plain `String`. */
 object QueueName:
   def apply(name: String): QueueName = name
   extension (q: QueueName) def value: String = q
 
 opaque type MessageId = Long
+
+/** Message identifier, wrapping a `Long` assigned by PGMQ. */
 object MessageId:
   def apply(id: Long): MessageId = id
   extension (id: MessageId) def value: Long = id
 
-enum Message[A, +H]:
+/** A message read from a PGMQ queue.
+  *
+  * @tparam P
+  *   payload type
+  * @tparam H
+  *   headers type (covariant; `Nothing` when no headers are present)
+  */
+enum Message[P, +H]:
   def msgId: MessageId
   def readCt: Int
   def enqueuedAt: OffsetDateTime
   def vt: OffsetDateTime
-  def payload: A
+  def payload: P
 
-  case Plain[P](
+  /** A message carrying only a payload. */
+  case Plain[A](
       msgId: MessageId,
       readCt: Int,
       enqueuedAt: OffsetDateTime,
       vt: OffsetDateTime,
-      payload: P
-  ) extends Message[P, Nothing]
+      payload: A
+  ) extends Message[A, Nothing]
 
+  /** A message carrying a payload and typed headers. */
   case WithHeaders(
       msgId: MessageId,
       readCt: Int,
       enqueuedAt: OffsetDateTime,
       vt: OffsetDateTime,
-      payload: A,
+      payload: P,
       headers: H
   )
 
+/** Internal DTO representing a raw database row before JSON decoding. */
 case class RawMessage(
     msgId: Long,
     readCt: Int,
@@ -66,6 +80,7 @@ case class RawMessage(
     headers: Option[String]
 )
 
+/** Queue-level statistics returned by `pgmq.metrics`. */
 case class QueueMetrics(
     queueName: QueueName,
     queueLength: Long,
@@ -75,6 +90,7 @@ case class QueueMetrics(
     scrapeTime: OffsetDateTime
 )
 
+/** Queue metadata returned by `pgmq.list_queues`. */
 case class QueueInfo(
     queueName: QueueName,
     isPartitioned: Boolean,

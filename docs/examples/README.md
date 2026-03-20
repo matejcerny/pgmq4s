@@ -1,5 +1,0 @@
-{%
-laika.title = Examples
-%}
-
-# Examples
