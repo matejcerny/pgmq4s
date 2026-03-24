@@ -123,3 +123,55 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
         sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($text, $int8, $int4)"
           .query(rawMessageDecoder)
       ).flatMap(_.option((queue, msgId, vtOffset)))
+
+  // Topic publishing
+
+  private val topicBatchDecoder: Decoder[(String, Long)] =
+    (text ~ int8).map { case queueName ~ msgId => (queueName, msgId) }
+
+  protected def sendTopicRaw(routingKey: String, body: String): F[Int] =
+    pool.use(
+      _.prepare(sql"SELECT pgmq.send_topic($text, $text::jsonb)".query(int4)).flatMap(_.unique((routingKey, body)))
+    )
+
+  protected def sendTopicRaw(routingKey: String, body: String, delay: Int): F[Int] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.send_topic($text, $text::jsonb, $int4)".query(int4))
+        .flatMap(_.unique((routingKey, body, delay)))
+
+  protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): F[Int] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.send_topic($text, $text::jsonb, $text::jsonb, $int4)".query(int4))
+        .flatMap(_.unique((routingKey, body, headers, delay)))
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): F[List[(String, Long)]] =
+    pool.use:
+      _.prepare(sql"SELECT * FROM pgmq.send_batch_topic($text, ${_text}::jsonb[])".query(topicBatchDecoder))
+        .flatMap(_.stream((routingKey, Arr.fromFoldable(bodies)), 64).compile.toList)
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): F[List[(String, Long)]] =
+    pool.use:
+      _.prepare(sql"SELECT * FROM pgmq.send_batch_topic($text, ${_text}::jsonb[], $int4)".query(topicBatchDecoder))
+        .flatMap(_.stream((routingKey, Arr.fromFoldable(bodies), delay), 64).compile.toList)
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String]
+  ): F[List[(String, Long)]] =
+    pool.use:
+      _.prepare(
+        sql"SELECT * FROM pgmq.send_batch_topic($text, ${_text}::jsonb[], ${_text}::jsonb[])".query(topicBatchDecoder)
+      ).flatMap(_.stream((routingKey, Arr.fromFoldable(bodies), Arr.fromFoldable(headers)), 64).compile.toList)
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): F[List[(String, Long)]] =
+    pool.use:
+      _.prepare(
+        sql"SELECT * FROM pgmq.send_batch_topic($text, ${_text}::jsonb[], ${_text}::jsonb[], $int4)"
+          .query(topicBatchDecoder)
+      ).flatMap(_.stream((routingKey, Arr.fromFoldable(bodies), Arr.fromFoldable(headers), delay), 64).compile.toList)

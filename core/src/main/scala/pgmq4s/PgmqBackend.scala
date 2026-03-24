@@ -40,6 +40,24 @@ trait PgmqBackend[F[_]]:
   protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]]
   protected def popRaw(queue: String): F[Option[RawMessage]]
 
+  // Topic publishing — routes to all queues matching routingKey, returns recipient count
+  protected def sendTopicRaw(routingKey: String, body: String): F[Int]
+  protected def sendTopicRaw(routingKey: String, body: String, delay: Int): F[Int]
+  protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): F[Int]
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): F[List[(String, Long)]]
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): F[List[(String, Long)]]
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String]
+  ): F[List[(String, Long)]]
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): F[List[(String, Long)]]
+
   // Lifecycle
   protected def archiveRaw(queue: String, msgId: Long): F[Boolean]
   protected def archiveBatchRaw(queue: String, msgIds: List[Long]): F[List[Long]]

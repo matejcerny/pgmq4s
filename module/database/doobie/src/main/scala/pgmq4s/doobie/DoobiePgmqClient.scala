@@ -118,3 +118,56 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
       .query[RawMessage]
       .option
       .transact(xa)
+
+  // Topic publishing
+
+  protected def sendTopicRaw(routingKey: String, body: String): F[Int] =
+    sql"SELECT pgmq.send_topic($routingKey, $body::jsonb)"
+      .query[Int]
+      .unique
+      .transact(xa)
+
+  protected def sendTopicRaw(routingKey: String, body: String, delay: Int): F[Int] =
+    sql"SELECT pgmq.send_topic($routingKey, $body::jsonb, $delay)"
+      .query[Int]
+      .unique
+      .transact(xa)
+
+  protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): F[Int] =
+    sql"SELECT pgmq.send_topic($routingKey, $body::jsonb, $headers::jsonb, $delay)"
+      .query[Int]
+      .unique
+      .transact(xa)
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): F[List[(String, Long)]] =
+    sql"SELECT * FROM pgmq.send_batch_topic($routingKey, ${bodies.toArray}::jsonb[])"
+      .query[(String, Long)]
+      .to[List]
+      .transact(xa)
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): F[List[(String, Long)]] =
+    sql"SELECT * FROM pgmq.send_batch_topic($routingKey, ${bodies.toArray}::jsonb[], $delay)"
+      .query[(String, Long)]
+      .to[List]
+      .transact(xa)
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String]
+  ): F[List[(String, Long)]] =
+    sql"SELECT * FROM pgmq.send_batch_topic($routingKey, ${bodies.toArray}::jsonb[], ${headers.toArray}::jsonb[])"
+      .query[(String, Long)]
+      .to[List]
+      .transact(xa)
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): F[List[(String, Long)]] =
+    sql"SELECT * FROM pgmq.send_batch_topic($routingKey, ${bodies.toArray}::jsonb[], ${headers.toArray}::jsonb[], $delay)"
+      .query[(String, Long)]
+      .to[List]
+      .transact(xa)

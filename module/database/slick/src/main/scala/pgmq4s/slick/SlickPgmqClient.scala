@@ -191,3 +191,95 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
       sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
         .as[RawMessage]
         .headOption
+
+  // Topic publishing
+
+  protected def sendTopicRaw(routingKey: String, body: String): Future[Int] =
+    db.run(sql"SELECT pgmq.send_topic($routingKey, #${"'" + body.replace("'", "''") + "'"}::jsonb)".as[Int].head)
+
+  protected def sendTopicRaw(routingKey: String, body: String, delay: Int): Future[Int] =
+    db.run(
+      sql"SELECT pgmq.send_topic($routingKey, #${"'" + body.replace("'", "''") + "'"}::jsonb, $delay)".as[Int].head
+    )
+
+  protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): Future[Int] =
+    db.run(
+      sql"SELECT pgmq.send_topic($routingKey, #${"'" + body.replace("'", "''") + "'"}::jsonb, #${"'" + headers.replace("'", "''") + "'"}::jsonb, $delay)"
+        .as[Int]
+        .head
+    )
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): Future[List[(String, Long)]] =
+    db.run:
+      SimpleDBIO: session =>
+        val conn = session.connection
+        val arr = conn.createArrayOf("jsonb", bodies.toArray)
+        val ps = conn.prepareStatement("SELECT * FROM pgmq.send_batch_topic(?, ?)")
+        ps.setString(1, routingKey)
+        ps.setArray(2, arr)
+        val rs = ps.executeQuery()
+        val buf = List.newBuilder[(String, Long)]
+        while rs.next() do buf += ((rs.getString(1), rs.getLong(2)))
+        rs.close()
+        ps.close()
+        buf.result()
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): Future[List[(String, Long)]] =
+    db.run:
+      SimpleDBIO: session =>
+        val conn = session.connection
+        val arr = conn.createArrayOf("jsonb", bodies.toArray)
+        val ps = conn.prepareStatement("SELECT * FROM pgmq.send_batch_topic(?, ?, ?)")
+        ps.setString(1, routingKey)
+        ps.setArray(2, arr)
+        ps.setInt(3, delay)
+        val rs = ps.executeQuery()
+        val buf = List.newBuilder[(String, Long)]
+        while rs.next() do buf += ((rs.getString(1), rs.getLong(2)))
+        rs.close()
+        ps.close()
+        buf.result()
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String]
+  ): Future[List[(String, Long)]] =
+    db.run:
+      SimpleDBIO: session =>
+        val conn = session.connection
+        val bodyArr = conn.createArrayOf("jsonb", bodies.toArray)
+        val hdrArr = conn.createArrayOf("jsonb", headers.toArray)
+        val ps = conn.prepareStatement("SELECT * FROM pgmq.send_batch_topic(?, ?, ?)")
+        ps.setString(1, routingKey)
+        ps.setArray(2, bodyArr)
+        ps.setArray(3, hdrArr)
+        val rs = ps.executeQuery()
+        val buf = List.newBuilder[(String, Long)]
+        while rs.next() do buf += ((rs.getString(1), rs.getLong(2)))
+        rs.close()
+        ps.close()
+        buf.result()
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): Future[List[(String, Long)]] =
+    db.run:
+      SimpleDBIO: session =>
+        val conn = session.connection
+        val bodyArr = conn.createArrayOf("jsonb", bodies.toArray)
+        val hdrArr = conn.createArrayOf("jsonb", headers.toArray)
+        val ps = conn.prepareStatement("SELECT * FROM pgmq.send_batch_topic(?, ?, ?, ?)")
+        ps.setString(1, routingKey)
+        ps.setArray(2, bodyArr)
+        ps.setArray(3, hdrArr)
+        ps.setInt(4, delay)
+        val rs = ps.executeQuery()
+        val buf = List.newBuilder[(String, Long)]
+        while rs.next() do buf += ((rs.getString(1), rs.getLong(2)))
+        rs.close()
+        ps.close()
+        buf.result()

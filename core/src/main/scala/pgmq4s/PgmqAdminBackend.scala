@@ -39,3 +39,8 @@ trait PgmqAdminBackend[F[_]]:
   protected def metricsRaw(queue: String): F[Option[QueueMetrics]]
   protected def metricsAllRaw: F[List[QueueMetrics]]
   protected def listQueuesRaw: F[List[QueueInfo]]
+
+  // Topic management
+  protected def bindTopicRaw(pattern: String, queue: String): F[Unit]
+  protected def unbindTopicRaw(pattern: String, queue: String): F[Boolean]
+  protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]]

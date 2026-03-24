@@ -174,3 +174,77 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
       )
         .on("queue" -> queue, "msgId" -> msgId, "vtOffset" -> vtOffset)
         .as(rawMessage.singleOpt)
+
+  // Topic publishing
+
+  private def jdbcTopicQuery(query: String, conn: Connection)(
+      setup: java.sql.PreparedStatement => Unit
+  ): List[(String, Long)] =
+    Using.resource(conn.prepareStatement(query)): ps =>
+      setup(ps)
+      val rs = ps.executeQuery()
+      val buf = List.newBuilder[(String, Long)]
+      while rs.next() do buf += ((rs.getString(1), rs.getLong(2)))
+      buf.result()
+
+  protected def sendTopicRaw(routingKey: String, body: String): Future[Int] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.send_topic({routingKey}, {body}::jsonb)")
+        .on("routingKey" -> routingKey, "body" -> body)
+        .as(int(1).single)
+
+  protected def sendTopicRaw(routingKey: String, body: String, delay: Int): Future[Int] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.send_topic({routingKey}, {body}::jsonb, {delay})")
+        .on("routingKey" -> routingKey, "body" -> body, "delay" -> delay)
+        .as(int(1).single)
+
+  protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): Future[Int] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.send_topic({routingKey}, {body}::jsonb, {headers}::jsonb, {delay})")
+        .on("routingKey" -> routingKey, "body" -> body, "headers" -> headers, "delay" -> delay)
+        .as(int(1).single)
+
+  protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): Future[List[(String, Long)]] =
+    withConnection: conn =>
+      jdbcTopicQuery("SELECT * FROM pgmq.send_batch_topic(?, ?)", conn): ps =>
+        ps.setString(1, routingKey)
+        ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      delay: Int
+  ): Future[List[(String, Long)]] =
+    withConnection: conn =>
+      jdbcTopicQuery("SELECT * FROM pgmq.send_batch_topic(?, ?, ?)", conn): ps =>
+        ps.setString(1, routingKey)
+        ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
+        ps.setInt(3, delay)
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String]
+  ): Future[List[(String, Long)]] =
+    withConnection: conn =>
+      jdbcTopicQuery("SELECT * FROM pgmq.send_batch_topic(?, ?, ?)", conn): ps =>
+        ps.setString(1, routingKey)
+        ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
+        ps.setArray(3, conn.createArrayOf("jsonb", headers.toArray))
+
+  protected def sendBatchTopicRaw(
+      routingKey: String,
+      bodies: List[String],
+      headers: List[String],
+      delay: Int
+  ): Future[List[(String, Long)]] =
+    withConnection: conn =>
+      jdbcTopicQuery("SELECT * FROM pgmq.send_batch_topic(?, ?, ?, ?)", conn): ps =>
+        ps.setString(1, routingKey)
+        ps.setArray(2, conn.createArrayOf("jsonb", bodies.toArray))
+        ps.setArray(3, conn.createArrayOf("jsonb", headers.toArray))
+        ps.setInt(4, delay)

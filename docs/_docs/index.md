@@ -4,10 +4,11 @@
 
 `pgmq4s` (codename: _Dutchie_) is a Scala 3 client for PGMQ, supporting JVM, Scala.js, and Scala Native.
 
+Requires **PGMQ v1.11.0+** (topic-based routing). Core messaging works with v1.10.0.
+
 ## Features
 
 - **Typelevel ecosystem** — built on Cats Effect with tagless final `PgmqClient[F]` and `PgmqAdmin[F]`
 - **Multiple backends** — Doobie, Skunk, Anorm, Slick
 - **Multiple JSON codecs** — Circe, Jsoniter-scala, uPickle, Play JSON, Spray JSON
-- **Typed headers** — attach structured metadata alongside payloads
 - **Cross-platform** — Skunk backend + Circe/Jsoniter/uPickle codecs work on JVM, JS, and Native

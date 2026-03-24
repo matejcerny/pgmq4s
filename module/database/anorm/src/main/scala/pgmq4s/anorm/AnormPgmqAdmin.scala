@@ -108,3 +108,27 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
       given Connection = conn
       SQL("SELECT queue_name, is_partitioned, is_unlogged, created_at FROM pgmq.list_queues()")
         .as(queueInfo.*)
+
+  // Topic management
+
+  protected def bindTopicRaw(pattern: String, queue: String): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.bind_topic({pattern}, {queue})")
+        .on("pattern" -> pattern, "queue" -> queue)
+        .execute()
+      ()
+
+  protected def unbindTopicRaw(pattern: String, queue: String): Future[Boolean] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.unbind_topic({pattern}, {queue})")
+        .on("pattern" -> pattern, "queue" -> queue)
+        .as(bool(1).single)
+
+  protected def testRoutingRaw(routingKey: String): Future[List[(String, String, String)]] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing({routingKey})")
+        .on("routingKey" -> routingKey)
+        .as((str("pattern") ~ str("queue_name") ~ str("compiled_regex")).map { case p ~ q ~ r => (p, q, r) }.*)

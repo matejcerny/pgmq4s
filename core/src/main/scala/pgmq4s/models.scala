@@ -37,6 +37,20 @@ object MessageId:
   def apply(id: Long): MessageId = id
   extension (id: MessageId) def value: Long = id
 
+opaque type RoutingKey = String
+
+/** Routing key for topic-based message delivery (e.g. `"orders.eu.created"`). */
+object RoutingKey:
+  def apply(key: String): RoutingKey = key
+  extension (routingKey: RoutingKey) def value: String = routingKey
+
+opaque type TopicPattern = String
+
+/** Binding pattern with `*` (single segment) and `#` (zero or more) wildcards. */
+object TopicPattern:
+  def apply(pattern: String): TopicPattern = pattern
+  extension (topicPattern: TopicPattern) def value: String = topicPattern
+
 /** A message read from a PGMQ queue.
   *
   * @tparam P
@@ -97,3 +111,9 @@ case class QueueInfo(
     isUnlogged: Boolean,
     createdAt: OffsetDateTime
 )
+
+/** Result row from `pgmq.send_batch_topic`, pairing a queue with its message ID. */
+case class TopicMessageId(queueName: QueueName, msgId: MessageId)
+
+/** Result row from `pgmq.test_routing`, showing which queues match a routing key. */
+case class RoutingMatch(pattern: TopicPattern, queueName: QueueName, compiledRegex: String)

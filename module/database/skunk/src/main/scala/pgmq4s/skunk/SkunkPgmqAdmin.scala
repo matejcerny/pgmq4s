@@ -86,3 +86,20 @@ class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgmq
         sql"""SELECT queue_name, is_partitioned, is_unlogged, created_at
                 FROM pgmq.list_queues()""".query(queueInfoDecoder)
       )
+
+  // Topic management
+
+  private val routingMatchDecoder: Decoder[(String, String, String)] =
+    (text ~ text ~ text).map { case pattern ~ queueName ~ compiledRegex => (pattern, queueName, compiledRegex) }
+
+  protected def bindTopicRaw(pattern: String, queue: String): F[Unit] =
+    pool.use(_.prepare(sql"SELECT pgmq.bind_topic($text, $text)".query(voidCodec)).flatMap(_.unique((pattern, queue))))
+
+  protected def unbindTopicRaw(pattern: String, queue: String): F[Boolean] =
+    pool.use(_.prepare(sql"SELECT pgmq.unbind_topic($text, $text)".query(bool)).flatMap(_.unique((pattern, queue))))
+
+  protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]] =
+    pool.use:
+      _.prepare(
+        sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($text)".query(routingMatchDecoder)
+      ).flatMap(_.stream(routingKey, 64).compile.toList)
