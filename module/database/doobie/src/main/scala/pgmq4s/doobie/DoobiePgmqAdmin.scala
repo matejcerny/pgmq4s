@@ -82,3 +82,17 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
         QueueInfo(QueueName(name), part, unlog, created)
       })
       .transact(xa)
+
+  // Topic management
+
+  protected def bindTopicRaw(pattern: String, queue: String): F[Unit] =
+    sql"SELECT pgmq.bind_topic($pattern, $queue)".query[Unit].unique.transact(xa)
+
+  protected def unbindTopicRaw(pattern: String, queue: String): F[Boolean] =
+    sql"SELECT pgmq.unbind_topic($pattern, $queue)".query[Boolean].unique.transact(xa)
+
+  protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]] =
+    sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($routingKey)"
+      .query[(String, String, String)]
+      .to[List]
+      .transact(xa)

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: ghcr.io/pgmq/pg18-pgmq:v1.10.0
+    image: ghcr.io/pgmq/pg18-pgmq:v1.11.0
     ports:
       - "5432:5432"
     environment:

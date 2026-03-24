@@ -9,6 +9,8 @@
 
 Scala 3 client for [pgmq](https://github.com/pgmq/pgmq) (Postgres Message Queue).
 
+Requires **PGMQ v1.11.0+** (topic-based routing). Core messaging works with v1.10.0.
+
 Supports JVM, Scala.js, and Scala Native.
 
 Database backends:

@@ -6,34 +6,41 @@ pgmq4s implements the following [PGMQ SQL API](https://pgmq.github.io/pgmq/lates
 
 Implemented in `PgmqClient[F]`.
 
-| PGMQ Function               | pgmq4s Method              | Description                              |
-|-----------------------------|----------------------------|------------------------------------------|
-| `send`                      | `send[P]`                  | Send a message                           |
-| `send` (with headers)       | `send[P, H]`               | Send a message with typed headers        |
-| `send_batch`                | `sendBatch[P]`             | Send multiple messages                   |
-| `send_batch` (with headers) | `sendBatch[P, H]`          | Send multiple messages with headers      |
-| `read`                      | `read[P]` / `read[P, H]`   | Read messages with visibility timeout    |
-| `pop`                       | `pop[P]` / `pop[P, H]`     | Read and immediately delete one message  |
-| `delete`                    | `delete`                   | Delete a single message                  |
-| `delete` (batch)            | `deleteBatch`              | Delete multiple messages                 |
-| `archive`                   | `archive`                  | Archive a single message                 |
-| `archive` (batch)           | `archiveBatch`             | Archive multiple messages                |
-| `set_vt`                    | `setVt[P]` / `setVt[P, H]` | Change visibility timeout of a message   |
+| PGMQ Function                     | pgmq4s Method              | Description                                         |
+|-----------------------------------|----------------------------|-----------------------------------------------------|
+| `send`                            | `send[P]`                  | Send a message                                      |
+| `send` (with headers)             | `send[P, H]`               | Send a message with typed headers                   |
+| `send_batch`                      | `sendBatch[P]`             | Send multiple messages                              |
+| `send_batch` (with headers)       | `sendBatch[P, H]`          | Send multiple messages with headers                 |
+| `read`                            | `read[P]` / `read[P, H]`   | Read messages with visibility timeout               |
+| `pop`                             | `pop[P]` / `pop[P, H]`     | Read and immediately delete one message             |
+| `delete`                          | `delete`                   | Delete a single message                             |
+| `delete` (batch)                  | `deleteBatch`              | Delete multiple messages                            |
+| `archive`                         | `archive`                  | Archive a single message                            |
+| `archive` (batch)                 | `archiveBatch`             | Archive multiple messages                           |
+| `set_vt`                          | `setVt[P]` / `setVt[P, H]` | Change visibility timeout of a message              |
+| `send_topic`                      | `sendTopic[P]`             | Send a message to queues matching a routing key     |
+| `send_topic` (with headers)       | `sendTopic[P, H]`          | Send a message with headers via routing key         |
+| `send_batch_topic`                | `sendBatchTopic[P]`        | Send multiple messages via routing key              |
+| `send_batch_topic` (with headers) | `sendBatchTopic[P, H]`     | Send multiple messages with headers via routing key |
 
 ## Queue Management
 
 Implemented in `PgmqAdmin[F]`.
 
-| PGMQ Function        | pgmq4s Method            | Description                                |
-|----------------------|--------------------------|--------------------------------------------|
-| `create`             | `createQueue`            | Create a new queue                         |
-| `create_partitioned` | `createPartitionedQueue` | Create a partitioned queue                 |
-| `drop_queue`         | `dropQueue`              | Drop a queue                               |
-| `purge_queue`        | `purgeQueue`             | Purge all messages from a queue            |
-| `metrics`            | `metrics`                | Get metrics for a single queue             |
-| `metrics_all`        | `metricsAll`             | Get metrics for all queues                 |
-| `list_queues`        | `listQueues`             | List all queues                            |
-| `detach_archive`     | `detachArchive`          | Detach archive table (deprecated upstream) |
+| PGMQ Function        | pgmq4s Method            | Description                                     |
+|----------------------|--------------------------|-------------------------------------------------|
+| `create`             | `createQueue`            | Create a new queue                              |
+| `create_partitioned` | `createPartitionedQueue` | Create a partitioned queue                      |
+| `drop_queue`         | `dropQueue`              | Drop a queue                                    |
+| `purge_queue`        | `purgeQueue`             | Purge all messages from a queue                 |
+| `metrics`            | `metrics`                | Get metrics for a single queue                  |
+| `metrics_all`        | `metricsAll`             | Get metrics for all queues                      |
+| `list_queues`        | `listQueues`             | List all queues                                 |
+| `detach_archive`     | `detachArchive`          | Detach archive table (deprecated upstream)      |
+| `bind_topic`         | `bindTopic`              | Bind a wildcard pattern to a queue              |
+| `unbind_topic`       | `unbindTopic`            | Remove a pattern-to-queue binding               |
+| `test_routing`       | `testRouting`            | Dry-run to see which queues match a routing key |
 
 ## Headers
 
@@ -71,17 +78,39 @@ val messages: F[List[Message.Plain[OrderCreated]]] =
 <p>Both the payload type <code>P</code> and the headers type <code>H</code> need <code>PgmqEncoder</code>/<code>PgmqDecoder</code> instances in scope. Make sure your JSON codec bridge import covers both types.</p>
 </div>
 
+## Topic-Based Routing
+
+Pub/sub-style message routing via topics and wildcard bindings. Patterns use `*` (match one segment) and `#` (match zero or more segments).
+
+Bind a pattern to a queue, then send via routing key:
+
+```scala
+admin.bindTopic(TopicPattern("orders.*"), queue)
+
+// Delivers to all queues bound to patterns matching "orders.created"
+val recipientCount: F[Int] =
+  client.sendTopic(RoutingKey("orders.created"), payload)
+```
+
+Batch send returns which queues received which message IDs:
+
+```scala
+val results: F[List[TopicMessageId]] =
+  client.sendBatchTopic(RoutingKey("orders.created"), payloads)
+// Each TopicMessageId contains queueName and msgId
+```
+
+Test which queues would match without sending:
+
+```scala
+val matches: F[List[RoutingMatch]] =
+  admin.testRouting(RoutingKey("orders.eu.created"))
+// Each RoutingMatch contains pattern, queueName, compiledRegex
+```
+
 ## Planned Features
 
 The following PGMQ functions are not yet supported but are planned for future releases:
-
-### Topic-Based Routing
-
-Pub/sub-style message routing via topics and bindings:
-
-- `send_topic` / `send_batch_topic` — route messages via routing key
-- `bind_topic` / `unbind_topic` — manage queue-to-topic bindings
-- `test_routing` — dry-run to see which queues match a routing key
 
 ### Advanced Reading
 

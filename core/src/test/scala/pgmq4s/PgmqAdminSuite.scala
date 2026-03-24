@@ -50,7 +50,9 @@ object PgmqAdminSuite extends SimpleIOSuite:
   private case class Captured(
       queue: String = "",
       partitionInterval: String = "",
-      retentionInterval: String = ""
+      retentionInterval: String = "",
+      pattern: String = "",
+      routingKey: String = ""
   )
 
   private case class Returns(
@@ -58,7 +60,9 @@ object PgmqAdminSuite extends SimpleIOSuite:
       purge: Long = 0L,
       metrics: Option[QueueMetrics] = None,
       metricsAll: List[QueueMetrics] = Nil,
-      listQueues: List[QueueInfo] = Nil
+      listQueues: List[QueueInfo] = Nil,
+      unbindTopic: Boolean = true,
+      testRouting: List[(String, String, String)] = Nil
   )
 
   private class StubAdmin(ref: Ref[IO, Captured], ret: Returns) extends PgmqAdmin[IO]:
@@ -86,6 +90,15 @@ object PgmqAdminSuite extends SimpleIOSuite:
 
     def listQueuesRaw: IO[List[QueueInfo]] =
       IO.pure(ret.listQueues)
+
+    def bindTopicRaw(pattern: String, queue: String): IO[Unit] =
+      ref.update(_.copy(pattern = pattern, queue = queue))
+
+    def unbindTopicRaw(pattern: String, queue: String): IO[Boolean] =
+      ref.update(_.copy(pattern = pattern, queue = queue)).as(ret.unbindTopic)
+
+    def testRoutingRaw(routingKey: String): IO[List[(String, String, String)]] =
+      ref.update(_.copy(routingKey = routingKey)).as(ret.testRouting)
 
   private def pgmqTest(name: String, ret: Returns = Returns())(
       body: (PgmqAdmin[IO], IO[Captured]) => IO[Expectations]
@@ -150,15 +163,52 @@ object PgmqAdminSuite extends SimpleIOSuite:
     ).combineAll
 
   pgmqTest("metricsAll passes through backend result", Returns(metricsAll = List(sampleMetrics))): (admin, _) =>
-    for list <- admin.metricsAll
-    yield expect.same(list.size, 1) and
-      expect.same(list.map(_.totalMessages), List(42L))
+    admin.metricsAll.map: list =>
+      expect.same(list.size, 1) and expect.same(list.map(_.totalMessages), List(42L))
 
   // --- listQueues ---
 
   pgmqTest("listQueues returns backend result", Returns(listQueues = List(sampleQueueInfo))): (admin, _) =>
-    for list <- admin.listQueues
-    yield expect.same(list.size, 1) and
-      expect.same(list.head.queueName, QueueName("test")) and
-      expect.same(list.head.isPartitioned, false) and
-      expect.same(list.head.isUnlogged, false)
+    admin.listQueues.map: list =>
+      List(
+        expect.same(list.size, 1),
+        expect.same(list.head.queueName, QueueName("test")),
+        expect.same(list.head.isPartitioned, false),
+        expect.same(list.head.isUnlogged, false)
+      ).combineAll
+
+  // --- topic management ---
+
+  pgmqTest("bindTopic unwraps opaque types"): (admin, captured) =>
+    for
+      _ <- admin.bindTopic(TopicPattern("orders.*"), q)
+      c <- captured
+    yield expect.same(c.pattern, "orders.*") and
+      expect.same(c.queue, "my-queue")
+
+  pgmqTest("unbindTopic unwraps opaque types and returns boolean"): (admin, captured) =>
+    for
+      ok <- admin.unbindTopic(TopicPattern("orders.*"), q)
+      c <- captured
+    yield List(
+      expect(clue(ok)),
+      expect.same(c.pattern, "orders.*"),
+      expect.same(c.queue, "my-queue")
+    ).combineAll
+
+  pgmqTest("unbindTopic returns false when binding did not exist", Returns(unbindTopic = false)): (admin, _) =>
+    admin.unbindTopic(TopicPattern("missing.#"), q).map(ok => expect(!clue(ok)))
+
+  pgmqTest(
+    "testRouting wraps results as RoutingMatch",
+    Returns(testRouting = List(("orders.*", "q1", "^orders\\.[^.]+$"), ("orders.#", "q2", "^orders\\..*$")))
+  ): (admin, captured) =>
+    for
+      matches <- admin.testRouting(RoutingKey("orders.eu"))
+      c <- captured
+    yield List(
+      expect.same(matches.size, 2),
+      expect.same(matches.map(_.queueName), List(QueueName("q1"), QueueName("q2"))),
+      expect.same(matches.map(_.pattern), List(TopicPattern("orders.*"), TopicPattern("orders.#"))),
+      expect.same(c.routingKey, "orders.eu")
+    ).combineAll

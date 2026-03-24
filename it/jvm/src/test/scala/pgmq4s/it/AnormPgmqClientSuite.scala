@@ -87,6 +87,51 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     ): IO[Option[Message[P, H]]] =
       liftF(underlying.setVt[P, H](queue, msgId, vtOffset))
 
+    override def sendTopic[P: PgmqEncoder](routingKey: RoutingKey, message: P): IO[Int] =
+      liftF(underlying.sendTopic(routingKey, message))
+
+    override def sendTopic[P: PgmqEncoder](routingKey: RoutingKey, message: P, delay: Int): IO[Int] =
+      liftF(underlying.sendTopic(routingKey, message, delay))
+
+    override def sendTopic[P: PgmqEncoder, H: PgmqEncoder](routingKey: RoutingKey, message: P, headers: H): IO[Int] =
+      liftF(underlying.sendTopic(routingKey, message, headers))
+
+    override def sendTopic[P: PgmqEncoder, H: PgmqEncoder](
+        routingKey: RoutingKey,
+        message: P,
+        headers: H,
+        delay: Int
+    ): IO[Int] =
+      liftF(underlying.sendTopic(routingKey, message, headers, delay))
+
+    override def sendBatchTopic[P: PgmqEncoder](
+        routingKey: RoutingKey,
+        messages: List[P]
+    ): IO[List[TopicMessageId]] =
+      liftF(underlying.sendBatchTopic(routingKey, messages))
+
+    override def sendBatchTopic[P: PgmqEncoder](
+        routingKey: RoutingKey,
+        messages: List[P],
+        delay: Int
+    ): IO[List[TopicMessageId]] =
+      liftF(underlying.sendBatchTopic(routingKey, messages, delay))
+
+    override def sendBatchTopic[P: PgmqEncoder, H: PgmqEncoder](
+        routingKey: RoutingKey,
+        messages: List[P],
+        headers: List[H]
+    ): IO[List[TopicMessageId]] =
+      liftF(underlying.sendBatchTopic(routingKey, messages, headers))
+
+    override def sendBatchTopic[P: PgmqEncoder, H: PgmqEncoder](
+        routingKey: RoutingKey,
+        messages: List[P],
+        headers: List[H],
+        delay: Int
+    ): IO[List[TopicMessageId]] =
+      liftF(underlying.sendBatchTopic(routingKey, messages, headers, delay))
+
     protected def sendRaw(queue: String, body: String): IO[Long] = ???
     protected def sendRaw(queue: String, body: String, delay: Int): IO[Long] = ???
     protected def sendRaw(queue: String, body: String, headers: String): IO[Long] = ???
@@ -96,6 +141,13 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] = ???
     protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] =
       ???
+    protected def sendTopicRaw(routingKey: String, body: String): IO[Int] = ???
+    protected def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] = ???
+    protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = ???
+    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] = ???
+    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] = ???
+    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] = ???
+    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String], delay: Int): IO[List[(String, Long)]] = ???
     protected def readRaw(queue: String, vt: Int, qty: Int): IO[List[RawMessage]] = ???
     protected def popRaw(queue: String): IO[Option[RawMessage]] = ???
     protected def archiveRaw(queue: String, msgId: Long): IO[Boolean] = ???
@@ -121,6 +173,12 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     override def metrics(queue: QueueName): IO[Option[QueueMetrics]] = liftF(underlying.metrics(queue))
     override def metricsAll: IO[List[QueueMetrics]] = liftF(underlying.metricsAll)
     override def listQueues: IO[List[QueueInfo]] = liftF(underlying.listQueues)
+    override def bindTopic(pattern: TopicPattern, queue: QueueName): IO[Unit] =
+      liftF(underlying.bindTopic(pattern, queue))
+    override def unbindTopic(pattern: TopicPattern, queue: QueueName): IO[Boolean] =
+      liftF(underlying.unbindTopic(pattern, queue))
+    override def testRouting(routingKey: RoutingKey): IO[List[RoutingMatch]] =
+      liftF(underlying.testRouting(routingKey))
 
     protected def createQueueRaw(queue: String): IO[Unit] = ???
     protected def createPartitionedQueueRaw(queue: String, p: String, r: String): IO[Unit] = ???
@@ -130,6 +188,9 @@ object AnormPgmqClientSuite extends PgmqClientSuite:
     protected def metricsRaw(queue: String): IO[Option[QueueMetrics]] = ???
     protected def metricsAllRaw: IO[List[QueueMetrics]] = ???
     protected def listQueuesRaw: IO[List[QueueInfo]] = ???
+    protected def bindTopicRaw(pattern: String, queue: String): IO[Unit] = ???
+    protected def unbindTopicRaw(pattern: String, queue: String): IO[Boolean] = ???
+    protected def testRoutingRaw(routingKey: String): IO[List[(String, String, String)]] = ???
 
   private given ExecutionContext = ExecutionContext.global
 

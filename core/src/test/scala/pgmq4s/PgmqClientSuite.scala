@@ -48,7 +48,8 @@ object PgmqClientSuite extends SimpleIOSuite:
       msgIds: List[Long] = Nil,
       vt: Int = -1,
       qty: Int = -1,
-      vtOffset: Int = -1
+      vtOffset: Int = -1,
+      routingKey: String = ""
   )
 
   private case class Returns(
@@ -60,7 +61,9 @@ object PgmqClientSuite extends SimpleIOSuite:
       archive: Boolean = true,
       archiveBatch: List[Long] = Nil,
       delete: Boolean = true,
-      deleteBatch: List[Long] = Nil
+      deleteBatch: List[Long] = Nil,
+      sendTopic: Int = 0,
+      sendBatchTopic: List[(String, Long)] = Nil
   )
 
   private class StubClient(ref: Ref[IO, Captured], ret: Returns) extends PgmqClient[IO]:
@@ -109,6 +112,37 @@ object PgmqClientSuite extends SimpleIOSuite:
 
     def setVtRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] =
       ref.update(_.copy(queue = queue, msgId = msgId, vtOffset = vtOffset)).as(ret.setVt)
+
+    def sendTopicRaw(routingKey: String, body: String): IO[Int] =
+      ref.update(_.copy(routingKey = routingKey, body = body)).as(ret.sendTopic)
+
+    def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] =
+      ref.update(_.copy(routingKey = routingKey, body = body, delay = delay)).as(ret.sendTopic)
+
+    def sendTopicRaw(routingKey: String, body: String, headers: String): IO[Int] =
+      ref.update(_.copy(routingKey = routingKey, body = body, headers = headers)).as(ret.sendTopic)
+
+    def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] =
+      ref.update(_.copy(routingKey = routingKey, body = body, headers = headers, delay = delay)).as(ret.sendTopic)
+
+    def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] =
+      ref.update(_.copy(routingKey = routingKey, bodies = bodies)).as(ret.sendBatchTopic)
+
+    def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] =
+      ref.update(_.copy(routingKey = routingKey, bodies = bodies, delay = delay)).as(ret.sendBatchTopic)
+
+    def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] =
+      ref.update(_.copy(routingKey = routingKey, bodies = bodies, headersList = headers)).as(ret.sendBatchTopic)
+
+    def sendBatchTopicRaw(
+        routingKey: String,
+        bodies: List[String],
+        headers: List[String],
+        delay: Int
+    ): IO[List[(String, Long)]] =
+      ref
+        .update(_.copy(routingKey = routingKey, bodies = bodies, headersList = headers, delay = delay))
+        .as(ret.sendBatchTopic)
 
   private def pgmqTest(name: String, ret: Returns = Returns())(
       body: (PgmqClient[IO], IO[Captured]) => IO[Expectations]
@@ -225,60 +259,65 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read with decode failure raises error in IO", Returns(read = List(rawMsg(1L, "not-an-int")))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-      for result <- client.read[Int](q, 30, 1)(using failing).attempt
-      yield expect(clue(result).isLeft)
+      client.read[Int](q, 30, 1)(using failing).attempt.map(result => expect(clue(result).isLeft))
 
   pgmqTest(
     "read with headers returns WithHeaders when headers present",
     Returns(read = List(rawMsg(1L, "payload", Some("hdrs"))))
   ): (client, _) =>
-    for msgs <- client.read[String, String](q, vt = 30, qty = 5)
-    yield
-      val msg = msgs.head
-      List(
-        expect(clue(msg).isInstanceOf[Message.WithHeaders[?, ?]]),
-        expect.same(msg.payload, "payload"),
-        expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "hdrs")
-      ).combineAll
+    for
+      msgs <- client.read[String, String](q, vt = 30, qty = 5)
+      msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected at least one message"))
+    yield List(
+      expect(clue(msg).isInstanceOf[Message.WithHeaders[?, ?]]),
+      expect.same(msg.payload, "payload"),
+      expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "hdrs")
+    ).combineAll
 
   pgmqTest("read with headers returns Plain when headers absent", Returns(read = List(rawMsg(1L, "payload")))):
     (client, _) =>
-      for msgs <- client.read[String, String](q, vt = 30, qty = 5)
-      yield expect(clue(msgs.head).isInstanceOf[Message.Plain[?]])
+      client
+        .read[String, String](q, vt = 30, qty = 5)
+        .map: msgs =>
+          expect(clue(msgs.head).isInstanceOf[Message.Plain[?]])
 
   // --- pop ---
 
   pgmqTest("pop decodes optional raw message", Returns(pop = Some(rawMsg(5L, "popped")))): (client, _) =>
-    for opt <- client.pop[String](q)
-    yield List(
-      expect(clue(opt).isDefined),
-      expect.same(opt.map(_.msgId.value), Some(5L)),
-      expect.same(opt.map(_.payload), Some("popped"))
-    ).combineAll
+    client
+      .pop[String](q)
+      .map: opt =>
+        List(
+          expect(clue(opt).isDefined),
+          expect.same(opt.map(_.msgId.value), Some(5L)),
+          expect.same(opt.map(_.payload), Some("popped"))
+        ).combineAll
 
   pgmqTest("pop returns None when backend returns None"): (client, _) =>
-    for opt <- client.pop[String](q)
-    yield expect(clue(opt).isEmpty)
+    client.pop[String](q).map(opt => expect(clue(opt).isEmpty))
 
   pgmqTest("pop with decode failure raises error in IO", Returns(pop = Some(rawMsg(1L, "not-an-int")))): (client, _) =>
     val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-    for result <- client.pop[Int](q)(using failing).attempt
-    yield expect(clue(result).isLeft)
+    client.pop[Int](q)(using failing).attempt.map(result => expect(clue(result).isLeft))
 
   pgmqTest(
     "pop with headers returns WithHeaders when headers present",
     Returns(pop = Some(rawMsg(5L, "p", Some("h"))))
   ): (client, _) =>
-    for opt <- client.pop[String, String](q)
-    yield List(
-      expect(clue(opt).isDefined),
-      expect(opt.get.isInstanceOf[Message.WithHeaders[?, ?]]),
-      expect.same(opt.get.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")
-    ).combineAll
+    client
+      .pop[String, String](q)
+      .map: opt =>
+        List(
+          expect(clue(opt).isDefined),
+          expect(opt.get.isInstanceOf[Message.WithHeaders[?, ?]]),
+          expect.same(opt.get.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")
+        ).combineAll
 
   pgmqTest("pop with headers returns Plain when headers absent", Returns(pop = Some(rawMsg(5L, "p")))): (client, _) =>
-    for opt <- client.pop[String, String](q)
-    yield expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
+    client
+      .pop[String, String](q)
+      .map: opt =>
+        expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
 
   // --- setVt ---
 
@@ -295,8 +334,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       ).combineAll
 
   pgmqTest("setVt returns None when backend returns None"): (client, _) =>
-    for opt <- client.setVt[String](q, MessageId(1L), 10)
-    yield expect(clue(opt).isEmpty)
+    client.setVt[String](q, MessageId(1L), 10).map(opt => expect(clue(opt).isEmpty))
 
   pgmqTest(
     "setVt with headers returns WithHeaders when headers present",
@@ -314,26 +352,33 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("setVt with headers returns Plain when headers absent", Returns(setVt = Some(rawMsg(9L, "u")))):
     (client, _) =>
-      for opt <- client.setVt[String, String](q, MessageId(9L), vtOffset = 60)
-      yield expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
+      client
+        .setVt[String, String](q, MessageId(9L), vtOffset = 60)
+        .map: opt =>
+          expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
 
   pgmqTest("setVt with headers returns None when backend returns None"): (client, _) =>
-    for opt <- client.setVt[String, String](q, MessageId(1L), 10)
-    yield expect(clue(opt).isEmpty)
+    client.setVt[String, String](q, MessageId(1L), 10).map(opt => expect(clue(opt).isEmpty))
 
   // --- decode failure with headers ---
 
   pgmqTest("read with headers fails when body decode fails", Returns(read = List(rawMsg(1L, "bad", Some("h"))))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-      for result <- client.read[Int, String](q, 30, 1)(using failing, summon[PgmqDecoder[String]]).attempt
-      yield expect(clue(result).isLeft)
+      client
+        .read[Int, String](q, 30, 1)(using failing, summon[PgmqDecoder[String]])
+        .attempt
+        .map: result =>
+          expect(clue(result).isLeft)
 
   pgmqTest("read with headers fails when header decode fails", Returns(read = List(rawMsg(1L, "ok", Some("bad"))))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-      for result <- client.read[String, Int](q, 30, 1)(using summon[PgmqDecoder[String]], failing).attempt
-      yield expect(clue(result).isLeft)
+      client
+        .read[String, Int](q, 30, 1)(using summon[PgmqDecoder[String]], failing)
+        .attempt
+        .map: result =>
+          expect(clue(result).isLeft)
 
   // --- delete / archive ---
 
@@ -367,3 +412,95 @@ object PgmqClientSuite extends SimpleIOSuite:
       c <- captured
     yield expect.same(ids.map(_.value), List(10L, 20L)) and
       expect.same(c.msgIds, List(10L, 20L))
+
+  // --- sendTopic ---
+
+  private val rk = RoutingKey("orders.eu.created")
+
+  pgmqTest("sendTopic encodes message and returns recipient count", Returns(sendTopic = 3)): (client, captured) =>
+    for
+      count <- client.sendTopic[String](rk, "hello")
+      c <- captured
+    yield List(
+      expect.same(count, 3),
+      expect.same(c.routingKey, "orders.eu.created"),
+      expect.same(c.body, "hello")
+    ).combineAll
+
+  pgmqTest("sendTopic with delay forwards delay", Returns(sendTopic = 2)): (client, captured) =>
+    for
+      count <- client.sendTopic[String](rk, "delayed", 30)
+      c <- captured
+    yield expect.same(count, 2) and
+      expect.same(c.delay, 30)
+
+  pgmqTest("sendTopic with headers encodes both message and headers", Returns(sendTopic = 1)): (client, captured) =>
+    for
+      count <- client.sendTopic[String, String](rk, "body", "hdrs")
+      c <- captured
+    yield List(
+      expect.same(count, 1),
+      expect.same(c.body, "body"),
+      expect.same(c.headers, "hdrs")
+    ).combineAll
+
+  pgmqTest("sendTopic with headers and delay forwards all arguments", Returns(sendTopic = 1)): (client, captured) =>
+    for
+      count <- client.sendTopic[String, String](rk, "body", "hdrs", 15)
+      c <- captured
+    yield List(
+      expect.same(count, 1),
+      expect.same(c.body, "body"),
+      expect.same(c.headers, "hdrs"),
+      expect.same(c.delay, 15)
+    ).combineAll
+
+  // --- sendBatchTopic ---
+
+  pgmqTest(
+    "sendBatchTopic encodes all messages and wraps results",
+    Returns(sendBatchTopic = List(("q1", 10L), ("q2", 20L)))
+  ): (client, captured) =>
+    for
+      ids <- client.sendBatchTopic[String](rk, List("a", "b"))
+      c <- captured
+    yield List(
+      expect.same(ids.map(_.queueName), List(QueueName("q1"), QueueName("q2"))),
+      expect.same(ids.map(_.msgId), List(MessageId(10L), MessageId(20L))),
+      expect.same(c.bodies, List("a", "b"))
+    ).combineAll
+
+  pgmqTest("sendBatchTopic with delay forwards delay", Returns(sendBatchTopic = List(("q1", 1L)))):
+    (client, captured) =>
+      for
+        ids <- client.sendBatchTopic[String](rk, List("x"), 60)
+        c <- captured
+      yield expect.same(ids.size, 1) and
+        expect.same(c.delay, 60)
+
+  pgmqTest(
+    "sendBatchTopic with headers encodes both messages and headers",
+    Returns(sendBatchTopic = List(("q1", 1L), ("q1", 2L)))
+  ): (client, captured) =>
+    for
+      ids <- client.sendBatchTopic[String, String](rk, List("a", "b"), List("h1", "h2"))
+      c <- captured
+    yield List(
+      expect.same(ids.size, 2),
+      expect.same(c.bodies, List("a", "b")),
+      expect.same(c.headersList, List("h1", "h2"))
+    ).combineAll
+
+  pgmqTest(
+    "sendBatchTopic with headers and delay forwards all arguments",
+    Returns(sendBatchTopic = List(("q1", 1L)))
+  ): (client, captured) =>
+    for
+      ids <- client.sendBatchTopic[String, String](rk, List("a"), List("h1"), 45)
+      c <- captured
+    yield List(
+      expect.same(ids.size, 1),
+      expect.same(c.bodies, List("a")),
+      expect.same(c.headersList, List("h1")),
+      expect.same(c.delay, 45)
+    ).combineAll

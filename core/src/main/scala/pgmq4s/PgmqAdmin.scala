@@ -21,15 +21,18 @@
 
 package pgmq4s
 
+import cats.Functor
+import cats.syntax.all.*
+
 /** Tagless-final algebra for PGMQ queue management and observability.
   *
-  * Provides create, drop, purge, metrics, and listing operations. Each database backend supplies a concrete
-  * implementation (e.g. `DoobiePgmqAdmin`, `SkunkPgmqAdmin`).
+  * Provides create, drop, purge, metrics, listing, and topic management operations. Each database backend supplies a
+  * concrete implementation (e.g. `DoobiePgmqAdmin`, `SkunkPgmqAdmin`).
   *
   * @tparam F
-  *   effect type
+  *   effect type with `Functor` capabilities
   */
-trait PgmqAdmin[F[_]] extends PgmqAdminBackend[F]:
+trait PgmqAdmin[F[_]: Functor] extends PgmqAdminBackend[F]:
 
   /** Create a new queue (and its archive table). */
   def createQueue(queue: QueueName): F[Unit] = createQueueRaw(queue.value)
@@ -55,3 +58,16 @@ trait PgmqAdmin[F[_]] extends PgmqAdminBackend[F]:
 
   /** List all queues with their metadata. */
   def listQueues: F[List[QueueInfo]] = listQueuesRaw
+
+  /** Bind a wildcard pattern to a queue so messages matching the pattern are routed to the queue. Idempotent. */
+  def bindTopic(pattern: TopicPattern, queue: QueueName): F[Unit] =
+    bindTopicRaw(pattern.value, queue.value)
+
+  /** Unbind a pattern from a queue. Returns `true` if the binding existed. */
+  def unbindTopic(pattern: TopicPattern, queue: QueueName): F[Boolean] =
+    unbindTopicRaw(pattern.value, queue.value)
+
+  /** Dry-run to see which queues would match a routing key. */
+  def testRouting(routingKey: RoutingKey): F[List[RoutingMatch]] =
+    testRoutingRaw(routingKey.value)
+      .map(_.map((pattern, queue, regex) => RoutingMatch(TopicPattern(pattern), QueueName(queue), regex)))

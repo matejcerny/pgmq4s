@@ -98,3 +98,17 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
         .map(_.toList.map { case (name, part, unlog, created) =>
           QueueInfo(QueueName(name), part, unlog, created)
         })
+
+  // Topic management
+
+  protected def bindTopicRaw(pattern: String, queue: String): Future[Unit] =
+    db.run(sql"SELECT pgmq.bind_topic($pattern, $queue)".as[Unit].head)
+
+  protected def unbindTopicRaw(pattern: String, queue: String): Future[Boolean] =
+    db.run(sql"SELECT pgmq.unbind_topic($pattern, $queue)".as[Boolean].head)
+
+  protected def testRoutingRaw(routingKey: String): Future[List[(String, String, String)]] =
+    db.run:
+      sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($routingKey)"
+        .as[(String, String, String)]
+        .map(_.toList)
