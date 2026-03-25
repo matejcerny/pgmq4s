@@ -7,7 +7,7 @@ import pgmq4s.*
 import pgmq4s.circe.given
 import weaver.*
 
-trait PgmqClientSuite extends IOSuite:
+trait PgmqClientITSuite extends IOSuite:
 
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
   case class TestHeaders(traceId: String) derives Encoder.AsObject, Decoder

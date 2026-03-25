@@ -10,7 +10,7 @@ import weaver.*
 import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }
 
-object AnormPgmqClientSuite extends PgmqClientSuite:
+object AnormPgmqClientITSuite extends PgmqClientITSuite:
 
   private class FutureClientToIO(underlying: PgmqClient[Future]) extends PgmqClient[IO]:
     private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))

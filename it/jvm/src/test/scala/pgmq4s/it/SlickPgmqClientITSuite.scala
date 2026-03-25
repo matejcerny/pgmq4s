@@ -9,7 +9,7 @@ import weaver.*
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-object SlickPgmqClientSuite extends PgmqClientSuite:
+object SlickPgmqClientITSuite extends PgmqClientITSuite:
 
   private class FutureClientToIO(underlying: PgmqClient[Future]) extends PgmqClient[IO]:
     private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))
