@@ -113,7 +113,7 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
       .to[List]
       .transact(xa)
 
-  protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
+  protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
     sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
       .query[RawMessage]
       .option

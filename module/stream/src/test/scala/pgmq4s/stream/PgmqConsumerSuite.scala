@@ -34,6 +34,8 @@ object PgmqConsumerSuite extends SimpleIOSuite:
 
   private val now = OffsetDateTime.parse("2025-01-01T00:00:00Z")
   private val q = QueueName("test-queue")
+  private val visibilityTimeout = VisibilityTimeout(5.seconds)
+  private val batchSize = 10.messages
 
   given PgmqEncoder[String] = PgmqEncoder.instance(identity)
   given PgmqDecoder[String] = PgmqDecoder.instance(Right(_))
@@ -65,7 +67,7 @@ object PgmqConsumerSuite extends SimpleIOSuite:
     def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = IO.pure(Nil)
     def deleteRaw(queue: String, msgId: Long): IO[Boolean] = IO.pure(true)
     def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = IO.pure(Nil)
-    def setVtRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = IO.pure(None)
+    def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = IO.pure(None)
     def sendTopicRaw(routingKey: String, body: String): IO[Int] = IO.pure(0)
     def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] = IO.pure(0)
     def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = IO.pure(0)
@@ -99,19 +101,19 @@ object PgmqConsumerSuite extends SimpleIOSuite:
   test("poll emits available messages"):
     for
       result <- mkConsumer(List(List(rawMsg(1L, "a"), rawMsg(2L, "b")), Nil))
-      msgs <- result._1.poll[String](q, 1.second, 5, 10).take(2).compile.toList
+      msgs <- result._1.poll[String](q, 1.second, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload), List("a", "b"))
 
   test("poll immediately loops on non-empty batches"):
     for
       result <- mkConsumer(List(List(rawMsg(1L, "a")), List(rawMsg(2L, "b")), Nil))
-      msgs <- result._1.poll[String](q, 1.second, 5, 10).take(2).compile.toList
+      msgs <- result._1.poll[String](q, 1.second, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload), List("a", "b"))
 
   test("poll sleeps on empty then retries"):
     for
       result <- mkConsumer(List(Nil, List(rawMsg(1L, "after-sleep")), Nil))
-      msgs <- result._1.poll[String](q, 50.millis, 5, 10).take(1).compile.toList
+      msgs <- result._1.poll[String](q, 50.millis, visibilityTimeout, batchSize).take(1).compile.toList
     yield expect.same(msgs.map(_.payload), List("after-sleep"))
 
   // --- subscribe tests ---
@@ -119,19 +121,19 @@ object PgmqConsumerSuite extends SimpleIOSuite:
   test("subscribe drains on startup without notification"):
     for
       result <- mkConsumer(List(List(rawMsg(1L, "startup")), Nil))
-      msgs <- result._1.subscribe[String](q, 5, 10).take(1).compile.toList
+      msgs <- result._1.subscribe[String](q, visibilityTimeout, batchSize).take(1).compile.toList
     yield expect.same(msgs.map(_.payload), List("startup"))
 
   test("subscribe drains repeatedly until empty"):
     for
       result <- mkConsumer(List(List(rawMsg(1L, "a")), List(rawMsg(2L, "b")), Nil))
-      msgs <- result._1.subscribe[String](q, 5, 10).take(2).compile.toList
+      msgs <- result._1.subscribe[String](q, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload), List("a", "b"))
 
   test("subscribe drains on notification after startup"):
     for
       result <- mkConsumer(List(Nil, List(rawMsg(1L, "notified")), Nil))
-      fiber <- result._1.subscribe[String](q, 5, 10).take(1).compile.toList.start
+      fiber <- result._1.subscribe[String](q, visibilityTimeout, batchSize).take(1).compile.toList.start
       _ <- IO.sleep(50.millis) *> result._2.offer(())
       msgs <- fiber.joinWithNever
     yield expect.same(msgs.map(_.payload), List("notified"))
@@ -141,7 +143,7 @@ object PgmqConsumerSuite extends SimpleIOSuite:
   test("subscribe with headers returns WithHeaders"):
     for
       result <- mkConsumer(List(List(rawMsg(1L, "p", Some("h"))), Nil))
-      msgs <- result._1.subscribe[String, String](q, 5, 10).take(1).compile.toList
+      msgs <- result._1.subscribe[String, String](q, visibilityTimeout, batchSize).take(1).compile.toList
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect(msg.isInstanceOf[Message.WithHeaders[?, ?]]) and
       expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")
@@ -149,7 +151,11 @@ object PgmqConsumerSuite extends SimpleIOSuite:
   test("poll with headers returns WithHeaders"):
     for
       result <- mkConsumer(List(List(rawMsg(1L, "p", Some("h"))), Nil))
-      msgs <- result._1.poll[String, String](q, 1.second, 5, 10).take(1).compile.toList
+      msgs <- result._1
+        .poll[String, String](q, 1.second, visibilityTimeout, batchSize)
+        .take(1)
+        .compile
+        .toList
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect(msg.isInstanceOf[Message.WithHeaders[?, ?]]) and
       expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")

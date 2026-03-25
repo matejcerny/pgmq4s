@@ -6,23 +6,23 @@ pgmq4s implements the following [PGMQ SQL API](https://pgmq.github.io/pgmq/lates
 
 Implemented in `PgmqClient[F]`.
 
-| PGMQ Function                     | pgmq4s Method              | Description                                         |
-|-----------------------------------|----------------------------|-----------------------------------------------------|
-| `send`                            | `send[P]`                  | Send a message                                      |
-| `send` (with headers)             | `send[P, H]`               | Send a message with typed headers                   |
-| `send_batch`                      | `sendBatch[P]`             | Send multiple messages                              |
-| `send_batch` (with headers)       | `sendBatch[P, H]`          | Send multiple messages with headers                 |
-| `read`                            | `read[P]` / `read[P, H]`   | Read messages with visibility timeout               |
-| `pop`                             | `pop[P]` / `pop[P, H]`     | Read and immediately delete one message             |
-| `delete`                          | `delete`                   | Delete a single message                             |
-| `delete` (batch)                  | `deleteBatch`              | Delete multiple messages                            |
-| `archive`                         | `archive`                  | Archive a single message                            |
-| `archive` (batch)                 | `archiveBatch`             | Archive multiple messages                           |
-| `set_vt`                          | `setVt[P]` / `setVt[P, H]` | Change visibility timeout of a message              |
-| `send_topic`                      | `sendTopic[P]`             | Send a message to queues matching a routing key     |
-| `send_topic` (with headers)       | `sendTopic[P, H]`          | Send a message with headers via routing key         |
-| `send_batch_topic`                | `sendBatchTopic[P]`        | Send multiple messages via routing key              |
-| `send_batch_topic` (with headers) | `sendBatchTopic[P, H]`     | Send multiple messages with headers via routing key |
+| PGMQ Function                     | pgmq4s Method                                            | Description                                         |
+|-----------------------------------|----------------------------------------------------------|-----------------------------------------------------|
+| `send`                            | `send[P]`                                                | Send a message                                      |
+| `send` (with headers)             | `send[P, H]`                                             | Send a message with typed headers                   |
+| `send_batch`                      | `sendBatch[P]`                                           | Send multiple messages                              |
+| `send_batch` (with headers)       | `sendBatch[P, H]`                                        | Send multiple messages with headers                 |
+| `read`                            | `read[P]` / `read[P, H]`                                 | Read messages with visibility timeout               |
+| `pop`                             | `pop[P]` / `pop[P, H]`                                   | Read and immediately delete one message             |
+| `delete`                          | `delete`                                                 | Delete a single message                             |
+| `delete` (batch)                  | `deleteBatch`                                            | Delete multiple messages                            |
+| `archive`                         | `archive`                                                | Archive a single message                            |
+| `archive` (batch)                 | `archiveBatch`                                           | Archive multiple messages                           |
+| `set_vt`                          | `setVisibilityTimeout[P]` / `setVisibilityTimeout[P, H]` | Change visibility timeout of a message              |
+| `send_topic`                      | `sendTopic[P]`                                           | Send a message to queues matching a routing key     |
+| `send_topic` (with headers)       | `sendTopic[P, H]`                                        | Send a message with headers via routing key         |
+| `send_batch_topic`                | `sendBatchTopic[P]`                                      | Send multiple messages via routing key              |
+| `send_batch_topic` (with headers) | `sendBatchTopic[P, H]`                                   | Send multiple messages with headers via routing key |
 
 ## Queue Management
 
@@ -63,14 +63,14 @@ Read with headers:
 
 ```scala
 val messages: F[List[Message[OrderCreated, OrderHeaders]]] =
-  client.read[OrderCreated, OrderHeaders](queue, vt = 30, qty = 10)
+  client.read[OrderCreated, OrderHeaders](queue, VisibilityTimeout(30.seconds), 10.messages)
 ```
 
 Read without headers (ignores any headers present):
 
 ```scala
 val messages: F[List[Message.Plain[OrderCreated]]] =
-  client.read[OrderCreated](queue, vt = 30, qty = 10)
+  client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
 ```
 
 <div class="admonition warning">

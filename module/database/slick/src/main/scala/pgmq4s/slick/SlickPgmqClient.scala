@@ -186,7 +186,7 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
         ps.close()
         buf.result()
 
-  protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
+  protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
     db.run:
       sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
         .as[RawMessage]

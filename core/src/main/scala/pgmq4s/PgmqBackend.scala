@@ -63,4 +63,4 @@ trait PgmqBackend[F[_]]:
   protected def archiveBatchRaw(queue: String, msgIds: List[Long]): F[List[Long]]
   protected def deleteRaw(queue: String, msgId: Long): F[Boolean]
   protected def deleteBatchRaw(queue: String, msgIds: List[Long]): F[List[Long]]
-  protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]]
+  protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]]

@@ -74,7 +74,7 @@ case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, 
     for
       _        <- admin.createQueue(queue)
       _        <- client.send(queue, OrderCreated(1L, "dev@example.com"))
-      messages <- client.read[OrderCreated](queue, vt = 30, qty = 10)
+      messages <- client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
     yield println(s"read: ${messages.map(_.payload)}")
 
   Await.result(result, 10.seconds)

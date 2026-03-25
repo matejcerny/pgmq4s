@@ -60,6 +60,7 @@ import io.circe.{Decoder, Encoder}
 import pgmq4s.*
 import pgmq4s.circe.given
 import pgmq4s.doobie.{DoobiePgmqAdmin, DoobiePgmqClient}
+import scala.concurrent.duration.*
 
 case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, Decoder
 
@@ -85,7 +86,7 @@ object DoobieExample extends IOApp.Simple:
     for
       _        <- admin.createQueue(queue)
       msgId    <- client.send(queue, OrderCreated(1L, "dev@example.com"))
-      messages <- client.read[OrderCreated](queue, vt = 30, qty = 10)
+      messages <- client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
       _        <- IO.println(s"read: ${messages.map(_.payload)}")
     yield ()
 ```

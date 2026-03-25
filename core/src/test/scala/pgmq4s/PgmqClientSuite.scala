@@ -26,6 +26,7 @@ import cats.syntax.all.*
 import weaver.{ Expectations, SimpleIOSuite }
 
 import java.time.OffsetDateTime
+import scala.concurrent.duration.*
 
 object PgmqClientSuite extends SimpleIOSuite:
 
@@ -110,7 +111,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] =
       ref.update(_.copy(queue = queue, msgIds = msgIds)).as(ret.deleteBatch)
 
-    def setVtRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] =
+    def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] =
       ref.update(_.copy(queue = queue, msgId = msgId, vtOffset = vtOffset)).as(ret.setVt)
 
     def sendTopicRaw(routingKey: String, body: String): IO[Int] =
@@ -245,7 +246,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read decodes raw messages into Message[P]", Returns(read = List(rawMsg(1L, "payload")))):
     (client, captured) =>
       for
-        msgs <- client.read[String](q, vt = 30, qty = 5)
+        msgs <- client.read[String](q, visibilityTimeout = VisibilityTimeout(30.seconds), batchSize = 5.messages)
         c <- captured
       yield List(
         expect.same(msgs.size, 1),
@@ -259,14 +260,17 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read with decode failure raises error in IO", Returns(read = List(rawMsg(1L, "not-an-int")))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-      client.read[Int](q, 30, 1)(using failing).attempt.map(result => expect(clue(result).isLeft))
+      client
+        .read[Int](q, VisibilityTimeout(30.seconds), 1.messages)(using failing)
+        .attempt
+        .map(result => expect(clue(result).isLeft))
 
   pgmqTest(
     "read with headers returns WithHeaders when headers present",
     Returns(read = List(rawMsg(1L, "payload", Some("hdrs"))))
   ): (client, _) =>
     for
-      msgs <- client.read[String, String](q, vt = 30, qty = 5)
+      msgs <- client.read[String, String](q, visibilityTimeout = VisibilityTimeout(30.seconds), batchSize = 5.messages)
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected at least one message"))
     yield List(
       expect(clue(msg).isInstanceOf[Message.WithHeaders[?, ?]]),
@@ -277,7 +281,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read with headers returns Plain when headers absent", Returns(read = List(rawMsg(1L, "payload")))):
     (client, _) =>
       client
-        .read[String, String](q, vt = 30, qty = 5)
+        .read[String, String](q, visibilityTimeout = VisibilityTimeout(30.seconds), batchSize = 5.messages)
         .map: msgs =>
           expect(clue(msgs.head).isInstanceOf[Message.Plain[?]])
 
@@ -319,12 +323,12 @@ object PgmqClientSuite extends SimpleIOSuite:
       .map: opt =>
         expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
 
-  // --- setVt ---
+  // --- setVisibilityTimeout ---
 
-  pgmqTest("setVt decodes and wraps optional result", Returns(setVt = Some(rawMsg(9L, "updated")))):
+  pgmqTest("setVisibilityTimeout decodes and wraps optional result", Returns(setVt = Some(rawMsg(9L, "updated")))):
     (client, captured) =>
       for
-        opt <- client.setVt[String](q, MessageId(9L), vtOffset = 60)
+        opt <- client.setVisibilityTimeout[String](q, MessageId(9L), visibilityTimeout = VisibilityTimeout(60.seconds))
         c <- captured
       yield List(
         expect(clue(opt).isDefined),
@@ -333,15 +337,21 @@ object PgmqClientSuite extends SimpleIOSuite:
         expect.same(c.vtOffset, 60)
       ).combineAll
 
-  pgmqTest("setVt returns None when backend returns None"): (client, _) =>
-    client.setVt[String](q, MessageId(1L), 10).map(opt => expect(clue(opt).isEmpty))
+  pgmqTest("setVisibilityTimeout returns None when backend returns None"): (client, _) =>
+    client
+      .setVisibilityTimeout[String](q, MessageId(1L), VisibilityTimeout(10.seconds))
+      .map(opt => expect(clue(opt).isEmpty))
 
   pgmqTest(
-    "setVt with headers returns WithHeaders when headers present",
+    "setVisibilityTimeout with headers returns WithHeaders when headers present",
     Returns(setVt = Some(rawMsg(9L, "u", Some("h"))))
   ): (client, captured) =>
     for
-      opt <- client.setVt[String, String](q, MessageId(9L), vtOffset = 60)
+      opt <- client.setVisibilityTimeout[String, String](
+        q,
+        MessageId(9L),
+        visibilityTimeout = VisibilityTimeout(60.seconds)
+      )
       c <- captured
     yield List(
       expect(clue(opt).isDefined),
@@ -350,15 +360,19 @@ object PgmqClientSuite extends SimpleIOSuite:
       expect.same(c.vtOffset, 60)
     ).combineAll
 
-  pgmqTest("setVt with headers returns Plain when headers absent", Returns(setVt = Some(rawMsg(9L, "u")))):
-    (client, _) =>
-      client
-        .setVt[String, String](q, MessageId(9L), vtOffset = 60)
-        .map: opt =>
-          expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
+  pgmqTest(
+    "setVisibilityTimeout with headers returns Plain when headers absent",
+    Returns(setVt = Some(rawMsg(9L, "u")))
+  ): (client, _) =>
+    client
+      .setVisibilityTimeout[String, String](q, MessageId(9L), visibilityTimeout = VisibilityTimeout(60.seconds))
+      .map: opt =>
+        expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
 
-  pgmqTest("setVt with headers returns None when backend returns None"): (client, _) =>
-    client.setVt[String, String](q, MessageId(1L), 10).map(opt => expect(clue(opt).isEmpty))
+  pgmqTest("setVisibilityTimeout with headers returns None when backend returns None"): (client, _) =>
+    client
+      .setVisibilityTimeout[String, String](q, MessageId(1L), VisibilityTimeout(10.seconds))
+      .map(opt => expect(clue(opt).isEmpty))
 
   // --- decode failure with headers ---
 
@@ -366,7 +380,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
       client
-        .read[Int, String](q, 30, 1)(using failing, summon[PgmqDecoder[String]])
+        .read[Int, String](q, VisibilityTimeout(30.seconds), 1.messages)(using failing, summon[PgmqDecoder[String]])
         .attempt
         .map: result =>
           expect(clue(result).isLeft)
@@ -375,7 +389,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
       client
-        .read[String, Int](q, 30, 1)(using summon[PgmqDecoder[String]], failing)
+        .read[String, Int](q, VisibilityTimeout(30.seconds), 1.messages)(using summon[PgmqDecoder[String]], failing)
         .attempt
         .map: result =>
           expect(clue(result).isLeft)

@@ -95,13 +95,21 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
   ): F[List[MessageId]] =
     sendBatchRaw(queue.value, messages.map(encP.encode), headers.map(encH.encode), delay).map(_.map(MessageId(_)))
 
-  /** Read up to `qty` messages, setting their visibility timeout to `vt` seconds. */
-  def read[P: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message.Plain[P]]] =
-    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[P]))
+  /** Read up to `batchSize` messages, setting their visibility timeout to `visibilityTimeout`. */
+  def read[P: PgmqDecoder](
+      queue: QueueName,
+      visibilityTimeout: VisibilityTimeout,
+      batchSize: BatchSize
+  ): F[List[Message.Plain[P]]] =
+    readRaw(queue.value, visibilityTimeout.toSeconds, batchSize.value).flatMap(_.traverse(decodeRaw[P]))
 
-  /** Read up to `qty` messages with headers, setting their visibility timeout to `vt` seconds. */
-  def read[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): F[List[Message[P, H]]] =
-    readRaw(queue.value, vt, qty).flatMap(_.traverse(decodeRaw[P, H]))
+  /** Read up to `batchSize` messages with headers, setting their visibility timeout to `visibilityTimeout`. */
+  def read[P: PgmqDecoder, H: PgmqDecoder](
+      queue: QueueName,
+      visibilityTimeout: VisibilityTimeout,
+      batchSize: BatchSize
+  ): F[List[Message[P, H]]] =
+    readRaw(queue.value, visibilityTimeout.toSeconds, batchSize.value).flatMap(_.traverse(decodeRaw[P, H]))
 
   /** Pop (read and immediately delete) a single message. */
   def pop[P: PgmqDecoder](queue: QueueName): F[Option[Message.Plain[P]]] =
@@ -127,17 +135,22 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
   def deleteBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
     deleteBatchRaw(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
 
-  /** Set the visibility timeout of a message to `vtOffset` seconds from now. */
-  def setVt[P: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): F[Option[Message.Plain[P]]] =
-    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[P]))
-
-  /** Set the visibility timeout, decoding both payload and headers. */
-  def setVt[P: PgmqDecoder, H: PgmqDecoder](
+  /** Set the visibility timeout of a message to `visibilityTimeout` from now. */
+  def setVisibilityTimeout[P: PgmqDecoder](
       queue: QueueName,
       msgId: MessageId,
-      vtOffset: Int
+      visibilityTimeout: VisibilityTimeout
+  ): F[Option[Message.Plain[P]]] =
+    setVisibilityTimeoutRaw(queue.value, msgId.value, visibilityTimeout.toSeconds).flatMap(_.traverse(decodeRaw[P]))
+
+  /** Set the visibility timeout, decoding both payload and headers. */
+  def setVisibilityTimeout[P: PgmqDecoder, H: PgmqDecoder](
+      queue: QueueName,
+      msgId: MessageId,
+      visibilityTimeout: VisibilityTimeout
   ): F[Option[Message[P, H]]] =
-    setVtRaw(queue.value, msgId.value, vtOffset).flatMap(_.traverse(decodeRaw[P, H]))
+    setVisibilityTimeoutRaw(queue.value, msgId.value, visibilityTimeout.toSeconds)
+      .flatMap(_.traverse(decodeRaw[P, H]))
 
   /** Send a message to all queues bound to `routingKey`. Returns the number of recipient queues. */
   def sendTopic[P](routingKey: RoutingKey, message: P)(using enc: PgmqEncoder[P]): F[Int] =

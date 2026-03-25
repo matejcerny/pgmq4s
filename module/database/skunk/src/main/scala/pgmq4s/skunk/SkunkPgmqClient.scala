@@ -117,7 +117,7 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
       _.prepare(sql"SELECT * FROM pgmq.delete($text, ${_int8})".query(int8))
         .flatMap(_.stream((queue, Arr.fromFoldable(msgIds)), 64).compile.toList)
 
-  protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
+  protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
     pool.use:
       _.prepare(
         sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($text, $int8, $int4)"

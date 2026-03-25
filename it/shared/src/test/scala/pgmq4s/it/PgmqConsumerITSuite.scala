@@ -17,6 +17,9 @@ trait PgmqConsumerITSuite extends IOSuite:
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
   case class TestHeaders(traceId: String) derives Encoder.AsObject, Decoder
 
+  private val visibilityTimeout = VisibilityTimeout(30.seconds)
+  private val batchSize = 10.messages
+
   type Res = (PgmqClient[IO], PgmqAdmin[IO], Ref[IO, List[QueueName]], Ref[IO, Int])
 
   private def mkConsumer(client: PgmqClient[IO]): IO[(PgmqConsumer[IO], Queue[IO, Unit])] =
@@ -47,7 +50,7 @@ trait PgmqConsumerITSuite extends IOSuite:
     val payloads = List(TestPayload(1, "a"), TestPayload(2, "b"))
     for
       _    <- payloads.traverse_(client.send(queue, _))
-      msgs <- consumer.poll[TestPayload](queue, 100.millis, 30, 10).take(2).compile.toList
+      msgs <- consumer.poll[TestPayload](queue, 100.millis, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload).toSet, payloads.toSet)
 
   pgmqTest("poll with headers reads messages from a real queue"): (client, _, consumer, _, queue) =>
@@ -55,7 +58,7 @@ trait PgmqConsumerITSuite extends IOSuite:
     val hdrs = TestHeaders("trace-poll")
     for
       _    <- client.send(queue, payload, hdrs)
-      msgs <- consumer.poll[TestPayload, TestHeaders](queue, 100.millis, 30, 10).take(1).compile.toList
+      msgs <- consumer.poll[TestPayload, TestHeaders](queue, 100.millis, visibilityTimeout, batchSize).take(1).compile.toList
       msg  <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect.same(msg.payload, payload) and
       (msg match
@@ -68,13 +71,13 @@ trait PgmqConsumerITSuite extends IOSuite:
     val payloads = List(TestPayload(20, "x"), TestPayload(21, "y"))
     for
       _    <- payloads.traverse_(client.send(queue, _))
-      msgs <- consumer.subscribe[TestPayload](queue, 30, 10).take(2).compile.toList
+      msgs <- consumer.subscribe[TestPayload](queue, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload).toSet, payloads.toSet)
 
   pgmqTest("subscribe drains on notification"): (client, _, consumer, pings, queue) =>
     val payload = TestPayload(30, "notified")
     for
-      fiber <- consumer.subscribe[TestPayload](queue, 30, 10).take(1).compile.toList.start
+      fiber <- consumer.subscribe[TestPayload](queue, visibilityTimeout, batchSize).take(1).compile.toList.start
       _     <- IO.sleep(100.millis)
       _     <- client.send(queue, payload)
       _     <- pings.offer(())
@@ -86,7 +89,7 @@ trait PgmqConsumerITSuite extends IOSuite:
     val hdrs = TestHeaders("trace-sub")
     for
       _    <- client.send(queue, payload, hdrs)
-      msgs <- consumer.subscribe[TestPayload, TestHeaders](queue, 30, 10).take(1).compile.toList
+      msgs <- consumer.subscribe[TestPayload, TestHeaders](queue, visibilityTimeout, batchSize).take(1).compile.toList
       msg  <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect.same(msg.payload, payload) and
       (msg match

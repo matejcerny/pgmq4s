@@ -129,7 +129,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     }
   )
   .jsSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV % Test
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV
   )
 
 lazy val stream = crossProject(JVMPlatform, JSPlatform, NativePlatform)
