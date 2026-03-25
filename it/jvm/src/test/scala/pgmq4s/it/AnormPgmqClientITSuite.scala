@@ -53,11 +53,11 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
     ): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages, headers, delay))
 
-    override def read[P: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): IO[List[Message.Plain[P]]] =
-      liftF(underlying.read(queue, vt, qty))
+    override def read[P: PgmqDecoder](queue: QueueName, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize): IO[List[Message.Plain[P]]] =
+      liftF(underlying.read(queue, visibilityTimeout, batchSize))
 
-    override def read[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): IO[List[Message[P, H]]] =
-      liftF(underlying.read[P, H](queue, vt, qty))
+    override def read[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize): IO[List[Message[P, H]]] =
+      liftF(underlying.read[P, H](queue, visibilityTimeout, batchSize))
 
     override def pop[P: PgmqDecoder](queue: QueueName): IO[Option[Message.Plain[P]]] =
       liftF(underlying.pop(queue))
@@ -77,15 +77,15 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
     override def deleteBatch(queue: QueueName, msgIds: List[MessageId]): IO[List[MessageId]] =
       liftF(underlying.deleteBatch(queue, msgIds))
 
-    override def setVt[P: PgmqDecoder](queue: QueueName, msgId: MessageId, vtOffset: Int): IO[Option[Message.Plain[P]]] =
-      liftF(underlying.setVt(queue, msgId, vtOffset))
+    override def setVisibilityTimeout[P: PgmqDecoder](queue: QueueName, msgId: MessageId, visibilityTimeout: VisibilityTimeout): IO[Option[Message.Plain[P]]] =
+      liftF(underlying.setVisibilityTimeout(queue, msgId, visibilityTimeout))
 
-    override def setVt[P: PgmqDecoder, H: PgmqDecoder](
+    override def setVisibilityTimeout[P: PgmqDecoder, H: PgmqDecoder](
         queue: QueueName,
         msgId: MessageId,
-        vtOffset: Int
+        visibilityTimeout: VisibilityTimeout
     ): IO[Option[Message[P, H]]] =
-      liftF(underlying.setVt[P, H](queue, msgId, vtOffset))
+      liftF(underlying.setVisibilityTimeout[P, H](queue, msgId, visibilityTimeout))
 
     override def sendTopic[P: PgmqEncoder](routingKey: RoutingKey, message: P): IO[Int] =
       liftF(underlying.sendTopic(routingKey, message))
@@ -154,7 +154,7 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
     protected def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
     protected def deleteRaw(queue: String, msgId: Long): IO[Boolean] = ???
     protected def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
-    protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
+    protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
 
   private class FutureAdminToIO(underlying: PgmqAdmin[Future]) extends PgmqAdmin[IO]:
     private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))

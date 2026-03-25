@@ -22,6 +22,8 @@
 package pgmq4s
 
 import java.time.OffsetDateTime
+import scala.compiletime
+import scala.concurrent.duration.FiniteDuration
 
 opaque type QueueName = String
 
@@ -50,6 +52,45 @@ opaque type TopicPattern = String
 object TopicPattern:
   def apply(pattern: String): TopicPattern = pattern
   extension (topicPattern: TopicPattern) def value: String = topicPattern
+
+opaque type BatchSize = Int
+
+/** Maximum number of messages to read in a single `read` call.
+  *
+  * Use [[BatchSize.apply]] for validated construction, [[BatchSize.unsafe]] when the value is known to be valid, or the
+  * `n.messages` inline extension for compile-time literal checks.
+  */
+object BatchSize:
+  def apply(n: Int): Either[String, BatchSize] =
+    if n > 0 then Right(n) else Left(s"BatchSize must be > 0, got $n")
+
+  def unsafe(n: Int): BatchSize =
+    require(n > 0, s"BatchSize must be > 0, got $n")
+    n
+
+  extension (bs: BatchSize) def value: Int = bs
+
+extension (n: Int)
+  /** Construct a [[BatchSize]] from an integer literal with a compile-time positivity check.
+    *
+    * Example: `10.messages`
+    */
+  inline def messages: BatchSize =
+    inline if n > 0 then BatchSize.unsafe(n)
+    else compiletime.error("BatchSize must be positive")
+
+opaque type VisibilityTimeout = FiniteDuration
+
+/** Visibility timeout — how long a read message is hidden from other consumers.
+  *
+  * Constructed from a [[scala.concurrent.duration.FiniteDuration]]:
+  * {{{
+  *   VisibilityTimeout(30.seconds)
+  * }}}
+  */
+object VisibilityTimeout:
+  def apply(duration: FiniteDuration): VisibilityTimeout = duration
+  extension (vt: VisibilityTimeout) def toSeconds: Int = vt.toSeconds.toInt
 
 /** A message read from a PGMQ queue.
   *

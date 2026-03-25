@@ -166,7 +166,7 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
         ps.setString(1, queue)
         ps.setArray(2, conn.createArrayOf("bigint", msgIds.map(Long.box).toArray))
 
-  protected def setVtRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
+  protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
     withConnection: conn =>
       given Connection = conn
       SQL(

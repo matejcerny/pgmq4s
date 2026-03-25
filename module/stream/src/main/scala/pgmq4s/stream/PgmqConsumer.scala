@@ -57,21 +57,25 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
     *
     * @param queue
     *   the queue to consume from
-    * @param vt
-    *   visibility timeout in seconds applied to each read batch
-    * @param qty
+    * @param visibilityTimeout
+    *   visibility timeout applied to each read batch
+    * @param batchSize
     *   maximum number of messages to read per batch
     */
-  def subscribe[P: PgmqDecoder](queue: QueueName, vt: Int, qty: Int): Stream[F, Message.Plain[P]] =
-    drainOnSignal(queue, vt, qty)(client.read[P](_, _, _))
+  def subscribe[P: PgmqDecoder](
+      queue: QueueName,
+      visibilityTimeout: VisibilityTimeout,
+      batchSize: BatchSize
+  ): Stream[F, Message.Plain[P]] =
+    drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P](_, _, _))
 
   /** Subscribe to messages with headers using the drain-then-wait pattern. */
   def subscribe[P: PgmqDecoder, H: PgmqDecoder](
       queue: QueueName,
-      vt: Int,
-      qty: Int
+      visibilityTimeout: VisibilityTimeout,
+      batchSize: BatchSize
   ): Stream[F, Message[P, H]] =
-    drainOnSignal(queue, vt, qty)(client.read[P, H](_, _, _))
+    drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P, H](_, _, _))
 
   // --- poll (pull / interval-based) ---
 
@@ -84,27 +88,27 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
     *   the queue to consume from
     * @param interval
     *   how long to sleep when the queue is empty
-    * @param vt
-    *   visibility timeout in seconds applied to each read batch
-    * @param qty
+    * @param visibilityTimeout
+    *   visibility timeout applied to each read batch
+    * @param batchSize
     *   maximum number of messages to read per batch
     */
   def poll[P: PgmqDecoder](
       queue: QueueName,
       interval: FiniteDuration,
-      vt: Int,
-      qty: Int
+      visibilityTimeout: VisibilityTimeout,
+      batchSize: BatchSize
   ): Stream[F, Message.Plain[P]] =
-    pollLoop(interval, vt, qty)(client.read[P](queue, _, _))
+    pollLoop(interval, visibilityTimeout, batchSize)(client.read[P](queue, _, _))
 
   /** Poll for messages with headers at a fixed interval. */
   def poll[P: PgmqDecoder, H: PgmqDecoder](
       queue: QueueName,
       interval: FiniteDuration,
-      vt: Int,
-      qty: Int
+      visibilityTimeout: VisibilityTimeout,
+      batchSize: BatchSize
   ): Stream[F, Message[P, H]] =
-    pollLoop(interval, vt, qty)(client.read[P, H](queue, _, _))
+    pollLoop(interval, visibilityTimeout, batchSize)(client.read[P, H](queue, _, _))
 
   // --- private combinators ---
 
@@ -113,8 +117,8 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
     * Uses a `SignallingRef` as a dirty flag so that multiple notifications arriving during a drain collapse into a
     * single re-drain rather than triggering one redundant drain per buffered notification.
     */
-  private def drainOnSignal[A](queue: QueueName, vt: Int, qty: Int)(
-      readBatch: (QueueName, Int, Int) => F[List[A]]
+  private def drainOnSignal[A](queue: QueueName, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize)(
+      readBatch: (QueueName, VisibilityTimeout, BatchSize) => F[List[A]]
   ): Stream[F, A] =
     Stream
       .eval(SignallingRef[F].of(true))
@@ -123,7 +127,7 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
         val consumer = dirty.discrete
           .filter(identity)
           .evalTap(_ => dirty.set(false))
-          .flatMap(_ => drainQueue(readBatch(queue, vt, qty)))
+          .flatMap(_ => drainQueue(readBatch(queue, visibilityTimeout, batchSize)))
         consumer.concurrently(wakeUp)
 
   /** Repeatedly read batches until one comes back empty, flattening each batch into individual elements. */
@@ -131,11 +135,11 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
     Stream.eval(readBatch).repeat.takeWhile(_.nonEmpty).flatMap(Stream.emits)
 
   /** Read loop: emit immediately when messages are available, sleep only when the queue is empty. */
-  private def pollLoop[A](interval: FiniteDuration, vt: Int, qty: Int)(
-      readBatch: (Int, Int) => F[List[A]]
+  private def pollLoop[A](interval: FiniteDuration, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize)(
+      readBatch: (VisibilityTimeout, BatchSize) => F[List[A]]
   ): Stream[F, A] =
     Stream
-      .repeatEval(readBatch(vt, qty))
+      .repeatEval(readBatch(visibilityTimeout, batchSize))
       .flatMap:
         case Nil   => Stream.sleep_[F](interval)
         case batch => Stream.emits(batch)

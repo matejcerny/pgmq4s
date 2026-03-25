@@ -39,6 +39,7 @@ import natchez.Trace.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
 import pgmq4s.skunk.{SkunkPgmqAdmin, SkunkPgmqClient}
+import scala.concurrent.duration.*
 
 case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, Decoder
 
@@ -61,7 +62,7 @@ object Main extends IOApp.Simple:
         for
           _        <- admin.createQueue(queue)
           msgId    <- client.send(queue, OrderCreated(1L, "dev@example.com"))
-          messages <- client.read[OrderCreated](queue, vt = 30, qty = 10)
+          messages <- client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
           _        <- IO.println(s"Received: ${messages.map(_.payload)}")
         yield ()
 ```
@@ -70,7 +71,7 @@ object Main extends IOApp.Simple:
 
 pgmq4s provides two main traits:
 
-- **`PgmqClient[F]`** — message operations: `send`, `read`, `pop`, `archive`, `delete`, `setVt`
+- **`PgmqClient[F]`** — message operations: `send`, `read`, `pop`, `archive`, `delete`, `setVisibilityTimeout`
 - **`PgmqAdmin[F]`** — queue management: `createQueue`, `dropQueue`, `purgeQueue`, `metrics`, `listQueues`
 
 Each database backend provides implementations of both. Pick the backend that matches your stack.
