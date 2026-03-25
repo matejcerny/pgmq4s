@@ -8,7 +8,7 @@ import pgmq4s.*
 import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 import weaver.*
 
-object SkunkPgmqClientSuite extends PgmqClientSuite:
+object SkunkPgmqConsumerITSuite extends PgmqConsumerITSuite:
 
   override def sharedResource: Resource[IO, Res] =
     for

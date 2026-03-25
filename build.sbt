@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.5"
+ThisBuild / tlBaseVersion := "0.6"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -49,6 +49,7 @@ val AnormV = "2.11.0"
 val CatsEffectV = "3.6.3"
 val CirceV = "0.14.8"
 val DoobieV = "1.0.0-RC12"
+val Fs2V = "3.12.2"
 val SkunkV = "0.6.5"
 val ScalaJavaTimeV = "2.6.0"
 val JsoniterV = "2.30.2"
@@ -61,12 +62,24 @@ val WeaverV = "0.11.3"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
-  .aggregate(core, circe, jsoniter, playJson, sprayJson, upickle, anorm, doobie, skunk, slick)
+  .aggregate(
+    core,
+    stream,
+    circe,
+    jsoniter,
+    playJson,
+    sprayJson,
+    upickle,
+    anorm,
+    doobie,
+    skunk,
+    slick
+  )
 
 lazy val integration = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .in(file("it"))
-  .dependsOn(skunk, circe)
+  .dependsOn(skunk, circe, stream)
   .jvmConfigure(_.dependsOn(anorm, doobie, slick))
   .settings(
     name := "pgmq4s-it",
@@ -117,6 +130,19 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jsSettings(
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV % Test
+  )
+
+lazy val stream = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("module/stream"))
+  .dependsOn(core)
+  .settings(
+    name := "pgmq4s-stream",
+    libraryDependencies ++= Seq(
+      "co.fs2" %%% "fs2-core" % Fs2V,
+      "org.typelevel" %%% "weaver-cats" % WeaverV % Test
+    ),
+    mimaPreviousArtifacts := Set.empty
   )
 
 // === DATABASE ===

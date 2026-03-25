@@ -9,7 +9,7 @@ import weaver.*
 
 import scala.concurrent.ExecutionContext
 
-object DoobiePgmqClientSuite extends PgmqClientSuite:
+object DoobiePgmqClientITSuite extends PgmqClientITSuite:
 
   override def sharedResource: Resource[IO, Res] =
     for
