@@ -45,9 +45,10 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
 
   private val rawMessage: RowParser[RawMessage] =
     (long("msg_id") ~ int("read_ct") ~ get[OffsetDateTime]("enqueued_at") ~
-      get[OffsetDateTime]("vt") ~ str("message") ~ str("headers").?).map:
-      case msgId ~ readCt ~ enqueuedAt ~ vt ~ message ~ headers =>
-        RawMessage(msgId, readCt, enqueuedAt, vt, message, headers)
+      get[OffsetDateTime]("last_read_at").? ~ get[OffsetDateTime]("vt") ~
+      str("message") ~ str("headers").?).map:
+      case msgId ~ readCt ~ enqueuedAt ~ lastReadAt ~ vt ~ message ~ headers =>
+        RawMessage(msgId, readCt, enqueuedAt, lastReadAt, vt, message, headers)
 
   private def jdbcQuery(query: String, conn: Connection)(setup: java.sql.PreparedStatement => Unit): List[Long] =
     Using.resource(conn.prepareStatement(query)): ps =>
@@ -126,7 +127,7 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
     withConnection: conn =>
       given Connection = conn
       SQL(
-        "SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read({queue}, {vt}, {qty})"
+        "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.read({queue}, {vt}, {qty})"
       )
         .on("queue" -> queue, "vt" -> vt, "qty" -> qty)
         .as(rawMessage.*)
@@ -134,7 +135,7 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
   protected def popRaw(queue: String): Future[Option[RawMessage]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop({queue})")
+      SQL("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.pop({queue})")
         .on("queue" -> queue)
         .as(rawMessage.singleOpt)
 
@@ -170,7 +171,7 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
     withConnection: conn =>
       given Connection = conn
       SQL(
-        "SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt({queue}, {msgId}, {vtOffset})"
+        "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.set_vt({queue}, {msgId}, {vtOffset})"
       )
         .on("queue" -> queue, "msgId" -> msgId, "vtOffset" -> vtOffset)
         .as(rawMessage.singleOpt)

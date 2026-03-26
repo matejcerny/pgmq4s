@@ -119,27 +119,30 @@ case class NotifyThrottle(
   *   headers type (covariant; `Nothing` when no headers are present)
   */
 enum Message[P, +H]:
-  def msgId: MessageId
-  def readCt: Int
+  def id: MessageId
+  def readCount: Int
   def enqueuedAt: OffsetDateTime
-  def vt: OffsetDateTime
+  def lastReadAt: Option[OffsetDateTime]
+  def visibleAt: OffsetDateTime
   def payload: P
 
   /** A message carrying only a payload. */
   case Plain[A](
-      msgId: MessageId,
-      readCt: Int,
+      id: MessageId,
+      readCount: Int,
       enqueuedAt: OffsetDateTime,
-      vt: OffsetDateTime,
+      lastReadAt: Option[OffsetDateTime],
+      visibleAt: OffsetDateTime,
       payload: A
   ) extends Message[A, Nothing]
 
   /** A message carrying a payload and typed headers. */
   case WithHeaders(
-      msgId: MessageId,
-      readCt: Int,
+      id: MessageId,
+      readCount: Int,
       enqueuedAt: OffsetDateTime,
-      vt: OffsetDateTime,
+      lastReadAt: Option[OffsetDateTime],
+      visibleAt: OffsetDateTime,
       payload: P,
       headers: H
   )
@@ -149,6 +152,7 @@ case class RawMessage(
     msgId: Long,
     readCt: Int,
     enqueuedAt: OffsetDateTime,
+    lastReadAt: Option[OffsetDateTime],
     vt: OffsetDateTime,
     message: String,
     headers: Option[String]
@@ -173,7 +177,7 @@ case class QueueInfo(
 )
 
 /** Result row from `pgmq.send_batch_topic`, pairing a queue with its message ID. */
-case class TopicMessageId(queueName: QueueName, msgId: MessageId)
+case class TopicMessageId(queueName: QueueName, id: MessageId)
 
 /** Result row from `pgmq.test_routing`, showing which queues match a routing key. */
 case class RoutingMatch(pattern: TopicPattern, queueName: QueueName, compiledRegex: String)
