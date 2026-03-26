@@ -43,7 +43,7 @@ trait PgmqClientITSuite extends IOSuite:
     yield List(
       expect.same(msgs.size, 1),
       expect.same(msgs.head.payload, payload),
-      expect.same(msgs.head.msgId, msgId)
+      expect.same(msgs.head.id, msgId)
     ).combineAll
 
   pgmqTest("send and pop a message"): (client, _, queue) =>
@@ -110,7 +110,7 @@ trait PgmqClientITSuite extends IOSuite:
     for
       msgId <- client.send(queue, TestPayload(50, "vt"))
       updated <- client.setVisibilityTimeout[TestPayload](queue, msgId, VisibilityTimeout(60.seconds))
-    yield expect.same(updated.map(_.msgId), Some(msgId))
+    yield expect.same(updated.map(_.id), Some(msgId))
 
   pgmqTest("detach archive"): (_, admin, queue) =>
     for _ <- admin.detachArchive(queue)
@@ -142,10 +142,10 @@ trait PgmqClientITSuite extends IOSuite:
       msg <- firstMessage(msgs)
     yield List(
       expect.same(msgs.size, 1),
-      expect.same(msg.msgId, msgId),
+      expect.same(msg.id, msgId),
       expect.same(msg.payload, payload),
       msg match
-        case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
         case _                                     => failure("expected WithHeaders")
     ).combineAll
 
@@ -166,10 +166,10 @@ trait PgmqClientITSuite extends IOSuite:
       msgs <- client.read[TestPayload, TestHeaders](queue, visibilityTimeout, 1.messages)
       msg <- firstMessage(msgs)
     yield List(
-      expect.same(msg.msgId, msgId),
+      expect.same(msg.id, msgId),
       expect.same(msg.payload, payload),
       msg match
-        case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
         case _                                     => failure("expected WithHeaders")
     ).combineAll
 
@@ -289,7 +289,7 @@ trait PgmqClientITSuite extends IOSuite:
       expect(clue(count) >= 1),
       expect.same(msg.payload, payload),
       msg match
-        case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
         case _                                     => failure("expected WithHeaders")
     ).combineAll
 
@@ -315,7 +315,7 @@ trait PgmqClientITSuite extends IOSuite:
       expect(clue(count) >= 1),
       expect.same(msg.payload, payload),
       msg match
-        case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
         case _                                     => failure("expected WithHeaders")
     ).combineAll
 

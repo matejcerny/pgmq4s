@@ -82,13 +82,13 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
   // Consuming
 
   protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]] =
-    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read($queue, $vt, $qty)"
+    sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.read($queue, $vt, $qty)"
       .query[RawMessage]
       .to[List]
       .transact(xa)
 
   protected def popRaw(queue: String): F[Option[RawMessage]] =
-    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop($queue)"
+    sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.pop($queue)"
       .query[RawMessage]
       .option
       .transact(xa)
@@ -114,7 +114,7 @@ class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
       .transact(xa)
 
   protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
-    sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
+    sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
       .query[RawMessage]
       .option
       .transact(xa)

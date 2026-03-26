@@ -33,7 +33,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   private val now = OffsetDateTime.parse("2025-01-01T00:00:00Z")
 
   private def rawMsg(id: Long, body: String, headers: Option[String] = None): RawMessage =
-    RawMessage(id, readCt = 1, enqueuedAt = now, vt = now, message = body, headers = headers)
+    RawMessage(id, readCt = 1, enqueuedAt = now, lastReadAt = None, vt = now, message = body, headers = headers)
 
   given PgmqEncoder[String] = PgmqEncoder.instance(identity)
   given PgmqDecoder[String] = PgmqDecoder.instance(Right(_))
@@ -250,9 +250,9 @@ object PgmqClientSuite extends SimpleIOSuite:
         c <- captured
       yield List(
         expect.same(msgs.size, 1),
-        expect.same(msgs.map(_.msgId.value), List(1L)),
+        expect.same(msgs.map(_.id.value), List(1L)),
         expect.same(msgs.map(_.payload), List("payload")),
-        expect.same(msgs.map(_.readCt), List(1)),
+        expect.same(msgs.map(_.readCount), List(1)),
         expect.same(c.vt, 30),
         expect.same(c.qty, 5)
       ).combineAll
@@ -293,7 +293,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       .map: opt =>
         List(
           expect(clue(opt).isDefined),
-          expect.same(opt.map(_.msgId.value), Some(5L)),
+          expect.same(opt.map(_.id.value), Some(5L)),
           expect.same(opt.map(_.payload), Some("popped"))
         ).combineAll
 
@@ -332,7 +332,7 @@ object PgmqClientSuite extends SimpleIOSuite:
         c <- captured
       yield List(
         expect(clue(opt).isDefined),
-        expect.same(opt.map(_.msgId.value), Some(9L)),
+        expect.same(opt.map(_.id.value), Some(9L)),
         expect.same(opt.map(_.payload), Some("updated")),
         expect.same(c.vtOffset, 60)
       ).combineAll
@@ -480,7 +480,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       c <- captured
     yield List(
       expect.same(ids.map(_.queueName), List(QueueName("q1"), QueueName("q2"))),
-      expect.same(ids.map(_.msgId), List(MessageId(10L), MessageId(20L))),
+      expect.same(ids.map(_.id), List(MessageId(10L), MessageId(20L))),
       expect.same(c.bodies, List("a", "b"))
     ).combineAll
 

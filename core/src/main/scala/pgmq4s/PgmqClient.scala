@@ -39,7 +39,7 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
       dec
         .decode(raw.message)
         .map:
-          Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, _)
+          Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, _)
     )
 
   private def decodeRaw[P, H](raw: RawMessage)(using decP: PgmqDecoder[P], decH: PgmqDecoder[H]): F[Message[P, H]] =
@@ -48,8 +48,9 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
         p <- decP.decode(raw.message)
         h <- raw.headers.traverse(decH.decode)
       yield h match
-        case None    => Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, p)
-        case Some(v) => Message.WithHeaders(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.vt, p, v)
+        case None    => Message.Plain(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, p)
+        case Some(v) =>
+          Message.WithHeaders(MessageId(raw.msgId), raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, p, v)
 
   /** Send a single message to `queue`. */
   def send[P](queue: QueueName, message: P)(using enc: PgmqEncoder[P]): F[MessageId] =

@@ -33,9 +33,9 @@ import pgmq4s.*
 class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends PgmqClient[F]:
 
   private val rawMessageDecoder: Decoder[RawMessage] =
-    (int8 ~ int4 ~ timestamptz ~ timestamptz ~ text ~ text.opt).map {
-      case msgId ~ readCt ~ enqueuedAt ~ vt ~ message ~ headers =>
-        RawMessage(msgId, readCt, enqueuedAt, vt, message, headers)
+    (int8 ~ int4 ~ timestamptz ~ timestamptz.opt ~ timestamptz ~ text ~ text.opt).map {
+      case msgId ~ readCt ~ enqueuedAt ~ lastReadAt ~ vt ~ message ~ headers =>
+        RawMessage(msgId, readCt, enqueuedAt, lastReadAt, vt, message, headers)
     }
 
   // Publishing
@@ -88,14 +88,14 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
   protected def readRaw(queue: String, vt: Int, qty: Int): F[List[RawMessage]] =
     pool.use:
       _.prepare(
-        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.read($text, $int4, $int4)"
+        sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.read($text, $int4, $int4)"
           .query(rawMessageDecoder)
       ).flatMap(_.stream((queue, vt, qty), 64).compile.toList)
 
   protected def popRaw(queue: String): F[Option[RawMessage]] =
     pool.use:
       _.prepare(
-        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.pop($text)"
+        sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.pop($text)"
           .query(rawMessageDecoder)
       ).flatMap(_.option(queue))
 
@@ -120,7 +120,7 @@ class SkunkPgmqClient[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgm
   protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): F[Option[RawMessage]] =
     pool.use:
       _.prepare(
-        sql"SELECT msg_id, read_ct, enqueued_at, vt, message::text, headers::text FROM pgmq.set_vt($text, $int8, $int4)"
+        sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.set_vt($text, $int8, $int4)"
           .query(rawMessageDecoder)
       ).flatMap(_.option((queue, msgId, vtOffset)))
 

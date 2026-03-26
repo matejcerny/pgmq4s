@@ -62,7 +62,7 @@ trait PgmqConsumerITSuite extends IOSuite:
       msg  <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect.same(msg.payload, payload) and
       (msg match
-        case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
         case _                                     => failure("expected WithHeaders"))
 
   // --- subscribe tests ---
@@ -93,5 +93,5 @@ trait PgmqConsumerITSuite extends IOSuite:
       msg  <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect.same(msg.payload, payload) and
       (msg match
-        case Message.WithHeaders(_, _, _, _, _, h) => expect.same(h, hdrs)
+        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
         case _                                     => failure("expected WithHeaders"))

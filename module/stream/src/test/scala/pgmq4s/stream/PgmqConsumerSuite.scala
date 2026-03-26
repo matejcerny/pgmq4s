@@ -41,7 +41,7 @@ object PgmqConsumerSuite extends SimpleIOSuite:
   given PgmqDecoder[String] = PgmqDecoder.instance(Right(_))
 
   private def rawMsg(id: Long, body: String, headers: Option[String] = None): RawMessage =
-    RawMessage(id, readCt = 1, enqueuedAt = now, vt = now, message = body, headers = headers)
+    RawMessage(id, readCt = 1, enqueuedAt = now, lastReadAt = None, vt = now, message = body, headers = headers)
 
   /** A stub PgmqClient backed by a Ref holding a sequence of batches. Each call to `readRaw` pops and returns the next
     * batch. When the sequence is exhausted, returns empty lists.
