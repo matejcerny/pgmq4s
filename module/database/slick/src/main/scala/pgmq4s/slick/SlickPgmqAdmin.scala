@@ -112,3 +112,25 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
       sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($routingKey)"
         .as[(String, String, String)]
         .map(_.toList)
+
+  // Notify insert
+
+  private given GetResult[(String, Int, OffsetDateTime)] =
+    GetResult: r =>
+      (r.nextString(), r.nextInt(), r.nextTimestamp().toInstant.atOffset(ZoneOffset.UTC))
+
+  protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): Future[Unit] =
+    db.run(sql"SELECT pgmq.enable_notify_insert($queue, $throttleIntervalMs)".as[Unit].head)
+
+  protected def disableNotifyInsertRaw(queue: String): Future[Unit] =
+    db.run(sql"SELECT pgmq.disable_notify_insert($queue)".as[Unit].head)
+
+  protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): Future[Unit] =
+    db.run(sql"SELECT pgmq.update_notify_insert($queue, $throttleIntervalMs)".as[Unit].head)
+
+  protected def listNotifyInsertThrottlesRaw: Future[List[(String, Int, OffsetDateTime)]] =
+    db.run:
+      sql"""SELECT queue_name, throttle_interval_ms, last_notified_at
+              FROM pgmq.list_notify_insert_throttles()"""
+        .as[(String, Int, OffsetDateTime)]
+        .map(_.toList)

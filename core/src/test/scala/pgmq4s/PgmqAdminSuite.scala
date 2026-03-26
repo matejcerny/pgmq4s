@@ -100,6 +100,11 @@ object PgmqAdminSuite extends SimpleIOSuite:
     def testRoutingRaw(routingKey: String): IO[List[(String, String, String)]] =
       ref.update(_.copy(routingKey = routingKey)).as(ret.testRouting)
 
+    def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = IO.unit
+    def disableNotifyInsertRaw(queue: String): IO[Unit] = IO.unit
+    def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = IO.unit
+    def listNotifyInsertThrottlesRaw: IO[List[(String, Int, java.time.OffsetDateTime)]] = IO.pure(Nil)
+
   private def pgmqTest(name: String, ret: Returns = Returns())(
       body: (PgmqAdmin[IO], IO[Captured]) => IO[Expectations]
   ): Unit =
