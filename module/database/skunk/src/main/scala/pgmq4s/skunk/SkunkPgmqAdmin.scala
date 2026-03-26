@@ -103,3 +103,28 @@ class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgmq
       _.prepare(
         sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($text)".query(routingMatchDecoder)
       ).flatMap(_.stream(routingKey, 64).compile.toList)
+
+  // Notify insert
+
+  private val notifyThrottleDecoder: Decoder[(String, Int, java.time.OffsetDateTime)] =
+    (text ~ int4 ~ timestamptz).map { case queue ~ ms ~ ts => (queue, ms, ts) }
+
+  protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.enable_notify_insert($text, $int4)".query(voidCodec))
+        .flatMap(_.unique((queue, throttleIntervalMs)))
+
+  protected def disableNotifyInsertRaw(queue: String): F[Unit] =
+    pool.use(_.prepare(sql"SELECT pgmq.disable_notify_insert($text)".query(voidCodec)).flatMap(_.unique(queue)))
+
+  protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.update_notify_insert($text, $int4)".query(voidCodec))
+        .flatMap(_.unique((queue, throttleIntervalMs)))
+
+  protected def listNotifyInsertThrottlesRaw: F[List[(String, Int, java.time.OffsetDateTime)]] =
+    pool.use:
+      _.execute(
+        sql"""SELECT queue_name, throttle_interval_ms, last_notified_at
+                FROM pgmq.list_notify_insert_throttles()""".query(notifyThrottleDecoder)
+      )

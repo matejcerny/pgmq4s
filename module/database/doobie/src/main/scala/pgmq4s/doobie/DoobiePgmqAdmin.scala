@@ -96,3 +96,21 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
       .query[(String, String, String)]
       .to[List]
       .transact(xa)
+
+  // Notify insert
+
+  protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit] =
+    sql"SELECT pgmq.enable_notify_insert($queue, $throttleIntervalMs)".query[Unit].unique.transact(xa)
+
+  protected def disableNotifyInsertRaw(queue: String): F[Unit] =
+    sql"SELECT pgmq.disable_notify_insert($queue)".query[Unit].unique.transact(xa)
+
+  protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit] =
+    sql"SELECT pgmq.update_notify_insert($queue, $throttleIntervalMs)".query[Unit].unique.transact(xa)
+
+  protected def listNotifyInsertThrottlesRaw: F[List[(String, Int, OffsetDateTime)]] =
+    sql"""SELECT queue_name, throttle_interval_ms, last_notified_at
+            FROM pgmq.list_notify_insert_throttles()"""
+      .query[(String, Int, OffsetDateTime)]
+      .to[List]
+      .transact(xa)

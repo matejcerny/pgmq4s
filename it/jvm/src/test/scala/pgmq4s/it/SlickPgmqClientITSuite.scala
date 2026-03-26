@@ -178,6 +178,14 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
       liftF(underlying.unbindTopic(pattern, queue))
     override def testRouting(routingKey: RoutingKey): IO[List[RoutingMatch]] =
       liftF(underlying.testRouting(routingKey))
+    override def enableNotifyInsert(queue: QueueName, throttleInterval: ThrottleInterval): IO[Unit] =
+      liftF(underlying.enableNotifyInsert(queue, throttleInterval))
+    override def disableNotifyInsert(queue: QueueName): IO[Unit] =
+      liftF(underlying.disableNotifyInsert(queue))
+    override def updateNotifyInsert(queue: QueueName, throttleInterval: ThrottleInterval): IO[Unit] =
+      liftF(underlying.updateNotifyInsert(queue, throttleInterval))
+    override def listNotifyInsertThrottles: IO[List[NotifyThrottle]] =
+      liftF(underlying.listNotifyInsertThrottles)
 
     protected def createQueueRaw(queue: String): IO[Unit] = ???
     protected def createPartitionedQueueRaw(queue: String, p: String, r: String): IO[Unit] = ???
@@ -190,6 +198,10 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
     protected def bindTopicRaw(pattern: String, queue: String): IO[Unit] = ???
     protected def unbindTopicRaw(pattern: String, queue: String): IO[Boolean] = ???
     protected def testRoutingRaw(routingKey: String): IO[List[(String, String, String)]] = ???
+    protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = ???
+    protected def disableNotifyInsertRaw(queue: String): IO[Unit] = ???
+    protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = ???
+    protected def listNotifyInsertThrottlesRaw: IO[List[(String, Int, java.time.OffsetDateTime)]] = ???
 
   override def sharedResource: Resource[IO, Res] =
     given ExecutionContext = ExecutionContext.global

@@ -92,6 +92,25 @@ object VisibilityTimeout:
   def apply(duration: FiniteDuration): VisibilityTimeout = duration
   extension (vt: VisibilityTimeout) def toSeconds: Int = vt.toSeconds.toInt
 
+opaque type ThrottleInterval = FiniteDuration
+
+/** Throttle interval for NOTIFY triggers — minimum time between notifications.
+  *
+  * {{{
+  *   ThrottleInterval(250.millis)
+  * }}}
+  */
+object ThrottleInterval:
+  def apply(duration: FiniteDuration): ThrottleInterval = duration
+  extension (t: ThrottleInterval) def toMillis: Int = t.toMillis.toInt
+
+/** Row returned by `pgmq.list_notify_insert_throttles`. */
+case class NotifyThrottle(
+    queueName: QueueName,
+    throttleInterval: ThrottleInterval,
+    lastNotifiedAt: OffsetDateTime
+)
+
 /** A message read from a PGMQ queue.
   *
   * @tparam P

@@ -44,3 +44,9 @@ trait PgmqAdminBackend[F[_]]:
   protected def bindTopicRaw(pattern: String, queue: String): F[Unit]
   protected def unbindTopicRaw(pattern: String, queue: String): F[Boolean]
   protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]]
+
+  // Notify insert
+  protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit]
+  protected def disableNotifyInsertRaw(queue: String): F[Unit]
+  protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit]
+  protected def listNotifyInsertThrottlesRaw: F[List[(String, Int, java.time.OffsetDateTime)]]

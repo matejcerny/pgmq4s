@@ -53,35 +53,33 @@ object PgmqConsumerSuite extends SimpleIOSuite:
         case Nil          => (Nil, Nil)
 
     // --- unused stubs ---
-    def sendRaw(queue: String, body: String): IO[Long] = IO.pure(0L)
-    def sendRaw(queue: String, body: String, delay: Int): IO[Long] = IO.pure(0L)
-    def sendRaw(queue: String, body: String, headers: String): IO[Long] = IO.pure(0L)
-    def sendRaw(queue: String, body: String, headers: String, delay: Int): IO[Long] = IO.pure(0L)
-    def sendBatchRaw(queue: String, bodies: List[String]): IO[List[Long]] = IO.pure(Nil)
-    def sendBatchRaw(queue: String, bodies: List[String], delay: Int): IO[List[Long]] = IO.pure(Nil)
-    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] = IO.pure(Nil)
-    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] =
-      IO.pure(Nil)
-    def popRaw(queue: String): IO[Option[RawMessage]] = IO.pure(None)
-    def archiveRaw(queue: String, msgId: Long): IO[Boolean] = IO.pure(true)
-    def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = IO.pure(Nil)
-    def deleteRaw(queue: String, msgId: Long): IO[Boolean] = IO.pure(true)
-    def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = IO.pure(Nil)
-    def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = IO.pure(None)
-    def sendTopicRaw(routingKey: String, body: String): IO[Int] = IO.pure(0)
-    def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] = IO.pure(0)
-    def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = IO.pure(0)
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] = IO.pure(Nil)
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] =
-      IO.pure(Nil)
+    def sendRaw(queue: String, body: String): IO[Long] = ???
+    def sendRaw(queue: String, body: String, delay: Int): IO[Long] = ???
+    def sendRaw(queue: String, body: String, headers: String): IO[Long] = ???
+    def sendRaw(queue: String, body: String, headers: String, delay: Int): IO[Long] = ???
+    def sendBatchRaw(queue: String, bodies: List[String]): IO[List[Long]] = ???
+    def sendBatchRaw(queue: String, bodies: List[String], delay: Int): IO[List[Long]] = ???
+    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] = ???
+    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] = ???
+    def popRaw(queue: String): IO[Option[RawMessage]] = ???
+    def archiveRaw(queue: String, msgId: Long): IO[Boolean] = ???
+    def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
+    def deleteRaw(queue: String, msgId: Long): IO[Boolean] = ???
+    def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
+    def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
+    def sendTopicRaw(routingKey: String, body: String): IO[Int] = ???
+    def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] = ???
+    def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = ???
+    def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] = ???
+    def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] = ???
     def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] =
-      IO.pure(Nil)
+      ???
     def sendBatchTopicRaw(
         routingKey: String,
         bodies: List[String],
         headers: List[String],
         delay: Int
-    ): IO[List[(String, Long)]] = IO.pure(Nil)
+    ): IO[List[(String, Long)]] = ???
 
   /** A test consumer where `notifications` is driven by an explicit Queue. */
   private class StubConsumer(client: StubClient, pings: Queue[IO, Unit]) extends PgmqConsumer[IO](client):

@@ -132,3 +132,37 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
       SQL("SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing({routingKey})")
         .on("routingKey" -> routingKey)
         .as((str("pattern") ~ str("queue_name") ~ str("compiled_regex")).map { case p ~ q ~ r => (p, q, r) }.*)
+
+  // Notify insert
+
+  private val notifyThrottleParser: RowParser[(String, Int, OffsetDateTime)] =
+    (str("queue_name") ~ int("throttle_interval_ms") ~ get[OffsetDateTime]("last_notified_at")).map:
+      case q ~ ms ~ ts => (q, ms, ts)
+
+  protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.enable_notify_insert({queue}, {throttleIntervalMs})")
+        .on("queue" -> queue, "throttleIntervalMs" -> throttleIntervalMs)
+        .execute()
+      ()
+
+  protected def disableNotifyInsertRaw(queue: String): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.disable_notify_insert({queue})").on("queue" -> queue).execute()
+      ()
+
+  protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.update_notify_insert({queue}, {throttleIntervalMs})")
+        .on("queue" -> queue, "throttleIntervalMs" -> throttleIntervalMs)
+        .execute()
+      ()
+
+  protected def listNotifyInsertThrottlesRaw: Future[List[(String, Int, OffsetDateTime)]] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT queue_name, throttle_interval_ms, last_notified_at FROM pgmq.list_notify_insert_throttles()")
+        .as(notifyThrottleParser.*)

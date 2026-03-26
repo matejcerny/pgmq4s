@@ -23,6 +23,7 @@ package pgmq4s
 
 import cats.Functor
 import cats.syntax.all.*
+import scala.concurrent.duration.*
 
 /** Tagless-final algebra for PGMQ queue management and observability.
   *
@@ -71,3 +72,26 @@ trait PgmqAdmin[F[_]: Functor] extends PgmqAdminBackend[F]:
   def testRouting(routingKey: RoutingKey): F[List[RoutingMatch]] =
     testRoutingRaw(routingKey.value)
       .map(_.map((pattern, queue, regex) => RoutingMatch(TopicPattern(pattern), QueueName(queue), regex)))
+
+  /** Enable NOTIFY triggers on the queue. PGMQ fires a PostgreSQL NOTIFY on channel `pgmq.q_<queue_name>.INSERT` after
+    * each insert, throttled by `throttleInterval`.
+    */
+  def enableNotifyInsert(
+      queue: QueueName,
+      throttleInterval: ThrottleInterval = ThrottleInterval(250.millis)
+  ): F[Unit] =
+    enableNotifyInsertRaw(queue.value, throttleInterval.toMillis)
+
+  /** Disable NOTIFY triggers on the queue. */
+  def disableNotifyInsert(queue: QueueName): F[Unit] =
+    disableNotifyInsertRaw(queue.value)
+
+  /** Update the throttle interval for an already-enabled notify trigger. */
+  def updateNotifyInsert(queue: QueueName, throttleInterval: ThrottleInterval): F[Unit] =
+    updateNotifyInsertRaw(queue.value, throttleInterval.toMillis)
+
+  /** List all queues with active notify triggers and their current throttle config. */
+  def listNotifyInsertThrottles: F[List[NotifyThrottle]] =
+    listNotifyInsertThrottlesRaw.map(
+      _.map((q, ms, ts) => NotifyThrottle(QueueName(q), ThrottleInterval(ms.millis), ts))
+    )
