@@ -69,21 +69,34 @@ class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgmq
   protected def metricsRaw(queue: String): F[Option[QueueMetrics]] =
     pool.use:
       _.prepare(
-        sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+        sql"""SELECT queue_name
+                   , queue_length
+                   , newest_msg_age_sec
+                   , oldest_msg_age_sec
+                   , total_messages
+                   , scrape_time
                 FROM pgmq.metrics($text)""".query(metricsDecoder)
       ).flatMap(_.option(queue))
 
   protected def metricsAllRaw: F[List[QueueMetrics]] =
     pool.use:
       _.execute(
-        sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+        sql"""SELECT queue_name
+                   , queue_length
+                   , newest_msg_age_sec
+                   , oldest_msg_age_sec
+                   , total_messages
+                   , scrape_time
                 FROM pgmq.metrics_all()""".query(metricsDecoder)
       )
 
   protected def listQueuesRaw: F[List[QueueInfo]] =
     pool.use:
       _.execute(
-        sql"""SELECT queue_name, is_partitioned, is_unlogged, created_at
+        sql"""SELECT queue_name
+                   , is_partitioned
+                   , is_unlogged
+                   , created_at
                 FROM pgmq.list_queues()""".query(queueInfoDecoder)
       )
 
@@ -101,7 +114,10 @@ class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgmq
   protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]] =
     pool.use:
       _.prepare(
-        sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($text)".query(routingMatchDecoder)
+        sql"""SELECT pattern
+                   , queue_name
+                   , compiled_regex
+                FROM pgmq.test_routing($text)""".query(routingMatchDecoder)
       ).flatMap(_.stream(routingKey, 64).compile.toList)
 
   // Notify insert
@@ -125,6 +141,8 @@ class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgmq
   protected def listNotifyInsertThrottlesRaw: F[List[(String, Int, java.time.OffsetDateTime)]] =
     pool.use:
       _.execute(
-        sql"""SELECT queue_name, throttle_interval_ms, last_notified_at
+        sql"""SELECT queue_name
+                   , throttle_interval_ms
+                   , last_notified_at
                 FROM pgmq.list_notify_insert_throttles()""".query(notifyThrottleDecoder)
       )

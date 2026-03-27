@@ -54,7 +54,12 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
     sql"SELECT pgmq.detach_archive($queue)".query[Unit].unique.transact(xa)
 
   protected def metricsRaw(queue: String): F[Option[QueueMetrics]] =
-    sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+    sql"""SELECT queue_name
+               , queue_length
+               , newest_msg_age_sec
+               , oldest_msg_age_sec
+               , total_messages
+               , scrape_time
             FROM pgmq.metrics($queue)"""
       .query[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
       .option
@@ -64,7 +69,12 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
       .transact(xa)
 
   protected def metricsAllRaw: F[List[QueueMetrics]] =
-    sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+    sql"""SELECT queue_name
+               , queue_length
+               , newest_msg_age_sec
+               , oldest_msg_age_sec
+               , total_messages
+               , scrape_time
             FROM pgmq.metrics_all()"""
       .query[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
       .to[List]
@@ -74,7 +84,10 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
       .transact(xa)
 
   protected def listQueuesRaw: F[List[QueueInfo]] =
-    sql"""SELECT queue_name, is_partitioned, is_unlogged, created_at
+    sql"""SELECT queue_name
+               , is_partitioned
+               , is_unlogged
+               , created_at
             FROM pgmq.list_queues()"""
       .query[(String, Boolean, Boolean, OffsetDateTime)]
       .to[List]
@@ -92,7 +105,10 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
     sql"SELECT pgmq.unbind_topic($pattern, $queue)".query[Boolean].unique.transact(xa)
 
   protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]] =
-    sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($routingKey)"
+    sql"""SELECT pattern
+               , queue_name
+               , compiled_regex
+            FROM pgmq.test_routing($routingKey)"""
       .query[(String, String, String)]
       .to[List]
       .transact(xa)
@@ -109,7 +125,9 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
     sql"SELECT pgmq.update_notify_insert($queue, $throttleIntervalMs)".query[Unit].unique.transact(xa)
 
   protected def listNotifyInsertThrottlesRaw: F[List[(String, Int, OffsetDateTime)]] =
-    sql"""SELECT queue_name, throttle_interval_ms, last_notified_at
+    sql"""SELECT queue_name
+               , throttle_interval_ms
+               , last_notified_at
             FROM pgmq.list_notify_insert_throttles()"""
       .query[(String, Int, OffsetDateTime)]
       .to[List]

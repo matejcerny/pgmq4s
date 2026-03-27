@@ -91,7 +91,12 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
   protected def metricsRaw(queue: String): Future[Option[QueueMetrics]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+      SQL("""SELECT queue_name
+                  , queue_length
+                  , newest_msg_age_sec
+                  , oldest_msg_age_sec
+                  , total_messages
+                  , scrape_time
                FROM pgmq.metrics({queue})""")
         .on("queue" -> queue)
         .as(queueMetrics.singleOpt)
@@ -99,14 +104,23 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
   protected def metricsAllRaw: Future[List[QueueMetrics]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+      SQL("""SELECT queue_name
+                  , queue_length
+                  , newest_msg_age_sec
+                  , oldest_msg_age_sec
+                  , total_messages
+                  , scrape_time
                FROM pgmq.metrics_all()""")
         .as(queueMetrics.*)
 
   protected def listQueuesRaw: Future[List[QueueInfo]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT queue_name, is_partitioned, is_unlogged, created_at FROM pgmq.list_queues()")
+      SQL("""SELECT queue_name
+                  , is_partitioned
+                  , is_unlogged
+                  , created_at
+               FROM pgmq.list_queues()""")
         .as(queueInfo.*)
 
   // Topic management
@@ -129,7 +143,10 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
   protected def testRoutingRaw(routingKey: String): Future[List[(String, String, String)]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing({routingKey})")
+      SQL("""SELECT pattern
+                  , queue_name
+                  , compiled_regex
+               FROM pgmq.test_routing({routingKey})""")
         .on("routingKey" -> routingKey)
         .as((str("pattern") ~ str("queue_name") ~ str("compiled_regex")).map { case p ~ q ~ r => (p, q, r) }.*)
 
@@ -164,5 +181,8 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
   protected def listNotifyInsertThrottlesRaw: Future[List[(String, Int, OffsetDateTime)]] =
     withConnection: conn =>
       given Connection = conn
-      SQL("SELECT queue_name, throttle_interval_ms, last_notified_at FROM pgmq.list_notify_insert_throttles()")
+      SQL("""SELECT queue_name
+                  , throttle_interval_ms
+                  , last_notified_at
+               FROM pgmq.list_notify_insert_throttles()""")
         .as(notifyThrottleParser.*)

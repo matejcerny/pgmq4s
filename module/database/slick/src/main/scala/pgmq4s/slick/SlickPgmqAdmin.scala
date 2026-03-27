@@ -73,7 +73,12 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
 
   protected def metricsRaw(queue: String): Future[Option[QueueMetrics]] =
     db.run:
-      sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+      sql"""SELECT queue_name
+                 , queue_length
+                 , newest_msg_age_sec
+                 , oldest_msg_age_sec
+                 , total_messages
+                 , scrape_time
               FROM pgmq.metrics($queue)"""
         .as[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
         .headOption
@@ -83,7 +88,12 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
 
   protected def metricsAllRaw: Future[List[QueueMetrics]] =
     db.run:
-      sql"""SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time
+      sql"""SELECT queue_name
+                 , queue_length
+                 , newest_msg_age_sec
+                 , oldest_msg_age_sec
+                 , total_messages
+                 , scrape_time
               FROM pgmq.metrics_all()"""
         .as[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
         .map(_.toList.map { case (name, len, newest, oldest, total, scrape) =>
@@ -92,7 +102,10 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
 
   protected def listQueuesRaw: Future[List[QueueInfo]] =
     db.run:
-      sql"""SELECT queue_name, is_partitioned, is_unlogged, created_at
+      sql"""SELECT queue_name
+                 , is_partitioned
+                 , is_unlogged
+                 , created_at
               FROM pgmq.list_queues()"""
         .as[(String, Boolean, Boolean, OffsetDateTime)]
         .map(_.toList.map { case (name, part, unlog, created) =>
@@ -109,7 +122,10 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
 
   protected def testRoutingRaw(routingKey: String): Future[List[(String, String, String)]] =
     db.run:
-      sql"SELECT pattern, queue_name, compiled_regex FROM pgmq.test_routing($routingKey)"
+      sql"""SELECT pattern
+                 , queue_name
+                 , compiled_regex
+              FROM pgmq.test_routing($routingKey)"""
         .as[(String, String, String)]
         .map(_.toList)
 
@@ -130,7 +146,9 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
 
   protected def listNotifyInsertThrottlesRaw: Future[List[(String, Int, OffsetDateTime)]] =
     db.run:
-      sql"""SELECT queue_name, throttle_interval_ms, last_notified_at
+      sql"""SELECT queue_name
+                 , throttle_interval_ms
+                 , last_notified_at
               FROM pgmq.list_notify_insert_throttles()"""
         .as[(String, Int, OffsetDateTime)]
         .map(_.toList)
