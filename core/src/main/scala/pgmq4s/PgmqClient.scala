@@ -180,14 +180,14 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
       enc: PgmqEncoder[P]
   ): F[List[TopicMessageId]] =
     sendBatchTopicRaw(routingKey.value, messages.map(enc.encode))
-      .map(_.map((queue, msgId) => TopicMessageId(QueueName(queue), MessageId(msgId))))
+      .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
 
   /** Send multiple messages to matching queues with a visibility delay. */
   def sendBatchTopic[P](routingKey: RoutingKey, messages: List[P], delay: Int)(using
       enc: PgmqEncoder[P]
   ): F[List[TopicMessageId]] =
     sendBatchTopicRaw(routingKey.value, messages.map(enc.encode), delay)
-      .map(_.map((queue, msgId) => TopicMessageId(QueueName(queue), MessageId(msgId))))
+      .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
 
   /** Send multiple messages to matching queues with corresponding typed headers. */
   def sendBatchTopic[P, H](routingKey: RoutingKey, messages: List[P], headers: List[H])(using
@@ -195,7 +195,7 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
       encH: PgmqEncoder[H]
   ): F[List[TopicMessageId]] =
     sendBatchTopicRaw(routingKey.value, messages.map(encP.encode), headers.map(encH.encode))
-      .map(_.map((queue, msgId) => TopicMessageId(QueueName(queue), MessageId(msgId))))
+      .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
 
   /** Send multiple messages to matching queues with typed headers and a visibility delay. */
   def sendBatchTopic[P, H](routingKey: RoutingKey, messages: List[P], headers: List[H], delay: Int)(using
@@ -203,4 +203,4 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
       encH: PgmqEncoder[H]
   ): F[List[TopicMessageId]] =
     sendBatchTopicRaw(routingKey.value, messages.map(encP.encode), headers.map(encH.encode), delay)
-      .map(_.map((queue, msgId) => TopicMessageId(QueueName(queue), MessageId(msgId))))
+      .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))

@@ -28,7 +28,7 @@ trait PgmqClientITSuite extends IOSuite:
     test(name) { case (client, admin, queues, counter) =>
       for
         n <- counter.getAndUpdate(_ + 1)
-        queue = QueueName(s"test_$n")
+        queue = QueueName.unsafe(s"test_$n")
         _ <- queues.update(queue :: _)
         _ <- if createQueue then admin.createQueue(queue) else IO.unit
         result <- body(client, admin, queue)
@@ -233,8 +233,8 @@ trait PgmqClientITSuite extends IOSuite:
     for
       n1 <- counter.getAndUpdate(_ + 1)
       n2 <- counter.getAndUpdate(_ + 1)
-      queue1 = QueueName(s"test_$n1")
-      queue2 = QueueName(s"test_$n2")
+      queue1 = QueueName.unsafe(s"test_$n1")
+      queue2 = QueueName.unsafe(s"test_$n2")
       _ <- queues.update(queue2 :: queue1 :: _)
       _ <- admin.createQueue(queue1)
       _ <- admin.createQueue(queue2)

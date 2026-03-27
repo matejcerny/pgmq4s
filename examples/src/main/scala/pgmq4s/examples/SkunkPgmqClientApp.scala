@@ -7,7 +7,7 @@ import pgmq4s.*
 import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 
 object SkunkPgmqClientApp extends IOApp.Simple:
-  private val queue = QueueName("orders_skunk_tagless_final")
+  private val queue = q"orders_skunk_tagless_final"
   private val event = OrderCreated(2L, "dev@example.com")
 
   val run: IO[Unit] =

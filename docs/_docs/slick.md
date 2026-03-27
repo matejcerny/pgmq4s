@@ -58,7 +58,7 @@ case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, 
 @main def slickExample(): Unit =
   given ExecutionContext = ExecutionContext.global
 
-  val queue = QueueName("orders")
+  val queue = q"orders"
 
   val db = Database.forURL(
     url = "jdbc:postgresql://localhost:5432/pgmq",

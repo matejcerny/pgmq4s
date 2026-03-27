@@ -64,7 +64,7 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
       .query[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
       .option
       .map(_.map { case (name, len, newest, oldest, total, scrape) =>
-        QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
+        QueueMetrics(QueueName.trusted(name), len, newest, oldest, total, scrape)
       })
       .transact(xa)
 
@@ -79,7 +79,7 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
       .query[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
       .to[List]
       .map(_.map { case (name, len, newest, oldest, total, scrape) =>
-        QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
+        QueueMetrics(QueueName.trusted(name), len, newest, oldest, total, scrape)
       })
       .transact(xa)
 
@@ -92,7 +92,7 @@ class DoobiePgmqAdmin[F[_]: Sync](xa: Transactor[F]) extends PgmqAdmin[F]:
       .query[(String, Boolean, Boolean, OffsetDateTime)]
       .to[List]
       .map(_.map { case (name, part, unlog, created) =>
-        QueueInfo(QueueName(name), part, unlog, created)
+        QueueInfo(QueueName.trusted(name), part, unlog, created)
       })
       .transact(xa)
 

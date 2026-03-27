@@ -47,12 +47,12 @@ class AnormPgmqAdmin(dataSource: DataSource)(using ExecutionContext) extends Pgm
     (str("queue_name") ~ long("queue_length") ~ long("newest_msg_age_sec").? ~
       long("oldest_msg_age_sec").? ~ long("total_messages") ~ get[OffsetDateTime]("scrape_time")).map:
       case name ~ length ~ newest ~ oldest ~ total ~ scrape =>
-        QueueMetrics(QueueName(name), length, newest, oldest, total, scrape)
+        QueueMetrics(QueueName.trusted(name), length, newest, oldest, total, scrape)
 
   private val queueInfo: RowParser[QueueInfo] =
     (str("queue_name") ~ bool("is_partitioned") ~ bool("is_unlogged") ~ get[OffsetDateTime]("created_at")).map:
       case name ~ part ~ unlog ~ created =>
-        QueueInfo(QueueName(name), part, unlog, created)
+        QueueInfo(QueueName.trusted(name), part, unlog, created)
 
   protected def createQueueRaw(queue: String): Future[Unit] =
     withConnection: conn =>

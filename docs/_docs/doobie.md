@@ -65,7 +65,7 @@ import scala.concurrent.duration.*
 case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, Decoder
 
 object DoobieExample extends IOApp.Simple:
-  private val queue = QueueName("orders")
+  private val queue = q"orders"
 
   private val transactor: Resource[IO, HikariTransactor[IO]] =
     for

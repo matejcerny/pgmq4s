@@ -155,7 +155,7 @@ object PgmqClientSuite extends SimpleIOSuite:
         res <- body(client, ref.get)
       yield res
 
-  private val q = QueueName("my-queue")
+  private val q = q"my-queue"
 
   // --- send ---
 
@@ -479,7 +479,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       ids <- client.sendBatchTopic[String](rk, List("a", "b"))
       c <- captured
     yield List(
-      expect.same(ids.map(_.queueName), List(QueueName("q1"), QueueName("q2"))),
+      expect.same(ids.map(_.queueName), List(q"q1", q"q2")),
       expect.same(ids.map(_.id), List(MessageId(10L), MessageId(20L))),
       expect.same(c.bodies, List("a", "b"))
     ).combineAll

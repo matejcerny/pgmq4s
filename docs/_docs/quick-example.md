@@ -57,7 +57,7 @@ object Main extends IOApp.Simple:
       .use: pool =>
         val client = SkunkPgmqClient[IO](pool)
         val admin  = SkunkPgmqAdmin[IO](pool)
-        val queue  = QueueName("getting_started")
+        val queue  = q"getting_started"
 
         for
           _        <- admin.createQueue(queue)

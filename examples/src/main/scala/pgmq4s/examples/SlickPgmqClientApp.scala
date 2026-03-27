@@ -11,7 +11,7 @@ import scala.concurrent.{ Await, ExecutionContext }
 @main def slickPgmqClientApp(): Unit =
   given ExecutionContext = ExecutionContext.global
 
-  val queue = QueueName("orders_slick")
+  val queue = q"orders_slick"
   val event = OrderCreated(2L, "dev@example.com")
 
   val db = Database.forURL(

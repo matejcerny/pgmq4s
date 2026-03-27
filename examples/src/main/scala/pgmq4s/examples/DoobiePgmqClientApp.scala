@@ -7,7 +7,7 @@ import pgmq4s.*
 import pgmq4s.doobie.{ DoobiePgmqAdmin, DoobiePgmqClient }
 
 object DoobiePgmqClientApp extends IOApp.Simple:
-  private val queue = QueueName("orders_tagless_final")
+  private val queue = q"orders_tagless_final"
   private val event = OrderCreated(2L, "dev@example.com")
 
   private val hikariTransactor: Resource[IO, HikariTransactor[IO]] =
