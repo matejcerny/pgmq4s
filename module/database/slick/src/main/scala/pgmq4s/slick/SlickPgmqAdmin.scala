@@ -83,7 +83,7 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
         .as[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
         .headOption
         .map(_.map { case (name, len, newest, oldest, total, scrape) =>
-          QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
+          QueueMetrics(QueueName.trusted(name), len, newest, oldest, total, scrape)
         })
 
   protected def metricsAllRaw: Future[List[QueueMetrics]] =
@@ -97,7 +97,7 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
               FROM pgmq.metrics_all()"""
         .as[(String, Long, Option[Long], Option[Long], Long, OffsetDateTime)]
         .map(_.toList.map { case (name, len, newest, oldest, total, scrape) =>
-          QueueMetrics(QueueName(name), len, newest, oldest, total, scrape)
+          QueueMetrics(QueueName.trusted(name), len, newest, oldest, total, scrape)
         })
 
   protected def listQueuesRaw: Future[List[QueueInfo]] =
@@ -109,7 +109,7 @@ class SlickPgmqAdmin(db: Database)(using ExecutionContext) extends PgmqAdmin[Fut
               FROM pgmq.list_queues()"""
         .as[(String, Boolean, Boolean, OffsetDateTime)]
         .map(_.toList.map { case (name, part, unlog, created) =>
-          QueueInfo(QueueName(name), part, unlog, created)
+          QueueInfo(QueueName.trusted(name), part, unlog, created)
         })
 
   // Topic management

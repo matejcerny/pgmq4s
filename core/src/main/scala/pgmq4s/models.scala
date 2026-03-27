@@ -27,9 +27,39 @@ import scala.concurrent.duration.FiniteDuration
 
 opaque type QueueName = String
 
-/** Queue name, wrapping a plain `String`. */
+/** Queue name, wrapping a plain `String`.
+  *
+  * PGMQ enforces a 48-character limit, lowercases names server-side, and forbids `$`, `;`, `'`, and `--`. Uppercase
+  * letters are rejected to prevent client/server mismatches. Use [[QueueName.apply]] for validated construction,
+  * [[QueueName.unsafe]] when the value is known to be valid, or the `q"..."` string interpolator for compile-time
+  * checked literals:
+  * {{{
+  *   val name = q"my-queue"   // validated at compile time, zero runtime cost
+  * }}}
+  */
 object QueueName:
-  def apply(name: String): QueueName = name
+  private val forbidden = """[\$;']|--""".r
+  private val uppercase = """[A-Z]""".r
+
+  private def validate(name: String): Either[String, QueueName] =
+    if name.isEmpty then Left("QueueName must not be empty")
+    else if name.length > 48 then Left(s"QueueName must be at most 48 characters, got ${name.length}")
+    else if uppercase.findFirstIn(name).isDefined then
+      Left("QueueName must be lowercase (PGMQ lowercases names server-side)")
+    else
+      forbidden.findFirstIn(name) match
+        case Some(m) => Left(s"QueueName contains forbidden character or sequence: '$m'")
+        case None    => Right(name)
+
+  def apply(name: String): Either[String, QueueName] = validate(name)
+
+  def unsafe(name: String): QueueName =
+    val result = validate(name)
+    require(result.isRight, result.left.getOrElse(""))
+    name
+
+  private[pgmq4s] def trusted(name: String): QueueName = name
+
   extension (q: QueueName) def value: String = q
 
 opaque type MessageId = Long
@@ -78,6 +108,8 @@ extension (n: Int)
   inline def messages: BatchSize =
     inline if n > 0 then BatchSize.unsafe(n)
     else compiletime.error("BatchSize must be positive")
+
+extension (inline sc: StringContext) inline def q(inline args: Any*): QueueName = ${ QueueNameMacro.impl('sc, 'args) }
 
 opaque type VisibilityTimeout = FiniteDuration
 

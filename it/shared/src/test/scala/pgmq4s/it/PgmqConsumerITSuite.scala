@@ -35,7 +35,7 @@ trait PgmqConsumerITSuite extends IOSuite:
     test(name) { case (client, admin, queues, counter) =>
       for
         n        <- counter.getAndUpdate(_ + 1)
-        queue     = QueueName(s"test_stream_$n")
+        queue     = QueueName.unsafe(s"test_stream_$n")
         _        <- queues.update(queue :: _)
         _        <- admin.createQueue(queue)
         result   <- mkConsumer(client)

@@ -37,12 +37,12 @@ class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends Pgmq
 
   private val metricsDecoder: Decoder[QueueMetrics] =
     (text ~ int8 ~ int4.opt ~ int4.opt ~ int8 ~ timestamptz).map { case name ~ len ~ newest ~ oldest ~ total ~ scrape =>
-      QueueMetrics(QueueName(name), len, newest.map(_.toLong), oldest.map(_.toLong), total, scrape)
+      QueueMetrics(QueueName.trusted(name), len, newest.map(_.toLong), oldest.map(_.toLong), total, scrape)
     }
 
   private val queueInfoDecoder: Decoder[QueueInfo] =
     (varchar ~ bool ~ bool ~ timestamptz).map { case name ~ part ~ unlog ~ created =>
-      QueueInfo(QueueName(name), part, unlog, created)
+      QueueInfo(QueueName.trusted(name), part, unlog, created)
     }
 
   protected def createQueueRaw(queue: String): F[Unit] =

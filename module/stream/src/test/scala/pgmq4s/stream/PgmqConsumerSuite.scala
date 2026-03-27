@@ -33,7 +33,7 @@ import scala.concurrent.duration.*
 object PgmqConsumerSuite extends SimpleIOSuite:
 
   private val now = OffsetDateTime.parse("2025-01-01T00:00:00Z")
-  private val q = QueueName("test-queue")
+  private val q = q"test-queue"
   private val visibilityTimeout = VisibilityTimeout(5.seconds)
   private val batchSize = 10.messages
 

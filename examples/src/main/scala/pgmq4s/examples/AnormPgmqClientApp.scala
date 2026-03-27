@@ -10,7 +10,7 @@ import scala.concurrent.{ Await, ExecutionContext }
 @main def anormPgmqClientApp(): Unit =
   given ExecutionContext = ExecutionContext.global
 
-  val queue = QueueName("orders_anorm")
+  val queue = q"orders_anorm"
   val event = OrderCreated(3L, "dev@example.com")
 
   val ds = new org.postgresql.ds.PGSimpleDataSource()

@@ -32,7 +32,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
   private val now = OffsetDateTime.parse("2025-01-01T00:00:00Z")
 
   private val sampleMetrics = QueueMetrics(
-    queueName = QueueName("test"),
+    queueName = q"test",
     queueLength = 5,
     newestMsgAgeSec = Some(10),
     oldestMsgAgeSec = Some(100),
@@ -41,7 +41,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
   )
 
   private val sampleQueueInfo = QueueInfo(
-    queueName = QueueName("test"),
+    queueName = q"test",
     isPartitioned = false,
     isUnlogged = false,
     createdAt = now
@@ -115,7 +115,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
         res <- body(admin, ref.get)
       yield res
 
-  private val q = QueueName("my-queue")
+  private val q = q"my-queue"
 
   // --- queue management ---
 
@@ -177,7 +177,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
     admin.listQueues.map: list =>
       List(
         expect.same(list.size, 1),
-        expect.same(list.head.queueName, QueueName("test")),
+        expect.same(list.head.queueName, q"test"),
         expect.same(list.head.isPartitioned, false),
         expect.same(list.head.isUnlogged, false)
       ).combineAll
@@ -213,7 +213,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
       c <- captured
     yield List(
       expect.same(matches.size, 2),
-      expect.same(matches.map(_.queueName), List(QueueName("q1"), QueueName("q2"))),
+      expect.same(matches.map(_.queueName), List(q"q1", q"q2")),
       expect.same(matches.map(_.pattern), List(TopicPattern("orders.*"), TopicPattern("orders.#"))),
       expect.same(c.routingKey, "orders.eu")
     ).combineAll

@@ -54,7 +54,7 @@ case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, 
 @main def anormExample(): Unit =
   given ExecutionContext = ExecutionContext.global
 
-  val queue = QueueName("orders")
+  val queue = q"orders"
 
   val ds = new org.postgresql.ds.PGSimpleDataSource()
   ds.setURL("jdbc:postgresql://localhost:5432/pgmq")
