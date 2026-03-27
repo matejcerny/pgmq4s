@@ -138,13 +138,27 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
 
   protected def readRaw(queue: String, vt: Int, qty: Int): Future[List[RawMessage]] =
     db.run:
-      sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.read($queue, $vt, $qty)"
+      sql"""SELECT msg_id
+                 , read_ct
+                 , enqueued_at
+                 , last_read_at
+                 , vt
+                 , message::text
+                 , headers::text
+              FROM pgmq.read($queue, $vt, $qty)"""
         .as[RawMessage]
         .map(_.toList)
 
   protected def popRaw(queue: String): Future[Option[RawMessage]] =
     db.run(
-      sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.pop($queue)"
+      sql"""SELECT msg_id
+                 , read_ct
+                 , enqueued_at
+                 , last_read_at
+                 , vt
+                 , message::text
+                 , headers::text
+              FROM pgmq.pop($queue)"""
         .as[RawMessage]
         .headOption
     )
@@ -189,7 +203,14 @@ class SlickPgmqClient(db: Database)(using ExecutionContext) extends PgmqClient[F
 
   protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): Future[Option[RawMessage]] =
     db.run:
-      sql"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message::text, headers::text FROM pgmq.set_vt($queue, $msgId, $vtOffset)"
+      sql"""SELECT msg_id
+                 , read_ct
+                 , enqueued_at
+                 , last_read_at
+                 , vt
+                 , message::text
+                 , headers::text
+              FROM pgmq.set_vt($queue, $msgId, $vtOffset)"""
         .as[RawMessage]
         .headOption
 
