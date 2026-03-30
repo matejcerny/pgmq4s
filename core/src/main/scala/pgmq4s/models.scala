@@ -71,9 +71,36 @@ object MessageId:
 
 opaque type RoutingKey = String
 
-/** Routing key for topic-based message delivery (e.g. `"orders.eu.created"`). */
+/** Routing key for topic-based message delivery (e.g. `"orders.eu.created"`).
+  *
+  * PGMQ's `validate_routing_key` enforces: non-empty, max 255 characters, only `[a-zA-Z0-9._-]`, no leading/trailing
+  * dots, no consecutive dots. Use [[RoutingKey.apply]] for validated construction, [[RoutingKey.unsafe]] when the value
+  * is known to be valid, or the `rk"..."` string interpolator for compile-time checked literals:
+  * {{{
+  *   val key = rk"orders.eu.created"   // validated at compile time, zero runtime cost
+  * }}}
+  */
 object RoutingKey:
-  def apply(key: String): RoutingKey = key
+  private val allowed = """^[a-zA-Z0-9._-]+$""".r
+
+  private def validate(key: String): Either[String, RoutingKey] = key match
+    case k if k.isEmpty                      => Left("RoutingKey must not be empty")
+    case k if k.length > 255                 => Left(s"RoutingKey must be at most 255 characters, got ${key.length}")
+    case k if allowed.findFirstIn(k).isEmpty => Left("RoutingKey contains invalid characters (allowed: a-zA-Z0-9._-)")
+    case k if k.startsWith(".")              => Left("RoutingKey must not start with a dot")
+    case k if k.endsWith(".")                => Left("RoutingKey must not end with a dot")
+    case k if k.contains("..")               => Left("RoutingKey must not contain consecutive dots")
+    case _                                   => Right(key)
+
+  def apply(key: String): Either[String, RoutingKey] = validate(key)
+
+  def unsafe(key: String): RoutingKey =
+    val result = validate(key)
+    require(result.isRight, result.left.getOrElse(""))
+    key
+
+  private[pgmq4s] def trusted(key: String): RoutingKey = key
+
   extension (routingKey: RoutingKey) def value: String = routingKey
 
 opaque type TopicPattern = String
@@ -110,6 +137,8 @@ extension (n: Int)
     else compiletime.error("BatchSize must be positive")
 
 extension (inline sc: StringContext) inline def q(inline args: Any*): QueueName = ${ QueueNameMacro.impl('sc, 'args) }
+extension (inline sc: StringContext)
+  inline def rk(inline args: Any*): RoutingKey = ${ RoutingKeyMacro.impl('sc, 'args) }
 
 opaque type VisibilityTimeout = FiniteDuration
 

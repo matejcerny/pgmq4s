@@ -106,14 +106,14 @@ admin.bindTopic(TopicPattern("orders.*"), queue)
 
 // Delivers to all queues bound to patterns matching "orders.created"
 val recipientCount: F[Int] =
-  client.sendTopic(RoutingKey("orders.created"), payload)
+  client.sendTopic(rk"orders.created", payload)
 ```
 
 Batch send returns which queues received which message IDs:
 
 ```scala
 val results: F[List[TopicMessageId]] =
-  client.sendBatchTopic(RoutingKey("orders.created"), payloads)
+  client.sendBatchTopic(rk"orders.created", payloads)
 // Each TopicMessageId contains queueName and msgId
 ```
 
@@ -121,9 +121,14 @@ Test which queues would match without sending:
 
 ```scala
 val matches: F[List[RoutingMatch]] =
-  admin.testRouting(RoutingKey("orders.eu.created"))
+  admin.testRouting(rk"orders.eu.created")
 // Each RoutingMatch contains pattern, queueName, compiledRegex
 ```
+
+<div class="admonition note">
+<div class="admonition-title">Routing Key Validation</div>
+<p><code>RoutingKey</code> is validated client-side to match PGMQ's <code>validate_routing_key</code> rules: non-empty, max 255 characters, only <code>[a-zA-Z0-9._-]</code>, no leading/trailing dots, no consecutive dots. Use the <code>rk"..."</code> interpolator for compile-time validation, <code>RoutingKey.apply</code> for <code>Either</code>-based runtime validation, or <code>RoutingKey.unsafe</code> when the value is known to be valid.</p>
+</div>
 
 ## Planned Features
 

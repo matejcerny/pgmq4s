@@ -146,7 +146,7 @@ trait PgmqClientITSuite extends IOSuite:
       expect.same(msg.payload, payload),
       msg match
         case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
-        case _                                     => failure("expected WithHeaders")
+        case _                                        => failure("expected WithHeaders")
     ).combineAll
 
   pgmqTest("send batch with headers"): (client, _, queue) =>
@@ -170,7 +170,7 @@ trait PgmqClientITSuite extends IOSuite:
       expect.same(msg.payload, payload),
       msg match
         case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
-        case _                                     => failure("expected WithHeaders")
+        case _                                        => failure("expected WithHeaders")
     ).combineAll
 
   pgmqTest("send batch with headers and delay"): (client, _, queue) =>
@@ -215,7 +215,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("bindTopic and sendTopic delivers to bound queue"): (client, admin, queue) =>
     val pattern = TopicPattern("orders.*")
-    val routingKey = RoutingKey("orders.created")
+    val routingKey = rk"orders.created"
     val payload = TestPayload(200, "topic msg")
     for
       _ <- admin.bindTopic(pattern, queue)
@@ -229,7 +229,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   test("sendTopic returns correct recipient count") { case (client, admin, queues, counter) =>
     val pattern = TopicPattern("multi.*")
-    val routingKey = RoutingKey("multi.event")
+    val routingKey = rk"multi.event"
     for
       n1 <- counter.getAndUpdate(_ + 1)
       n2 <- counter.getAndUpdate(_ + 1)
@@ -246,7 +246,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("unbindTopic stops delivery"): (client, admin, queue) =>
     val pattern = TopicPattern("unbind.*")
-    val routingKey = RoutingKey("unbind.test")
+    val routingKey = rk"unbind.test"
     for
       _ <- admin.bindTopic(pattern, queue)
       ok <- admin.unbindTopic(pattern, queue)
@@ -256,7 +256,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("wildcard # matches multiple segments"): (client, admin, queue) =>
     val pattern = TopicPattern("events.#")
-    val routingKey = RoutingKey("events.user.created")
+    val routingKey = rk"events.user.created"
     for
       _ <- admin.bindTopic(pattern, queue)
       count <- client.sendTopic(routingKey, TestPayload(203, "deep"))
@@ -266,7 +266,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("sendBatchTopic delivers all messages"): (client, admin, queue) =>
     val pattern = TopicPattern("batch.*")
-    val routingKey = RoutingKey("batch.test")
+    val routingKey = rk"batch.test"
     val payloads = List(TestPayload(210, "b1"), TestPayload(211, "b2"), TestPayload(212, "b3"))
     for
       _ <- admin.bindTopic(pattern, queue)
@@ -277,7 +277,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("sendTopic with headers delivers headers"): (client, admin, queue) =>
     val pattern = TopicPattern("hdrs.*")
-    val routingKey = RoutingKey("hdrs.test")
+    val routingKey = rk"hdrs.test"
     val payload = TestPayload(220, "with headers")
     val hdrs = TestHeaders("trace-topic")
     for
@@ -290,12 +290,12 @@ trait PgmqClientITSuite extends IOSuite:
       expect.same(msg.payload, payload),
       msg match
         case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
-        case _                                     => failure("expected WithHeaders")
+        case _                                        => failure("expected WithHeaders")
     ).combineAll
 
   pgmqTest("sendTopic with delay"): (client, admin, queue) =>
     val pattern = TopicPattern("delay.*")
-    val routingKey = RoutingKey("delay.test")
+    val routingKey = rk"delay.test"
     for
       _ <- admin.bindTopic(pattern, queue)
       count <- client.sendTopic(routingKey, TestPayload(230, "delayed"), delay = 0)
@@ -303,7 +303,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("sendTopic with headers and delay"): (client, admin, queue) =>
     val pattern = TopicPattern("hdrsdly.*")
-    val routingKey = RoutingKey("hdrsdly.test")
+    val routingKey = rk"hdrsdly.test"
     val payload = TestPayload(231, "headers+delay")
     val hdrs = TestHeaders("trace-delay")
     for
@@ -316,12 +316,12 @@ trait PgmqClientITSuite extends IOSuite:
       expect.same(msg.payload, payload),
       msg match
         case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
-        case _                                     => failure("expected WithHeaders")
+        case _                                        => failure("expected WithHeaders")
     ).combineAll
 
   pgmqTest("sendBatchTopic with delay"): (client, admin, queue) =>
     val pattern = TopicPattern("batchdly.*")
-    val routingKey = RoutingKey("batchdly.test")
+    val routingKey = rk"batchdly.test"
     val payloads = List(TestPayload(240, "bd1"), TestPayload(241, "bd2"))
     for
       _ <- admin.bindTopic(pattern, queue)
@@ -332,7 +332,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("sendBatchTopic with headers"): (client, admin, queue) =>
     val pattern = TopicPattern("batchhdr.*")
-    val routingKey = RoutingKey("batchhdr.test")
+    val routingKey = rk"batchhdr.test"
     val payloads = List(TestPayload(250, "bh1"), TestPayload(251, "bh2"))
     val hdrs = List(TestHeaders("t1"), TestHeaders("t2"))
     for
@@ -344,7 +344,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("sendBatchTopic with headers and delay"): (client, admin, queue) =>
     val pattern = TopicPattern("batchhdrdly.*")
-    val routingKey = RoutingKey("batchhdrdly.test")
+    val routingKey = rk"batchhdrdly.test"
     val payloads = List(TestPayload(260, "bhd1"), TestPayload(261, "bhd2"))
     val hdrs = List(TestHeaders("td1"), TestHeaders("td2"))
     for
@@ -356,7 +356,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("testRouting shows matching patterns"): (_, admin, queue) =>
     val pattern = TopicPattern("route.*")
-    val routingKey = RoutingKey("route.test")
+    val routingKey = rk"route.test"
     for
       _ <- admin.bindTopic(pattern, queue)
       matches <- admin.testRouting(routingKey)

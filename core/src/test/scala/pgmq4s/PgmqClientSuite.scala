@@ -429,7 +429,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   // --- sendTopic ---
 
-  private val rk = RoutingKey("orders.eu.created")
+  private val rk = rk"orders.eu.created"
 
   pgmqTest("sendTopic encodes message and returns recipient count", Returns(sendTopic = 3)): (client, captured) =>
     for
