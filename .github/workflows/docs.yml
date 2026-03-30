@@ -29,7 +29,9 @@ jobs:
             echo "version=$(git describe --tags --abbrev=0 | sed 's/^v//')" >> "$GITHUB_OUTPUT"
           fi
 
-      - run: sbt coreJVM/doc
+      - run: sbt "set ThisBuild / version := \"$VERSION\"" coreJVM/doc
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
 
       - name: Prepare site
         env:
