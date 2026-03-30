@@ -105,9 +105,44 @@ object RoutingKey:
 
 opaque type TopicPattern = String
 
-/** Binding pattern with `*` (single segment) and `#` (zero or more) wildcards. */
+/** Binding pattern with `*` (single segment) and `#` (zero or more) wildcards.
+  *
+  * PGMQ's `validate_topic_pattern` enforces: non-empty, max 255 characters, only `[a-zA-Z0-9._-*#]`, no
+  * leading/trailing dots, no consecutive dots, no `**`, no `##`, no adjacent wildcards (`*#` or `#*`). Use
+  * [[TopicPattern.apply]] for validated construction, [[TopicPattern.unsafe]] when the value is known to be valid, or
+  * the `tp"..."` string interpolator for compile-time checked literals:
+  * {{{
+  *   val pattern = tp"orders.*"   // validated at compile time, zero runtime cost
+  * }}}
+  */
 object TopicPattern:
-  def apply(pattern: String): TopicPattern = pattern
+  private val allowed = """^[a-zA-Z0-9._\-*#]+$""".r
+
+  private def validate(pattern: String): Either[String, TopicPattern] = pattern match
+    case p if p.isEmpty                      => Left("TopicPattern must not be empty")
+    case p if p.length > 255                 => Left(s"TopicPattern must be at most 255 characters, got ${p.length}")
+    case p if allowed.findFirstIn(p).isEmpty =>
+      Left("TopicPattern contains invalid characters (allowed: a-zA-Z0-9._-*#)")
+    case p if p.startsWith(".") => Left("TopicPattern must not start with a dot")
+    case p if p.endsWith(".")   => Left("TopicPattern must not end with a dot")
+    case p if p.contains("..")  => Left("TopicPattern must not contain consecutive dots")
+    case p if p.contains("**")  =>
+      Left("TopicPattern must not contain consecutive stars (**), use # for multi-segment matching")
+    case p if p.contains("##") =>
+      Left("TopicPattern must not contain consecutive hashes (##), a single # already matches zero or more segments")
+    case p if p.contains("*#") || p.contains("#*") =>
+      Left("TopicPattern must not contain adjacent wildcards (*# or #*), separate wildcards with dots")
+    case _ => Right(pattern)
+
+  def apply(pattern: String): Either[String, TopicPattern] = validate(pattern)
+
+  def unsafe(pattern: String): TopicPattern =
+    val result = validate(pattern)
+    require(result.isRight, result.left.getOrElse(""))
+    pattern
+
+  private[pgmq4s] def trusted(pattern: String): TopicPattern = pattern
+
   extension (topicPattern: TopicPattern) def value: String = topicPattern
 
 opaque type BatchSize = Int
@@ -139,6 +174,8 @@ extension (n: Int)
 extension (inline sc: StringContext) inline def q(inline args: Any*): QueueName = ${ QueueNameMacro.impl('sc, 'args) }
 extension (inline sc: StringContext)
   inline def rk(inline args: Any*): RoutingKey = ${ RoutingKeyMacro.impl('sc, 'args) }
+extension (inline sc: StringContext)
+  inline def tp(inline args: Any*): TopicPattern = ${ TopicPatternMacro.impl('sc, 'args) }
 
 opaque type VisibilityTimeout = FiniteDuration
 

@@ -186,14 +186,14 @@ object PgmqAdminSuite extends SimpleIOSuite:
 
   pgmqTest("bindTopic unwraps opaque types"): (admin, captured) =>
     for
-      _ <- admin.bindTopic(TopicPattern("orders.*"), q)
+      _ <- admin.bindTopic(tp"orders.*", q)
       c <- captured
     yield expect.same(c.pattern, "orders.*") and
       expect.same(c.queue, "my-queue")
 
   pgmqTest("unbindTopic unwraps opaque types and returns boolean"): (admin, captured) =>
     for
-      ok <- admin.unbindTopic(TopicPattern("orders.*"), q)
+      ok <- admin.unbindTopic(tp"orders.*", q)
       c <- captured
     yield List(
       expect(clue(ok)),
@@ -202,7 +202,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
     ).combineAll
 
   pgmqTest("unbindTopic returns false when binding did not exist", Returns(unbindTopic = false)): (admin, _) =>
-    admin.unbindTopic(TopicPattern("missing.#"), q).map(ok => expect(!clue(ok)))
+    admin.unbindTopic(tp"missing.#", q).map(ok => expect(!clue(ok)))
 
   pgmqTest(
     "testRouting wraps results as RoutingMatch",
@@ -214,6 +214,6 @@ object PgmqAdminSuite extends SimpleIOSuite:
     yield List(
       expect.same(matches.size, 2),
       expect.same(matches.map(_.queueName), List(q"q1", q"q2")),
-      expect.same(matches.map(_.pattern), List(TopicPattern("orders.*"), TopicPattern("orders.#"))),
+      expect.same(matches.map(_.pattern), List(tp"orders.*", tp"orders.#")),
       expect.same(c.routingKey, "orders.eu")
     ).combineAll
