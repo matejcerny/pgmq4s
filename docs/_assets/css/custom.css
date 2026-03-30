@@ -50,3 +50,8 @@
   border-color: #ffb74d;
   color: #ffe0b2;
 }
+
+.mobile-menu-logo .project-logo img {
+  max-height: 2.5rem;
+  width: auto;
+}
