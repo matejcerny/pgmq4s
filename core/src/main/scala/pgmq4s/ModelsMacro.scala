@@ -35,3 +35,16 @@ private[pgmq4s] object QueueNameMacro:
           case Left(errorMsg) => report.errorAndAbort(errorMsg)
       case _ =>
         report.errorAndAbort("q\"...\" requires a string literal")
+
+private[pgmq4s] object RoutingKeyMacro:
+  def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using Quotes): Expr[RoutingKey] =
+    import quotes.reflect.*
+    sc match
+      case '{ StringContext(${ Varargs(Exprs(parts)) }*) } =>
+        if parts.size != 1 then report.errorAndAbort("rk\"...\" does not support interpolation")
+        val key = parts.head
+        RoutingKey(key) match
+          case Right(_)       => '{ RoutingKey.trusted(${ Expr(key) }) }
+          case Left(errorMsg) => report.errorAndAbort(errorMsg)
+      case _ =>
+        report.errorAndAbort("rk\"...\" requires a string literal")

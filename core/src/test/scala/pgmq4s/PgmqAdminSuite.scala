@@ -209,7 +209,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
     Returns(testRouting = List(("orders.*", "q1", "^orders\\.[^.]+$"), ("orders.#", "q2", "^orders\\..*$")))
   ): (admin, captured) =>
     for
-      matches <- admin.testRouting(RoutingKey("orders.eu"))
+      matches <- admin.testRouting(rk"orders.eu")
       c <- captured
     yield List(
       expect.same(matches.size, 2),
