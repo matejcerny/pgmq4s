@@ -48,3 +48,18 @@ private[pgmq4s] object RoutingKeyMacro:
           case Left(errorMsg) => report.errorAndAbort(errorMsg)
       case _ =>
         report.errorAndAbort("rk\"...\" requires a string literal")
+
+private[pgmq4s] object TopicPatternMacro:
+  def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using
+      Quotes
+  ): Expr[TopicPattern] =
+    import quotes.reflect.*
+    sc match
+      case '{ StringContext(${ Varargs(Exprs(parts)) }*) } =>
+        if parts.size != 1 then report.errorAndAbort("tp\"...\" does not support interpolation")
+        val pattern = parts.head
+        TopicPattern(pattern) match
+          case Right(_)       => '{ TopicPattern.trusted(${ Expr(pattern) }) }
+          case Left(errorMsg) => report.errorAndAbort(errorMsg)
+      case _ =>
+        report.errorAndAbort("tp\"...\" requires a string literal")

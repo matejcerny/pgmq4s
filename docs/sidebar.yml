@@ -8,6 +8,10 @@ subsection:
     title: Installation
   - page: api-coverage.md
     title: API Coverage
+  - page: messages.md
+    title: Messages
+  - page: topics.md
+    title: Topics
   - page: json-codecs.md
     title: JSON Codecs
   - title: Backends

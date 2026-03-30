@@ -71,7 +71,9 @@ trait PgmqAdmin[F[_]: Functor] extends PgmqAdminBackend[F]:
   /** Dry-run to see which queues would match a routing key. */
   def testRouting(routingKey: RoutingKey): F[List[RoutingMatch]] =
     testRoutingRaw(routingKey.value)
-      .map(_.map((pattern, queue, regex) => RoutingMatch(TopicPattern(pattern), QueueName.trusted(queue), regex)))
+      .map:
+        _.map: (pattern, queue, regex) =>
+          RoutingMatch(TopicPattern.trusted(pattern), QueueName.trusted(queue), regex)
 
   /** Enable NOTIFY triggers on the queue. PGMQ fires a PostgreSQL NOTIFY on channel `pgmq.q_<queue_name>.INSERT` after
     * each insert, throttled by `throttleInterval`.

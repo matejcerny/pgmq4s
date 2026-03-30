@@ -195,6 +195,94 @@ object ModelsSuite extends SimpleIOSuite:
     )
     expect(errors.exists(_.message.contains("requires a string literal")))
 
+  // --- TopicPattern ---
+
+  pureTest("TopicPattern.apply accepts valid patterns"):
+    List(
+      expect(clue(TopicPattern("logs.*")).isRight),
+      expect(clue(TopicPattern("logs.#")).isRight),
+      expect(clue(TopicPattern("*.error")).isRight),
+      expect(clue(TopicPattern("#.error")).isRight),
+      expect(clue(TopicPattern("app.*.#")).isRight),
+      expect(clue(TopicPattern("#")).isRight),
+      expect(clue(TopicPattern("simple")).isRight),
+      expect(clue(TopicPattern("a" * 255)).isRight),
+      expect.same(TopicPattern.unsafe("logs.*").value, "logs.*")
+    ).combineAll
+
+  pureTest("tp interpolator creates TopicPattern from valid literal"):
+    val tp1: TopicPattern = tp"logs.*"
+    val tp2: TopicPattern = tp"events.#"
+    val tp3: TopicPattern = tp"simple"
+
+    List(
+      expect.same(tp1.value, "logs.*"),
+      expect.same(tp2.value, "events.#"),
+      expect.same(tp3.value, "simple")
+    ).combineAll
+
+  pureTest("TopicPattern.apply rejects empty string"):
+    expect.same(TopicPattern(""), Left("TopicPattern must not be empty"))
+
+  pureTest("tp interpolator rejects empty string at compile time"):
+    expect(scala.compiletime.testing.typeCheckErrors("tp\"\"").exists(_.message.contains("must not be empty")))
+
+  pureTest("TopicPattern.apply rejects patterns longer than 255 characters"):
+    expect(clue(TopicPattern("a" * 256)).isLeft)
+
+  pureTest("TopicPattern.apply rejects space"):
+    expect(clue(TopicPattern("logs error")).isLeft)
+
+  pureTest("TopicPattern.apply rejects exclamation mark"):
+    expect(clue(TopicPattern("logs.error!")).isLeft)
+
+  pureTest("TopicPattern.apply rejects dollar sign"):
+    expect(clue(TopicPattern("logs$error")).isLeft)
+
+  pureTest("TopicPattern.apply rejects semicolon"):
+    expect(clue(TopicPattern("logs;error")).isLeft)
+
+  pureTest("TopicPattern.apply rejects leading dot"):
+    expect(clue(TopicPattern(".logs.*")).isLeft)
+
+  pureTest("TopicPattern.apply rejects trailing dot"):
+    expect(clue(TopicPattern("logs.*.")).isLeft)
+
+  pureTest("TopicPattern.apply rejects consecutive dots"):
+    expect(clue(TopicPattern("logs..error")).isLeft)
+
+  pureTest("TopicPattern.apply rejects consecutive stars"):
+    expect(clue(TopicPattern("logs.**")).isLeft)
+
+  pureTest("TopicPattern.apply rejects consecutive hashes"):
+    expect(clue(TopicPattern("logs.##")).isLeft)
+
+  pureTest("TopicPattern.apply rejects adjacent wildcards *# and #*"):
+    List(
+      expect(clue(TopicPattern("logs.*#")).isLeft),
+      expect(clue(TopicPattern("logs.#*")).isLeft)
+    ).combineAll
+
+  pureTest("TopicPattern.unsafe throws on invalid input"):
+    List(
+      expect(Try(TopicPattern.unsafe("")).isFailure),
+      expect(Try(TopicPattern.unsafe("logs$error")).isFailure),
+      expect(Try(TopicPattern.unsafe(".leading")).isFailure)
+    ).combineAll
+
+  pureTest("tp interpolator rejects invalid characters at compile time"):
+    expect(scala.compiletime.testing.typeCheckErrors("tp\"logs;error\"").nonEmpty) and
+      expect(scala.compiletime.testing.typeCheckErrors("tp\"logs error\"").nonEmpty)
+
+  pureTest("tp interpolator rejects consecutive stars at compile time"):
+    expect(scala.compiletime.testing.typeCheckErrors("tp\"logs.**\"").nonEmpty)
+
+  pureTest("tp interpolator requires a string literal"):
+    val errors = scala.compiletime.testing.typeCheckErrors(
+      """StringContext(java.util.UUID.randomUUID().toString).tp()"""
+    )
+    expect(errors.exists(_.message.contains("requires a string literal")))
+
   // --- BatchSize ---
 
   pureTest("BatchSize.apply accepts positive values"):
