@@ -6,6 +6,11 @@
 
 Requires **PGMQ v1.11.0+** (topic-based routing). Core messaging works with v1.10.0.
 
+<div class="admonition info">
+<div class="admonition-title">Note</div>
+<p>This library is under active development. The API may contain breaking changes between releases.</p>
+</div>
+
 ## Features
 
 - **Typelevel ecosystem** — built on Cats Effect with tagless final `PgmqClient[F]` and `PgmqAdmin[F]`
