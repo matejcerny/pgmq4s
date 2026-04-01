@@ -17,7 +17,7 @@ trait PgmqConsumerITSuite extends IOSuite:
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
   case class TestHeaders(traceId: String) derives Encoder.AsObject, Decoder
 
-  private val visibilityTimeout = VisibilityTimeout(30.seconds)
+  private val visibilityTimeout = 30.secondsVisibility
   private val batchSize = 10.messages
 
   type Res = (PgmqClient[IO], PgmqAdmin[IO], Ref[IO, List[QueueName]], Ref[IO, Int])

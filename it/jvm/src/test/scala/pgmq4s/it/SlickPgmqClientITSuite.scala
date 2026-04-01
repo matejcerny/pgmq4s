@@ -17,7 +17,7 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
     override def send[P: PgmqEncoder](queue: QueueName, message: P): IO[MessageId] =
       liftF(underlying.send(queue, message))
 
-    override def send[P: PgmqEncoder](queue: QueueName, message: P, delay: Int): IO[MessageId] =
+    override def send[P: PgmqEncoder](queue: QueueName, message: P, delay: Delay): IO[MessageId] =
       liftF(underlying.send(queue, message, delay))
 
     override def send[P: PgmqEncoder, H: PgmqEncoder](queue: QueueName, message: P, headers: H): IO[MessageId] =
@@ -27,14 +27,14 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
         queue: QueueName,
         message: P,
         headers: H,
-        delay: Int
+        delay: Delay
     ): IO[MessageId] =
       liftF(underlying.send(queue, message, headers, delay))
 
     override def sendBatch[P: PgmqEncoder](queue: QueueName, messages: List[P]): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages))
 
-    override def sendBatch[P: PgmqEncoder](queue: QueueName, messages: List[P], delay: Int): IO[List[MessageId]] =
+    override def sendBatch[P: PgmqEncoder](queue: QueueName, messages: List[P], delay: Delay): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages, delay))
 
     override def sendBatch[P: PgmqEncoder, H: PgmqEncoder](
@@ -48,7 +48,7 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
         queue: QueueName,
         messages: List[P],
         headers: List[H],
-        delay: Int
+        delay: Delay
     ): IO[List[MessageId]] =
       liftF(underlying.sendBatch(queue, messages, headers, delay))
 
@@ -89,7 +89,7 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
     override def sendTopic[P: PgmqEncoder](routingKey: RoutingKey, message: P): IO[Int] =
       liftF(underlying.sendTopic(routingKey, message))
 
-    override def sendTopic[P: PgmqEncoder](routingKey: RoutingKey, message: P, delay: Int): IO[Int] =
+    override def sendTopic[P: PgmqEncoder](routingKey: RoutingKey, message: P, delay: Delay): IO[Int] =
       liftF(underlying.sendTopic(routingKey, message, delay))
 
     override def sendTopic[P: PgmqEncoder, H: PgmqEncoder](routingKey: RoutingKey, message: P, headers: H): IO[Int] =
@@ -99,7 +99,7 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
         routingKey: RoutingKey,
         message: P,
         headers: H,
-        delay: Int
+        delay: Delay
     ): IO[Int] =
       liftF(underlying.sendTopic(routingKey, message, headers, delay))
 
@@ -112,7 +112,7 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
     override def sendBatchTopic[P: PgmqEncoder](
         routingKey: RoutingKey,
         messages: List[P],
-        delay: Int
+        delay: Delay
     ): IO[List[TopicMessageId]] =
       liftF(underlying.sendBatchTopic(routingKey, messages, delay))
 
@@ -127,7 +127,7 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
         routingKey: RoutingKey,
         messages: List[P],
         headers: List[H],
-        delay: Int
+        delay: Delay
     ): IO[List[TopicMessageId]] =
       liftF(underlying.sendBatchTopic(routingKey, messages, headers, delay))
 

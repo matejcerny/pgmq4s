@@ -23,6 +23,43 @@ package pgmq4s
 
 import scala.quoted.*
 
+opaque type QueueName = String
+
+/** Queue name, wrapping a plain `String`.
+  *
+  * PGMQ enforces a 48-character limit, lowercases names server-side, and forbids `$`, `;`, `'`, and `--`. Uppercase
+  * letters are rejected to prevent client/server mismatches. Use [[QueueName.apply]] for validated construction,
+  * [[QueueName.unsafe]] when the value is known to be valid, or the `q"..."` string interpolator for compile-time
+  * checked literals:
+  * {{{
+  *   val name = q"my-queue"   // validated at compile time, zero runtime cost
+  * }}}
+  */
+object QueueName:
+  private val forbidden = """[\$;']|--""".r
+  private val uppercase = """[A-Z]""".r
+
+  private def validate(name: String): Either[String, QueueName] =
+    if name.isEmpty then Left("QueueName must not be empty")
+    else if name.length > 48 then Left(s"QueueName must be at most 48 characters, got ${name.length}")
+    else if uppercase.findFirstIn(name).isDefined then
+      Left("QueueName must be lowercase (PGMQ lowercases names server-side)")
+    else
+      forbidden.findFirstIn(name) match
+        case Some(m) => Left(s"QueueName contains forbidden character or sequence: '$m'")
+        case None    => Right(name)
+
+  def apply(name: String): Either[String, QueueName] = validate(name)
+
+  def unsafe(name: String): QueueName =
+    val result = validate(name)
+    require(result.isRight, result.left.getOrElse(""))
+    name
+
+  private[pgmq4s] def trusted(name: String): QueueName = name
+
+  extension (q: QueueName) def value: String = q
+
 private[pgmq4s] object QueueNameMacro:
   def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using Quotes): Expr[QueueName] =
     import quotes.reflect.*
@@ -36,30 +73,4 @@ private[pgmq4s] object QueueNameMacro:
       case _ =>
         report.errorAndAbort("q\"...\" requires a string literal")
 
-private[pgmq4s] object RoutingKeyMacro:
-  def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using Quotes): Expr[RoutingKey] =
-    import quotes.reflect.*
-    sc match
-      case '{ StringContext(${ Varargs(Exprs(parts)) }*) } =>
-        if parts.size != 1 then report.errorAndAbort("rk\"...\" does not support interpolation")
-        val key = parts.head
-        RoutingKey(key) match
-          case Right(_)       => '{ RoutingKey.trusted(${ Expr(key) }) }
-          case Left(errorMsg) => report.errorAndAbort(errorMsg)
-      case _ =>
-        report.errorAndAbort("rk\"...\" requires a string literal")
-
-private[pgmq4s] object TopicPatternMacro:
-  def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using
-      Quotes
-  ): Expr[TopicPattern] =
-    import quotes.reflect.*
-    sc match
-      case '{ StringContext(${ Varargs(Exprs(parts)) }*) } =>
-        if parts.size != 1 then report.errorAndAbort("tp\"...\" does not support interpolation")
-        val pattern = parts.head
-        TopicPattern(pattern) match
-          case Right(_)       => '{ TopicPattern.trusted(${ Expr(pattern) }) }
-          case Left(errorMsg) => report.errorAndAbort(errorMsg)
-      case _ =>
-        report.errorAndAbort("tp\"...\" requires a string literal")
+extension (inline sc: StringContext) inline def q(inline args: Any*): QueueName = ${ QueueNameMacro.impl('sc, 'args) }

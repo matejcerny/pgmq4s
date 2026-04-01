@@ -171,7 +171,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("send with delay forwards delay to raw method", Returns(send = 7L)): (client, captured) =>
     for
-      id <- client.send[String](q, "delayed", 30)
+      id <- client.send[String](q, "delayed", 30.secondsDelay)
       c <- captured
     yield expect.same(id.value, 7L) and
       expect.same(c.delay, 30)
@@ -188,7 +188,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("sendBatch with delay forwards delay", Returns(sendBatch = List(1L))): (client, captured) =>
     for
-      ids <- client.sendBatch[String](q, List("x"), 60)
+      ids <- client.sendBatch[String](q, List("x"), 60.secondsDelay)
       c <- captured
     yield expect.same(ids.map(_.value), List(1L)) and
       expect.same(c.delay, 60)
@@ -207,7 +207,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("send with headers and delay forwards all arguments", Returns(send = 4L)): (client, captured) =>
     for
-      id <- client.send[String, String](q, "body", "hdrs", 15)
+      id <- client.send[String, String](q, "body", "hdrs", 15.secondsDelay)
       c <- captured
     yield List(
       expect.same(id.value, 4L),
@@ -232,7 +232,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatch with headers and delay forwards all arguments", Returns(sendBatch = List(1L))):
     (client, captured) =>
       for
-        ids <- client.sendBatch[String, String](q, List("a"), List("h1"), 45)
+        ids <- client.sendBatch[String, String](q, List("a"), List("h1"), 45.secondsDelay)
         c <- captured
       yield List(
         expect.same(ids.map(_.value), List(1L)),
@@ -246,7 +246,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read decodes raw messages into Message[P]", Returns(read = List(rawMsg(1L, "payload")))):
     (client, captured) =>
       for
-        msgs <- client.read[String](q, visibilityTimeout = VisibilityTimeout(30.seconds), batchSize = 5.messages)
+        msgs <- client.read[String](q, visibilityTimeout = 30.secondsVisibility, batchSize = 5.messages)
         c <- captured
       yield List(
         expect.same(msgs.size, 1),
@@ -257,20 +257,29 @@ object PgmqClientSuite extends SimpleIOSuite:
         expect.same(c.qty, 5)
       ).combineAll
 
-  pgmqTest("read with decode failure raises error in IO", Returns(read = List(rawMsg(1L, "not-an-int")))):
+  pgmqTest("read with decode failure raises PgmqDecodingError", Returns(read = List(rawMsg(1L, "not-an-int")))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
       client
-        .read[Int](q, VisibilityTimeout(30.seconds), 1.messages)(using failing)
+        .read[Int](q, 30.secondsVisibility, 1.messages)(using failing)
         .attempt
-        .map(result => expect(clue(result).isLeft))
+        .map:
+          case Left(e: PgmqDecodingError) =>
+            expect.same(e.messageId, MessageId(1L)) and
+              expect.same(e.queue, q) and
+              expect.same(e.getCause.getMessage, "bad")
+          case other => failure(s"expected PgmqDecodingError, got $other")
 
   pgmqTest(
     "read with headers returns WithHeaders when headers present",
     Returns(read = List(rawMsg(1L, "payload", Some("hdrs"))))
   ): (client, _) =>
     for
-      msgs <- client.read[String, String](q, visibilityTimeout = VisibilityTimeout(30.seconds), batchSize = 5.messages)
+      msgs <- client.read[String, String](
+        q,
+        visibilityTimeout = 30.secondsVisibility,
+        batchSize = 5.messages
+      )
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected at least one message"))
     yield List(
       expect(clue(msg).isInstanceOf[Message.WithHeaders[?, ?]]),
@@ -281,7 +290,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("read with headers returns Plain when headers absent", Returns(read = List(rawMsg(1L, "payload")))):
     (client, _) =>
       client
-        .read[String, String](q, visibilityTimeout = VisibilityTimeout(30.seconds), batchSize = 5.messages)
+        .read[String, String](q, visibilityTimeout = 30.secondsVisibility, batchSize = 5.messages)
         .map: msgs =>
           expect(clue(msgs.head).isInstanceOf[Message.Plain[?]])
 
@@ -300,9 +309,18 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("pop returns None when backend returns None"): (client, _) =>
     client.pop[String](q).map(opt => expect(clue(opt).isEmpty))
 
-  pgmqTest("pop with decode failure raises error in IO", Returns(pop = Some(rawMsg(1L, "not-an-int")))): (client, _) =>
-    val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-    client.pop[Int](q)(using failing).attempt.map(result => expect(clue(result).isLeft))
+  pgmqTest("pop with decode failure raises PgmqDecodingError", Returns(pop = Some(rawMsg(1L, "not-an-int")))):
+    (client, _) =>
+      val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
+      client
+        .pop[Int](q)(using failing)
+        .attempt
+        .map:
+          case Left(e: PgmqDecodingError) =>
+            expect.same(e.messageId, MessageId(1L)) and
+              expect.same(e.queue, q) and
+              expect.same(e.getCause.getMessage, "bad")
+          case other => failure(s"expected PgmqDecodingError, got $other")
 
   pgmqTest(
     "pop with headers returns WithHeaders when headers present",
@@ -328,7 +346,8 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("setVisibilityTimeout decodes and wraps optional result", Returns(setVt = Some(rawMsg(9L, "updated")))):
     (client, captured) =>
       for
-        opt <- client.setVisibilityTimeout[String](q, MessageId(9L), visibilityTimeout = VisibilityTimeout(60.seconds))
+        opt <- client
+          .setVisibilityTimeout[String](q, MessageId(9L), visibilityTimeout = 60.secondsVisibility)
         c <- captured
       yield List(
         expect(clue(opt).isDefined),
@@ -339,7 +358,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("setVisibilityTimeout returns None when backend returns None"): (client, _) =>
     client
-      .setVisibilityTimeout[String](q, MessageId(1L), VisibilityTimeout(10.seconds))
+      .setVisibilityTimeout[String](q, MessageId(1L), 10.secondsVisibility)
       .map(opt => expect(clue(opt).isEmpty))
 
   pgmqTest(
@@ -350,7 +369,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       opt <- client.setVisibilityTimeout[String, String](
         q,
         MessageId(9L),
-        visibilityTimeout = VisibilityTimeout(60.seconds)
+        visibilityTimeout = 60.secondsVisibility
       )
       c <- captured
     yield List(
@@ -365,34 +384,52 @@ object PgmqClientSuite extends SimpleIOSuite:
     Returns(setVt = Some(rawMsg(9L, "u")))
   ): (client, _) =>
     client
-      .setVisibilityTimeout[String, String](q, MessageId(9L), visibilityTimeout = VisibilityTimeout(60.seconds))
+      .setVisibilityTimeout[String, String](q, MessageId(9L), visibilityTimeout = 60.secondsVisibility)
       .map: opt =>
         expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
 
   pgmqTest("setVisibilityTimeout with headers returns None when backend returns None"): (client, _) =>
     client
-      .setVisibilityTimeout[String, String](q, MessageId(1L), VisibilityTimeout(10.seconds))
+      .setVisibilityTimeout[String, String](q, MessageId(1L), 10.secondsVisibility)
       .map(opt => expect(clue(opt).isEmpty))
 
   // --- decode failure with headers ---
 
-  pgmqTest("read with headers fails when body decode fails", Returns(read = List(rawMsg(1L, "bad", Some("h"))))):
-    (client, _) =>
-      val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-      client
-        .read[Int, String](q, VisibilityTimeout(30.seconds), 1.messages)(using failing, summon[PgmqDecoder[String]])
-        .attempt
-        .map: result =>
-          expect(clue(result).isLeft)
+  pgmqTest(
+    "read with headers fails when body decode fails",
+    Returns(read = List(rawMsg(1L, "bad", Some("h"))))
+  ): (client, _) =>
+    val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad body")))
+    client
+      .read[Int, String](q, 30.secondsVisibility, 1.messages)(using
+        failing,
+        summon[PgmqDecoder[String]]
+      )
+      .attempt
+      .map:
+        case Left(e: PgmqDecodingError) =>
+          expect.same(e.messageId, MessageId(1L)) and
+            expect.same(e.queue, q) and
+            expect.same(e.getCause.getMessage, "bad body")
+        case other => failure(s"expected PgmqDecodingError, got $other")
 
-  pgmqTest("read with headers fails when header decode fails", Returns(read = List(rawMsg(1L, "ok", Some("bad"))))):
-    (client, _) =>
-      val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
-      client
-        .read[String, Int](q, VisibilityTimeout(30.seconds), 1.messages)(using summon[PgmqDecoder[String]], failing)
-        .attempt
-        .map: result =>
-          expect(clue(result).isLeft)
+  pgmqTest(
+    "read with headers fails when header decode fails",
+    Returns(read = List(rawMsg(1L, "ok", Some("bad"))))
+  ): (client, _) =>
+    val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad header")))
+    client
+      .read[String, Int](q, 30.secondsVisibility, 1.messages)(using
+        summon[PgmqDecoder[String]],
+        failing
+      )
+      .attempt
+      .map:
+        case Left(e: PgmqDecodingError) =>
+          expect.same(e.messageId, MessageId(1L)) and
+            expect.same(e.queue, q) and
+            expect.same(e.getCause.getMessage, "bad header")
+        case other => failure(s"expected PgmqDecodingError, got $other")
 
   // --- delete / archive ---
 
@@ -443,7 +480,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("sendTopic with delay forwards delay", Returns(sendTopic = 2)): (client, captured) =>
     for
-      count <- client.sendTopic[String](rk, "delayed", 30)
+      count <- client.sendTopic[String](rk, "delayed", 30.secondsDelay)
       c <- captured
     yield expect.same(count, 2) and
       expect.same(c.delay, 30)
@@ -460,7 +497,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("sendTopic with headers and delay forwards all arguments", Returns(sendTopic = 1)): (client, captured) =>
     for
-      count <- client.sendTopic[String, String](rk, "body", "hdrs", 15)
+      count <- client.sendTopic[String, String](rk, "body", "hdrs", 15.secondsDelay)
       c <- captured
     yield List(
       expect.same(count, 1),
@@ -487,7 +524,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatchTopic with delay forwards delay", Returns(sendBatchTopic = List(("q1", 1L)))):
     (client, captured) =>
       for
-        ids <- client.sendBatchTopic[String](rk, List("x"), 60)
+        ids <- client.sendBatchTopic[String](rk, List("x"), 60.secondsDelay)
         c <- captured
       yield expect.same(ids.size, 1) and
         expect.same(c.delay, 60)
@@ -510,7 +547,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     Returns(sendBatchTopic = List(("q1", 1L)))
   ): (client, captured) =>
     for
-      ids <- client.sendBatchTopic[String, String](rk, List("a"), List("h1"), 45)
+      ids <- client.sendBatchTopic[String, String](rk, List("a"), List("h1"), 45.secondsDelay)
       c <- captured
     yield List(
       expect.same(ids.size, 1),

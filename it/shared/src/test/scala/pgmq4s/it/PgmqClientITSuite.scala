@@ -14,7 +14,7 @@ trait PgmqClientITSuite extends IOSuite:
   case class TestPayload(id: Int, text: String) derives Encoder.AsObject, Decoder
   case class TestHeaders(traceId: String) derives Encoder.AsObject, Decoder
 
-  private val visibilityTimeout = VisibilityTimeout(30.seconds)
+  private val visibilityTimeout = 30.secondsVisibility
   private val batchSize = 10.messages
 
   type Res = (PgmqClient[IO], PgmqAdmin[IO], Ref[IO, List[QueueName]], Ref[IO, Int])
@@ -84,12 +84,12 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("send with delay"): (client, _, queue) =>
     val payload = TestPayload(3, "delayed")
-    for msgId <- client.send(queue, payload, delay = 0)
+    for msgId <- client.send(queue, payload, delay = 0.secondsDelay)
     yield expect(clue(msgId.value) > 0L)
 
   pgmqTest("send batch with delay"): (client, _, queue) =>
     val payloads = List(TestPayload(13, "d1"), TestPayload(14, "d2"))
-    for ids <- client.sendBatch(queue, payloads, delay = 0)
+    for ids <- client.sendBatch(queue, payloads, delay = 0.secondsDelay)
     yield expect.same(ids.size, 2)
 
   pgmqTest("archive batch"): (client, _, queue) =>
@@ -109,7 +109,7 @@ trait PgmqClientITSuite extends IOSuite:
   pgmqTest("set visibility timeout"): (client, _, queue) =>
     for
       msgId <- client.send(queue, TestPayload(50, "vt"))
-      updated <- client.setVisibilityTimeout[TestPayload](queue, msgId, VisibilityTimeout(60.seconds))
+      updated <- client.setVisibilityTimeout[TestPayload](queue, msgId, 60.secondsVisibility)
     yield expect.same(updated.map(_.id), Some(msgId))
 
   pgmqTest("detach archive"): (_, admin, queue) =>
@@ -162,7 +162,7 @@ trait PgmqClientITSuite extends IOSuite:
     val payload = TestPayload(105, "headers+delay")
     val hdrs = TestHeaders("trace-delay")
     for
-      msgId <- client.send(queue, payload, hdrs, delay = 0)
+      msgId <- client.send(queue, payload, hdrs, delay = 0.secondsDelay)
       msgs <- client.read[TestPayload, TestHeaders](queue, visibilityTimeout, 1.messages)
       msg <- firstMessage(msgs)
     yield List(
@@ -177,7 +177,7 @@ trait PgmqClientITSuite extends IOSuite:
     val payloads = List(TestPayload(106, "hd1"), TestPayload(107, "hd2"))
     val hdrs = List(TestHeaders("td1"), TestHeaders("td2"))
     for
-      ids <- client.sendBatch(queue, payloads, hdrs, delay = 0)
+      ids <- client.sendBatch(queue, payloads, hdrs, delay = 0.secondsDelay)
       msgs <- client.read[TestPayload, TestHeaders](queue, visibilityTimeout, batchSize)
     yield expect.same(ids.size, 2) and
       expect(msgs.forall(_.isInstanceOf[Message.WithHeaders[?, ?]]))
@@ -298,7 +298,7 @@ trait PgmqClientITSuite extends IOSuite:
     val routingKey = rk"delay.test"
     for
       _ <- admin.bindTopic(pattern, queue)
-      count <- client.sendTopic(routingKey, TestPayload(230, "delayed"), delay = 0)
+      count <- client.sendTopic(routingKey, TestPayload(230, "delayed"), delay = 0.secondsDelay)
     yield expect(clue(count) >= 1)
 
   pgmqTest("sendTopic with headers and delay"): (client, admin, queue) =>
@@ -308,7 +308,7 @@ trait PgmqClientITSuite extends IOSuite:
     val hdrs = TestHeaders("trace-delay")
     for
       _ <- admin.bindTopic(pattern, queue)
-      count <- client.sendTopic(routingKey, payload, hdrs, delay = 0)
+      count <- client.sendTopic(routingKey, payload, hdrs, delay = 0.secondsDelay)
       msgs <- client.read[TestPayload, TestHeaders](queue, visibilityTimeout, 1.messages)
       msg <- firstMessage(msgs)
     yield List(
@@ -325,7 +325,7 @@ trait PgmqClientITSuite extends IOSuite:
     val payloads = List(TestPayload(240, "bd1"), TestPayload(241, "bd2"))
     for
       _ <- admin.bindTopic(pattern, queue)
-      ids <- client.sendBatchTopic(routingKey, payloads, delay = 0)
+      ids <- client.sendBatchTopic(routingKey, payloads, delay = 0.secondsDelay)
       msgs <- client.read[TestPayload](queue, visibilityTimeout, batchSize)
     yield expect.same(ids.size, 2) and
       expect.same(msgs.map(_.payload).toSet, payloads.toSet)
@@ -349,7 +349,7 @@ trait PgmqClientITSuite extends IOSuite:
     val hdrs = List(TestHeaders("td1"), TestHeaders("td2"))
     for
       _ <- admin.bindTopic(pattern, queue)
-      ids <- client.sendBatchTopic(routingKey, payloads, hdrs, delay = 0)
+      ids <- client.sendBatchTopic(routingKey, payloads, hdrs, delay = 0.secondsDelay)
       msgs <- client.read[TestPayload, TestHeaders](queue, visibilityTimeout, batchSize)
     yield expect.same(ids.size, 2) and
       expect(msgs.forall(_.isInstanceOf[Message.WithHeaders[?, ?]]))
@@ -369,7 +369,7 @@ trait PgmqClientITSuite extends IOSuite:
       throttles <- admin.listNotifyInsertThrottles
       throttleInterval = throttles.find(_.queueName == queue).map(_.throttleInterval)
     yield expect(throttles.exists(_.queueName == queue)) and
-      expect.same(throttleInterval, Some(ThrottleInterval(250.millis)))
+      expect.same(throttleInterval, Some(ThrottleInterval.unsafe(250.millis)))
 
   pgmqTest("disableNotifyInsert removes queue from throttle list"): (_, admin, queue) =>
     for
@@ -380,8 +380,8 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("updateNotifyInsert changes throttle interval"): (_, admin, queue) =>
     for
-      _ <- admin.enableNotifyInsert(queue, ThrottleInterval(500.millis))
-      _ <- admin.updateNotifyInsert(queue, ThrottleInterval(1000.millis))
+      _ <- admin.enableNotifyInsert(queue, ThrottleInterval.unsafe(500.millis))
+      _ <- admin.updateNotifyInsert(queue, ThrottleInterval.unsafe(1000.millis))
       throttles <- admin.listNotifyInsertThrottles
       throttleInterval = throttles.find(_.queueName == queue).map(_.throttleInterval)
-    yield expect.same(throttleInterval, Some(ThrottleInterval(1000.millis)))
+    yield expect.same(throttleInterval, Some(ThrottleInterval.unsafe(1000.millis)))

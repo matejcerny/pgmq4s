@@ -32,14 +32,14 @@ client.send[OrderCreated, OrderHeaders](queue, order, OrderHeaders("eu", 1))
 
 ```scala
 val messages: F[List[Message[OrderCreated, OrderHeaders]]] =
-  client.read[OrderCreated, OrderHeaders](queue, VisibilityTimeout(30.seconds), 10.messages)
+  client.read[OrderCreated, OrderHeaders](queue, 30.secondsVisibility, 10.messages)
 ```
 
 Reading without headers ignores any headers present:
 
 ```scala
 val messages: F[List[Message.Plain[OrderCreated]]] =
-  client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
+  client.read[OrderCreated](queue, 30.secondsVisibility, 10.messages)
 ```
 
 <div class="admonition warning">
