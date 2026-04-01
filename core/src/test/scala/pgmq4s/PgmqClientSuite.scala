@@ -257,18 +257,18 @@ object PgmqClientSuite extends SimpleIOSuite:
         expect.same(c.qty, 5)
       ).combineAll
 
-  pgmqTest("read with decode failure raises PgmqDecodingException", Returns(read = List(rawMsg(1L, "not-an-int")))):
+  pgmqTest("read with decode failure raises PgmqDecodingError", Returns(read = List(rawMsg(1L, "not-an-int")))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
       client
         .read[Int](q, 30.secondsVisibility, 1.messages)(using failing)
         .attempt
         .map:
-          case Left(e: PgmqDecodingException) =>
+          case Left(e: PgmqDecodingError) =>
             expect.same(e.messageId, MessageId(1L)) and
               expect.same(e.queue, q) and
               expect.same(e.getCause.getMessage, "bad")
-          case other => failure(s"expected PgmqDecodingException, got $other")
+          case other => failure(s"expected PgmqDecodingError, got $other")
 
   pgmqTest(
     "read with headers returns WithHeaders when headers present",
@@ -309,18 +309,18 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("pop returns None when backend returns None"): (client, _) =>
     client.pop[String](q).map(opt => expect(clue(opt).isEmpty))
 
-  pgmqTest("pop with decode failure raises PgmqDecodingException", Returns(pop = Some(rawMsg(1L, "not-an-int")))):
+  pgmqTest("pop with decode failure raises PgmqDecodingError", Returns(pop = Some(rawMsg(1L, "not-an-int")))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
       client
         .pop[Int](q)(using failing)
         .attempt
         .map:
-          case Left(e: PgmqDecodingException) =>
+          case Left(e: PgmqDecodingError) =>
             expect.same(e.messageId, MessageId(1L)) and
               expect.same(e.queue, q) and
               expect.same(e.getCause.getMessage, "bad")
-          case other => failure(s"expected PgmqDecodingException, got $other")
+          case other => failure(s"expected PgmqDecodingError, got $other")
 
   pgmqTest(
     "pop with headers returns WithHeaders when headers present",
@@ -407,11 +407,11 @@ object PgmqClientSuite extends SimpleIOSuite:
       )
       .attempt
       .map:
-        case Left(e: PgmqDecodingException) =>
+        case Left(e: PgmqDecodingError) =>
           expect.same(e.messageId, MessageId(1L)) and
             expect.same(e.queue, q) and
             expect.same(e.getCause.getMessage, "bad body")
-        case other => failure(s"expected PgmqDecodingException, got $other")
+        case other => failure(s"expected PgmqDecodingError, got $other")
 
   pgmqTest(
     "read with headers fails when header decode fails",
@@ -425,11 +425,11 @@ object PgmqClientSuite extends SimpleIOSuite:
       )
       .attempt
       .map:
-        case Left(e: PgmqDecodingException) =>
+        case Left(e: PgmqDecodingError) =>
           expect.same(e.messageId, MessageId(1L)) and
             expect.same(e.queue, q) and
             expect.same(e.getCause.getMessage, "bad header")
-        case other => failure(s"expected PgmqDecodingException, got $other")
+        case other => failure(s"expected PgmqDecodingError, got $other")
 
   // --- delete / archive ---
 

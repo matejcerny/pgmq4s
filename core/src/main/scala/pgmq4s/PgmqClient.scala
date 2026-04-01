@@ -39,7 +39,7 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
     MonadThrow[F].fromEither(
       dec
         .decode(raw.message)
-        .leftMap(PgmqDecodingException(msgId, queue, _))
+        .leftMap(PgmqDecodingError(msgId, queue, _))
         .map(Message.Plain(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, _))
     )
 
@@ -55,7 +55,7 @@ trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
       yield h match
         case None    => Message.Plain(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, p)
         case Some(v) => Message.WithHeaders(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, p, v)
-      ).leftMap(PgmqDecodingException(msgId, queue, _))
+      ).leftMap(PgmqDecodingError(msgId, queue, _))
 
   /** Send a single message to `queue`. */
   def send[P](queue: QueueName, message: P)(using enc: PgmqEncoder[P]): F[MessageId] =

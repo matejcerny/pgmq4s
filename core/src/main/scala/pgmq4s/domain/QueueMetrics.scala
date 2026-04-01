@@ -21,13 +21,14 @@
 
 package pgmq4s
 
-import scala.util.control.NoStackTrace
+import java.time.OffsetDateTime
 
-/** Raised when a raw message cannot be decoded into the expected payload or header types.
-  *
-  * The original decode error is available via [[getCause]]. No raw JSON is included to avoid leaking sensitive data
-  * into logs.
-  */
-class PgmqDecodingException(val messageId: MessageId, val queue: QueueName, cause: Throwable)
-    extends RuntimeException(s"Failed to decode message ${messageId.value} from queue '${queue.value}'", cause)
-    with NoStackTrace
+/** Queue-level statistics returned by `pgmq.metrics`. */
+case class QueueMetrics(
+    queueName: QueueName,
+    queueLength: Long,
+    newestMsgAgeSec: Option[Long],
+    oldestMsgAgeSec: Option[Long],
+    totalMessages: Long,
+    scrapeTime: OffsetDateTime
+)
