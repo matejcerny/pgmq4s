@@ -34,7 +34,7 @@ object PgmqConsumerSuite extends SimpleIOSuite:
 
   private val now = OffsetDateTime.parse("2025-01-01T00:00:00Z")
   private val q = q"test-queue"
-  private val visibilityTimeout = VisibilityTimeout(5.seconds)
+  private val visibilityTimeout = 5.secondsVisibility
   private val batchSize = 10.messages
 
   given PgmqEncoder[String] = PgmqEncoder.instance(identity)

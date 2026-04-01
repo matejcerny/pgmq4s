@@ -80,7 +80,7 @@ trait PgmqAdmin[F[_]: Functor] extends PgmqAdminBackend[F]:
     */
   def enableNotifyInsert(
       queue: QueueName,
-      throttleInterval: ThrottleInterval = ThrottleInterval(250.millis)
+      throttleInterval: ThrottleInterval = ThrottleInterval.trusted(250.millis)
   ): F[Unit] =
     enableNotifyInsertRaw(queue.value, throttleInterval.toMillis)
 
@@ -95,5 +95,5 @@ trait PgmqAdmin[F[_]: Functor] extends PgmqAdminBackend[F]:
   /** List all queues with active notify triggers and their current throttle config. */
   def listNotifyInsertThrottles: F[List[NotifyThrottle]] =
     listNotifyInsertThrottlesRaw.map(
-      _.map((q, ms, ts) => NotifyThrottle(QueueName.trusted(q), ThrottleInterval(ms.millis), ts))
+      _.map((q, ms, ts) => NotifyThrottle(QueueName.trusted(q), ThrottleInterval.trusted(ms.millis), ts))
     )

@@ -23,7 +23,7 @@ package pgmq4s
 
 import java.time.OffsetDateTime
 import scala.compiletime
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.*
 
 opaque type QueueName = String
 
@@ -171,6 +171,38 @@ extension (n: Int)
     inline if n > 0 then BatchSize.unsafe(n)
     else compiletime.error("BatchSize must be positive")
 
+  /** Construct a [[VisibilityTimeout]] from an integer literal (seconds) with a compile-time check.
+    *
+    * Example: `30.secondsVisibility`
+    */
+  inline def secondsVisibility: VisibilityTimeout =
+    inline if n >= 0 then VisibilityTimeout.unsafe(n.seconds)
+    else compiletime.error("VisibilityTimeout must be >= 0")
+
+  /** Construct a [[VisibilityTimeout]] from an integer literal (minutes) with a compile-time check.
+    *
+    * Example: `5.minutesVisibility`
+    */
+  inline def minutesVisibility: VisibilityTimeout =
+    inline if n >= 0 then VisibilityTimeout.unsafe(n.minutes)
+    else compiletime.error("VisibilityTimeout must be >= 0")
+
+  /** Construct a [[Delay]] from an integer literal (seconds) with a compile-time check.
+    *
+    * Example: `10.secondsDelay`
+    */
+  inline def secondsDelay: Delay =
+    inline if n >= 0 then Delay.unsafe(n.seconds)
+    else compiletime.error("Delay must be >= 0")
+
+  /** Construct a [[Delay]] from an integer literal (minutes) with a compile-time check.
+    *
+    * Example: `2.minutesDelay`
+    */
+  inline def minutesDelay: Delay =
+    inline if n >= 0 then Delay.unsafe(n.minutes)
+    else compiletime.error("Delay must be >= 0")
+
 extension (inline sc: StringContext) inline def q(inline args: Any*): QueueName = ${ QueueNameMacro.impl('sc, 'args) }
 extension (inline sc: StringContext)
   inline def rk(inline args: Any*): RoutingKey = ${ RoutingKeyMacro.impl('sc, 'args) }
@@ -181,26 +213,61 @@ opaque type VisibilityTimeout = FiniteDuration
 
 /** Visibility timeout — how long a read message is hidden from other consumers.
   *
-  * Constructed from a [[scala.concurrent.duration.FiniteDuration]]:
-  * {{{
-  *   VisibilityTimeout(30.seconds)
-  * }}}
+  * Must be >= 0. Use [[VisibilityTimeout.apply]] for validated construction, [[VisibilityTimeout.unsafe]] when the
+  * value is known to be valid, or the `30.secondsVisibility` / `5.minutesVisibility` inline extensions for literals.
   */
 object VisibilityTimeout:
-  def apply(duration: FiniteDuration): VisibilityTimeout = duration
+  def apply(duration: FiniteDuration): Either[String, VisibilityTimeout] =
+    if duration.toSeconds >= 0 then Right(duration)
+    else Left(s"VisibilityTimeout must be >= 0, got $duration")
+
+  def unsafe(duration: FiniteDuration): VisibilityTimeout =
+    require(duration.toSeconds >= 0, s"VisibilityTimeout must be >= 0, got $duration")
+    duration
+
+  private[pgmq4s] def trusted(duration: FiniteDuration): VisibilityTimeout = duration
+
   extension (vt: VisibilityTimeout) def toSeconds: Int = vt.toSeconds.toInt
 
 opaque type ThrottleInterval = FiniteDuration
 
 /** Throttle interval for NOTIFY triggers — minimum time between notifications.
   *
-  * {{{
-  *   ThrottleInterval(250.millis)
-  * }}}
+  * Must be > 0. Use [[ThrottleInterval.apply]] for validated construction or [[ThrottleInterval.unsafe]] when the value
+  * is known to be valid.
   */
 object ThrottleInterval:
-  def apply(duration: FiniteDuration): ThrottleInterval = duration
+  def apply(duration: FiniteDuration): Either[String, ThrottleInterval] =
+    if duration.toMillis > 0 then Right(duration)
+    else Left(s"ThrottleInterval must be > 0, got $duration")
+
+  def unsafe(duration: FiniteDuration): ThrottleInterval =
+    require(duration.toMillis > 0, s"ThrottleInterval must be > 0, got $duration")
+    duration
+
+  private[pgmq4s] def trusted(duration: FiniteDuration): ThrottleInterval = duration
+
   extension (t: ThrottleInterval) def toMillis: Int = t.toMillis.toInt
+
+opaque type Delay = FiniteDuration
+
+/** Visibility delay — how long a sent message remains invisible before becoming available.
+  *
+  * Must be >= 0. Use [[Delay.apply]] for validated construction, [[Delay.unsafe]] when the value is known to be valid,
+  * or the `10.secondsDelay` / `2.minutesDelay` inline extensions for literals.
+  */
+object Delay:
+  def apply(duration: FiniteDuration): Either[String, Delay] =
+    if duration.toSeconds >= 0 then Right(duration)
+    else Left(s"Delay must be >= 0, got $duration")
+
+  def unsafe(duration: FiniteDuration): Delay =
+    require(duration.toSeconds >= 0, s"Delay must be >= 0, got $duration")
+    duration
+
+  private[pgmq4s] def trusted(duration: FiniteDuration): Delay = duration
+
+  extension (d: Delay) def toSeconds: Int = d.toSeconds.toInt
 
 /** Row returned by `pgmq.list_notify_insert_throttles`. */
 case class NotifyThrottle(

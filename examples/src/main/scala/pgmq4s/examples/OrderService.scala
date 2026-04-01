@@ -25,5 +25,5 @@ class OrderService[F[_]: MonadThrow](queue: OrderQueue[F]):
   def publishAndFetch(event: OrderCreated): F[List[Message.Plain[OrderCreated]]] =
     for
       _ <- queue.send(event)
-      messages <- queue.read(VisibilityTimeout(30.seconds), 10.messages)
+      messages <- queue.read(30.secondsVisibility, 10.messages)
     yield messages

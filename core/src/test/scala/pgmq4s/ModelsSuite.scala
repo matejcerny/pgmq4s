@@ -308,9 +308,84 @@ object ModelsSuite extends SimpleIOSuite:
 
   // --- VisibilityTimeout ---
 
-  pureTest("VisibilityTimeout.apply wraps FiniteDuration"):
-    expect.same(VisibilityTimeout(30.seconds).toSeconds, 30)
+  pureTest("VisibilityTimeout.apply accepts non-negative durations"):
+    List(
+      expect(clue(VisibilityTimeout(30.seconds)).isRight),
+      expect(clue(VisibilityTimeout(0.seconds)).isRight),
+      expect(clue(VisibilityTimeout(2.minutes)).isRight)
+    ).combineAll
+
+  pureTest("VisibilityTimeout.apply rejects negative durations"):
+    expect(clue(VisibilityTimeout(-1.seconds)).isLeft)
+
+  pureTest("VisibilityTimeout.unsafe accepts non-negative durations"):
+    expect.same(30.secondsVisibility.toSeconds, 30)
+
+  pureTest("VisibilityTimeout.unsafe throws on negative durations"):
+    expect(Try(VisibilityTimeout.unsafe(-1.seconds)).isFailure)
 
   pureTest("VisibilityTimeout.toSeconds converts correctly"):
-    expect.same(VisibilityTimeout(2.minutes).toSeconds, 120) and
-      expect.same(VisibilityTimeout(0.seconds).toSeconds, 0)
+    expect.same(2.minutesVisibility.toSeconds, 120) and
+      expect.same(0.secondsVisibility.toSeconds, 0)
+
+  // --- ThrottleInterval ---
+
+  pureTest("ThrottleInterval.apply accepts positive durations"):
+    List(
+      expect(clue(ThrottleInterval(250.millis)).isRight),
+      expect(clue(ThrottleInterval(1.second)).isRight)
+    ).combineAll
+
+  pureTest("ThrottleInterval.apply rejects zero"):
+    expect(clue(ThrottleInterval(0.millis)).isLeft)
+
+  pureTest("ThrottleInterval.apply rejects negative durations"):
+    expect(clue(ThrottleInterval(-1.millis)).isLeft)
+
+  pureTest("ThrottleInterval.unsafe accepts positive durations"):
+    expect.same(ThrottleInterval.unsafe(250.millis).toMillis, 250)
+
+  pureTest("ThrottleInterval.unsafe throws on non-positive durations"):
+    List(
+      expect(Try(ThrottleInterval.unsafe(0.millis)).isFailure),
+      expect(Try(ThrottleInterval.unsafe(-1.millis)).isFailure)
+    ).combineAll
+
+  // --- Delay ---
+
+  pureTest("Delay.apply accepts non-negative durations"):
+    List(
+      expect(clue(Delay(0.seconds)).isRight),
+      expect(clue(Delay(30.seconds)).isRight),
+      expect(clue(Delay(2.minutes)).isRight)
+    ).combineAll
+
+  pureTest("Delay.apply rejects negative durations"):
+    expect(clue(Delay(-1.seconds)).isLeft)
+
+  pureTest("Delay.unsafe accepts non-negative durations"):
+    expect.same(30.secondsDelay.toSeconds, 30) and
+      expect.same(0.secondsDelay.toSeconds, 0)
+
+  pureTest("Delay.unsafe throws on negative durations"):
+    expect(Try(Delay.unsafe(-1.seconds)).isFailure)
+
+  // --- VisibilityTimeout inline extensions ---
+
+  pureTest("secondsVisibility creates VisibilityTimeout from literal"):
+    expect.same(30.secondsVisibility, VisibilityTimeout.trusted(30.seconds)) and
+      expect.same(0.secondsVisibility, VisibilityTimeout.trusted(0.seconds))
+
+  pureTest("minutesVisibility creates VisibilityTimeout from literal"):
+    expect.same(5.minutesVisibility, VisibilityTimeout.trusted(5.minutes)) and
+      expect.same(0.minutesVisibility, VisibilityTimeout.trusted(0.minutes))
+
+  // --- Delay inline extensions ---
+
+  pureTest("secondsDelay creates Delay from literal"):
+    expect.same(10.secondsDelay, Delay.trusted(10.seconds)) and
+      expect.same(0.secondsDelay, Delay.trusted(0.seconds))
+
+  pureTest("minutesDelay creates Delay from literal"):
+    expect.same(2.minutesDelay, Delay.trusted(2.minutes)) and
+      expect.same(0.minutesDelay, Delay.trusted(0.minutes))

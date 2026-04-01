@@ -28,7 +28,7 @@ import scala.concurrent.{ Await, ExecutionContext }
     for
       _ <- admin.createQueue(queue)
       _ <- client.send(queue, event)
-      messages <- client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
+      messages <- client.read[OrderCreated](queue, 30.secondsVisibility, 10.messages)
     yield println(s"slick read: ${messages.map(_.payload)}")
 
   Await.result(result, 10.seconds)

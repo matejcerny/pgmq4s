@@ -62,7 +62,7 @@ object Main extends IOApp.Simple:
         for
           _        <- admin.createQueue(queue)
           msgId    <- client.send(queue, OrderCreated(1L, "dev@example.com"))
-          messages <- client.read[OrderCreated](queue, VisibilityTimeout(30.seconds), 10.messages)
+          messages <- client.read[OrderCreated](queue, 30.secondsVisibility, 10.messages)
           _        <- IO.println(s"Received: ${messages.map(_.payload)}")
         yield ()
 ```
