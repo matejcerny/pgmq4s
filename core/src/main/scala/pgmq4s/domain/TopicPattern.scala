@@ -19,9 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
-
-import scala.quoted.*
+package pgmq4s.domain
 
 opaque type TopicPattern = String
 
@@ -66,6 +64,9 @@ object TopicPattern:
   extension (topicPattern: TopicPattern) def value: String = topicPattern
 
 private[pgmq4s] object TopicPatternMacro:
+
+  import scala.quoted.*
+
   def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using
       Quotes
   ): Expr[TopicPattern] =

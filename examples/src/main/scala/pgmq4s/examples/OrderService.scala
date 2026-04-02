@@ -5,6 +5,7 @@ import cats.syntax.flatMap.*
 import cats.syntax.functor.*
 import io.circe.{ Decoder, Encoder }
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.circe.given
 import scala.concurrent.duration.*
 

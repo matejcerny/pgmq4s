@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
+package pgmq4s.domain
 
 /** Result row from `pgmq.test_routing`, showing which queues match a routing key. */
 case class RoutingMatch(pattern: TopicPattern, queueName: QueueName, compiledRegex: String)

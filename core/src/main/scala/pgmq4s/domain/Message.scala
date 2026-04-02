@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
+package pgmq4s.domain
 
 import java.time.OffsetDateTime
 
@@ -28,7 +28,7 @@ import java.time.OffsetDateTime
   * @tparam P
   *   payload type
   * @tparam H
-  *   headers type (covariant; `Nothing` when no headers are present)
+  *   header's type (covariant; `Nothing` when no headers are present)
   */
 sealed trait Message[+P, +H]:
   def payload: P

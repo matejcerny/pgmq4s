@@ -2,6 +2,7 @@ package pgmq4s.examples
 
 import _root_.slick.jdbc.PostgresProfile.api.*
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.circe.given
 import pgmq4s.slick.{ SlickPgmqAdmin, SlickPgmqClient }
 

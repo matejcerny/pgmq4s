@@ -1,6 +1,7 @@
 package pgmq4s.examples
 
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.anorm.{ AnormPgmqAdmin, AnormPgmqClient }
 import pgmq4s.circe.given
 

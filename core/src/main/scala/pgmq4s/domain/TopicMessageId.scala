@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
+package pgmq4s.domain
 
 /** Result row from `pgmq.send_batch_topic`, pairing a queue with its message ID. */
 case class TopicMessageId(queueName: QueueName, id: MessageId)

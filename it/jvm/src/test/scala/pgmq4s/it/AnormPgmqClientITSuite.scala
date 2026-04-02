@@ -1,13 +1,12 @@
 package pgmq4s.it
 
-import _root_.anorm.*
 import cats.effect.*
 import cats.syntax.foldable.*
 import pgmq4s.*
 import pgmq4s.anorm.{ AnormPgmqAdmin, AnormPgmqClient }
+import pgmq4s.domain.*
 import weaver.*
 
-import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }
 
 object AnormPgmqClientITSuite extends PgmqClientITSuite:
@@ -221,16 +220,3 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
           .attempt
           .void
     yield (client, admin, queues, counter)
-
-  pureTest("Column[OffsetDateTime] handles all input types"):
-    val col = summon[Column[OffsetDateTime]](using anormAdmin.given_Column_OffsetDateTime)
-    val meta = MetaDataItem(ColumnName("test_col", None), false, "java.sql.Timestamp")
-
-    val ts = java.sql.Timestamp.from(Instant.parse("2026-01-15T10:30:00Z"))
-    val odt = OffsetDateTime.of(2026, 3, 17, 12, 0, 0, 0, ZoneOffset.UTC)
-
-    List(
-      expect.same(col(ts, meta), Right(OffsetDateTime.of(2026, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC))),
-      expect.same(col(odt, meta), Right(odt)),
-      expect(col("not a timestamp", meta).isLeft)
-    ).combineAll

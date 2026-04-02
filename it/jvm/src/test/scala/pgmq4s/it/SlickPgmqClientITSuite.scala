@@ -4,6 +4,7 @@ import _root_.slick.jdbc.PostgresProfile.api.*
 import cats.effect.*
 import cats.syntax.foldable.*
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.slick.{ SlickPgmqAdmin, SlickPgmqClient }
 import weaver.*
 

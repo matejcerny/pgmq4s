@@ -19,9 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
-
-import scala.quoted.*
+package pgmq4s.domain
 
 opaque type QueueName = String
 
@@ -61,6 +59,9 @@ object QueueName:
   extension (q: QueueName) def value: String = q
 
 private[pgmq4s] object QueueNameMacro:
+
+  import scala.quoted.*
+
   def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using Quotes): Expr[QueueName] =
     import quotes.reflect.*
     sc match

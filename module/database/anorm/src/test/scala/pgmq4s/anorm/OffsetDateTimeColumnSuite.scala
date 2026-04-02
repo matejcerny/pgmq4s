@@ -19,33 +19,32 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.anorm
 
-import cats.syntax.foldable.*
+import _root_.anorm.*
+import pgmq4s.anorm.AnormInstances.given
 import weaver.SimpleIOSuite
 
-import scala.concurrent.duration.*
-import scala.util.Try
+import java.sql.Timestamp
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 
-object ThrottleIntervalSuite extends SimpleIOSuite:
+object OffsetDateTimeColumnSuite extends SimpleIOSuite:
 
-  pureTest("ThrottleInterval.apply accepts positive durations"):
-    List(
-      expect(clue(ThrottleInterval(250.millis)).isRight),
-      expect(clue(ThrottleInterval(1.second)).isRight)
-    ).combineAll
+  private val column = summon[Column[OffsetDateTime]]
+  private val meta = MetaDataItem(ColumnName("test_col", None), nullable = false, classOf[OffsetDateTime].getName)
 
-  pureTest("ThrottleInterval.apply rejects zero"):
-    expect(clue(ThrottleInterval(0.millis)).isLeft)
+  pureTest("converts java.sql.Timestamp to OffsetDateTime in UTC"):
+    val instant = Instant.parse("2026-03-15T10:30:00Z")
+    val ts = Timestamp.from(instant)
+    val result = column(ts, meta)
+    expect.same(result, Right(instant.atOffset(ZoneOffset.UTC)))
 
-  pureTest("ThrottleInterval.apply rejects negative durations"):
-    expect(clue(ThrottleInterval(-1.millis)).isLeft)
+  pureTest("passes through OffsetDateTime as-is"):
+    val odt = OffsetDateTime.of(2026, 3, 15, 10, 30, 0, 0, ZoneOffset.ofHours(2))
+    val result = column(odt, meta)
+    expect.same(result, Right(odt))
 
-  pureTest("ThrottleInterval.unsafe accepts positive durations"):
-    expect.same(ThrottleInterval.unsafe(250.millis).toMillis, 250)
-
-  pureTest("ThrottleInterval.unsafe throws on non-positive durations"):
-    List(
-      expect(Try(ThrottleInterval.unsafe(0.millis)).isFailure),
-      expect(Try(ThrottleInterval.unsafe(-1.millis)).isFailure)
-    ).combineAll
+  pureTest("rejects unsupported types with TypeDoesNotMatch"):
+    val result = column("not-a-date", meta)
+    expect(result.isLeft) and
+      expect(result.left.exists(_.isInstanceOf[TypeDoesNotMatch]))

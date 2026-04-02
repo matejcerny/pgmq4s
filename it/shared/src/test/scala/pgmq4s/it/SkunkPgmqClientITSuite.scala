@@ -5,6 +5,7 @@ import cats.effect.*
 import cats.syntax.foldable.*
 import natchez.Trace.Implicits.noop
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 import weaver.*
 

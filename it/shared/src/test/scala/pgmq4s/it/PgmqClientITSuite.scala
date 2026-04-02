@@ -4,6 +4,7 @@ import cats.effect.*
 import cats.syntax.foldable.*
 import io.circe.*
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.circe.given
 import weaver.*
 

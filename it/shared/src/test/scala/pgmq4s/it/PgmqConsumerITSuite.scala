@@ -6,6 +6,7 @@ import cats.syntax.foldable.*
 import fs2.Stream
 import io.circe.*
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.circe.given
 import pgmq4s.stream.PgmqConsumer
 import weaver.*

@@ -23,6 +23,7 @@ package pgmq4s
 
 import cats.MonadThrow
 import cats.syntax.all.*
+import pgmq4s.domain.*
 
 /** Tagless-final algebra for PGMQ message operations.
   *
@@ -32,7 +33,7 @@ import cats.syntax.all.*
   * @tparam F
   *   effect type with `MonadThrow` capabilities
   */
-trait PgmqClient[F[_]: MonadThrow] extends PgmqBackend[F]:
+trait PgmqClient[F[_]: MonadThrow] extends PgmqClientBackend[F]:
 
   private def decodeRaw[P](queue: QueueName, raw: RawMessage)(using
       dec: PgmqDecoder[P]

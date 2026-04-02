@@ -24,9 +24,11 @@ package pgmq4s.anorm
 import _root_.anorm.*
 import _root_.anorm.SqlParser.*
 import pgmq4s.*
+import pgmq4s.anorm.AnormInstances.given
+import pgmq4s.domain.*
 
 import java.sql.Connection
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.OffsetDateTime
 import javax.sql.DataSource
 import scala.concurrent.{ ExecutionContext, Future, blocking }
 import scala.util.Using
@@ -35,13 +37,6 @@ class AnormPgmqClient(dataSource: DataSource)(using ExecutionContext) extends Pg
 
   private def withConnection[A](f: Connection => A): Future[A] =
     Future(blocking(Using.resource(dataSource.getConnection())(f)))
-
-  private[pgmq4s] given Column[OffsetDateTime] = Column.nonNull: (value, meta) =>
-    value match
-      case ts: java.sql.Timestamp => Right(ts.toInstant.atOffset(ZoneOffset.UTC))
-      case odt: OffsetDateTime    => Right(odt)
-      case other                  =>
-        Left(TypeDoesNotMatch(s"Cannot convert $other: ${other.getClass} to OffsetDateTime for column ${meta.column}"))
 
   private val rawMessage: RowParser[RawMessage] =
     (long("msg_id") ~ int("read_ct") ~ get[OffsetDateTime]("enqueued_at") ~

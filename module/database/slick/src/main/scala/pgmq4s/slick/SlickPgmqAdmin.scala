@@ -24,6 +24,7 @@ package pgmq4s.slick
 import _root_.slick.jdbc.GetResult
 import _root_.slick.jdbc.PostgresProfile.api.*
 import pgmq4s.*
+import pgmq4s.domain.*
 
 import java.time.{ OffsetDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }

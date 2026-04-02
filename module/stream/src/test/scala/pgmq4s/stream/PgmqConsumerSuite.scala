@@ -25,6 +25,7 @@ import cats.effect.{ IO, Ref }
 import cats.effect.std.Queue
 import fs2.Stream
 import pgmq4s.*
+import pgmq4s.domain.*
 import weaver.SimpleIOSuite
 
 import java.time.OffsetDateTime

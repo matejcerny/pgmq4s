@@ -25,6 +25,7 @@ import cats.effect.Async
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 import pgmq4s.*
+import pgmq4s.domain.*
 
 import scala.concurrent.duration.FiniteDuration
 

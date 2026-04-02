@@ -26,6 +26,7 @@ import doobie.*
 import doobie.implicits.*
 import doobie.postgres.implicits.*
 import pgmq4s.*
+import pgmq4s.domain.*
 
 class DoobiePgmqClient[F[_]: Sync](xa: Transactor[F]) extends PgmqClient[F]:
 
