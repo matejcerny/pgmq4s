@@ -49,7 +49,7 @@ trait PgmqConsumerITSuite extends IOSuite:
   pgmqTest("poll reads messages from a real queue"): (client, _, consumer, _, queue) =>
     val payloads = List(TestPayload(1, "a"), TestPayload(2, "b"))
     for
-      _    <- payloads.traverse_(client.send(queue, _))
+      _    <- payloads.traverse_(p => client.send(queue, Message.Outbound.Plain(p)))
       msgs <- consumer.poll[TestPayload](queue, 100.millis, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload).toSet, payloads.toSet)
 
@@ -57,20 +57,20 @@ trait PgmqConsumerITSuite extends IOSuite:
     val payload = TestPayload(10, "with-hdrs")
     val hdrs = TestHeaders("trace-poll")
     for
-      _    <- client.send(queue, payload, hdrs)
+      _    <- client.send(queue, Message.Outbound.WithHeaders(payload, hdrs))
       msgs <- consumer.poll[TestPayload, TestHeaders](queue, 100.millis, visibilityTimeout, batchSize).take(1).compile.toList
       msg  <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect.same(msg.payload, payload) and
       (msg match
-        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
-        case _                                     => failure("expected WithHeaders"))
+        case Message.Inbound.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
+        case _                                                => failure("expected WithHeaders"))
 
   // --- subscribe tests ---
 
   pgmqTest("subscribe drains messages from a real queue"): (client, _, consumer, _, queue) =>
     val payloads = List(TestPayload(20, "x"), TestPayload(21, "y"))
     for
-      _    <- payloads.traverse_(client.send(queue, _))
+      _    <- payloads.traverse_(p => client.send(queue, Message.Outbound.Plain(p)))
       msgs <- consumer.subscribe[TestPayload](queue, visibilityTimeout, batchSize).take(2).compile.toList
     yield expect.same(msgs.map(_.payload).toSet, payloads.toSet)
 
@@ -79,7 +79,7 @@ trait PgmqConsumerITSuite extends IOSuite:
     for
       fiber <- consumer.subscribe[TestPayload](queue, visibilityTimeout, batchSize).take(1).compile.toList.start
       _     <- IO.sleep(100.millis)
-      _     <- client.send(queue, payload)
+      _     <- client.send(queue, Message.Outbound.Plain(payload))
       _     <- pings.offer(())
       msgs  <- fiber.joinWithNever
     yield expect.same(msgs.map(_.payload), List(payload))
@@ -88,10 +88,10 @@ trait PgmqConsumerITSuite extends IOSuite:
     val payload = TestPayload(40, "sub-hdrs")
     val hdrs = TestHeaders("trace-sub")
     for
-      _    <- client.send(queue, payload, hdrs)
+      _    <- client.send(queue, Message.Outbound.WithHeaders(payload, hdrs))
       msgs <- consumer.subscribe[TestPayload, TestHeaders](queue, visibilityTimeout, batchSize).take(1).compile.toList
       msg  <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
     yield expect.same(msg.payload, payload) and
       (msg match
-        case Message.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
-        case _                                     => failure("expected WithHeaders"))
+        case Message.Inbound.WithHeaders(_, _, _, _, _, _, h) => expect.same(h, hdrs)
+        case _                                                => failure("expected WithHeaders"))

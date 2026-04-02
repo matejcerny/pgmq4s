@@ -161,7 +161,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("send encodes message and wraps result in MessageId", Returns(send = 42L)): (client, captured) =>
     for
-      id <- client.send[String](q, "hello")
+      id <- client.send[String](q, Message.Outbound.Plain("hello"))
       c <- captured
     yield List(
       expect.same(id.value, 42L),
@@ -171,7 +171,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("send with delay forwards delay to raw method", Returns(send = 7L)): (client, captured) =>
     for
-      id <- client.send[String](q, "delayed", 30.secondsDelay)
+      id <- client.send[String](q, Message.Outbound.Plain("delayed"), 30.secondsDelay)
       c <- captured
     yield expect.same(id.value, 7L) and
       expect.same(c.delay, 30)
@@ -181,14 +181,14 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatch encodes all messages and wraps results", Returns(sendBatch = List(10L, 20L))):
     (client, captured) =>
       for
-        ids <- client.sendBatch[String](q, List("a", "b"))
+        ids <- client.sendBatch[String](q, List(Message.Outbound.Plain("a"), Message.Outbound.Plain("b")))
         c <- captured
       yield expect.same(ids.map(_.value), List(10L, 20L)) and
         expect.same(c.bodies, List("a", "b"))
 
   pgmqTest("sendBatch with delay forwards delay", Returns(sendBatch = List(1L))): (client, captured) =>
     for
-      ids <- client.sendBatch[String](q, List("x"), 60.secondsDelay)
+      ids <- client.sendBatch[String](q, List(Message.Outbound.Plain("x")), 60.secondsDelay)
       c <- captured
     yield expect.same(ids.map(_.value), List(1L)) and
       expect.same(c.delay, 60)
@@ -197,7 +197,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("send with headers encodes both message and headers", Returns(send = 3L)): (client, captured) =>
     for
-      id <- client.send[String, String](q, "body", "hdrs")
+      id <- client.send[String, String](q, Message.Outbound.WithHeaders("body", "hdrs"))
       c <- captured
     yield List(
       expect.same(id.value, 3L),
@@ -207,7 +207,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("send with headers and delay forwards all arguments", Returns(send = 4L)): (client, captured) =>
     for
-      id <- client.send[String, String](q, "body", "hdrs", 15.secondsDelay)
+      id <- client.send[String, String](q, Message.Outbound.WithHeaders("body", "hdrs"), 15.secondsDelay)
       c <- captured
     yield List(
       expect.same(id.value, 4L),
@@ -221,7 +221,10 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatch with headers encodes both messages and headers", Returns(sendBatch = List(1L, 2L))):
     (client, captured) =>
       for
-        ids <- client.sendBatch[String, String](q, List("a", "b"), List("h1", "h2"))
+        ids <- client.sendBatch[String, String](
+          q,
+          List(Message.Outbound.WithHeaders("a", "h1"), Message.Outbound.WithHeaders("b", "h2"))
+        )
         c <- captured
       yield List(
         expect.same(ids.map(_.value), List(1L, 2L)),
@@ -232,7 +235,11 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatch with headers and delay forwards all arguments", Returns(sendBatch = List(1L))):
     (client, captured) =>
       for
-        ids <- client.sendBatch[String, String](q, List("a"), List("h1"), 45.secondsDelay)
+        ids <- client.sendBatch[String, String](
+          q,
+          List(Message.Outbound.WithHeaders("a", "h1")),
+          45.secondsDelay
+        )
         c <- captured
       yield List(
         expect.same(ids.map(_.value), List(1L)),
@@ -282,9 +289,9 @@ object PgmqClientSuite extends SimpleIOSuite:
       )
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected at least one message"))
     yield List(
-      expect(clue(msg).isInstanceOf[Message.WithHeaders[?, ?]]),
+      expect(clue(msg).isInstanceOf[Message.Inbound.WithHeaders[?, ?]]),
       expect.same(msg.payload, "payload"),
-      expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "hdrs")
+      expect.same(msg.asInstanceOf[Message.Inbound.WithHeaders[String, String]].headers, "hdrs")
     ).combineAll
 
   pgmqTest("read with headers returns Plain when headers absent", Returns(read = List(rawMsg(1L, "payload")))):
@@ -292,7 +299,7 @@ object PgmqClientSuite extends SimpleIOSuite:
       client
         .read[String, String](q, visibilityTimeout = 30.secondsVisibility, batchSize = 5.messages)
         .map: msgs =>
-          expect(clue(msgs.head).isInstanceOf[Message.Plain[?]])
+          expect(clue(msgs.head).isInstanceOf[Message.Inbound.Plain[?]])
 
   // --- pop ---
 
@@ -331,15 +338,15 @@ object PgmqClientSuite extends SimpleIOSuite:
       .map: opt =>
         List(
           expect(clue(opt).isDefined),
-          expect(opt.get.isInstanceOf[Message.WithHeaders[?, ?]]),
-          expect.same(opt.get.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")
+          expect(opt.get.isInstanceOf[Message.Inbound.WithHeaders[?, ?]]),
+          expect.same(opt.get.asInstanceOf[Message.Inbound.WithHeaders[String, String]].headers, "h")
         ).combineAll
 
   pgmqTest("pop with headers returns Plain when headers absent", Returns(pop = Some(rawMsg(5L, "p")))): (client, _) =>
     client
       .pop[String, String](q)
       .map: opt =>
-        expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
+        expect(clue(opt.get).isInstanceOf[Message.Inbound.Plain[?]])
 
   // --- setVisibilityTimeout ---
 
@@ -374,8 +381,8 @@ object PgmqClientSuite extends SimpleIOSuite:
       c <- captured
     yield List(
       expect(clue(opt).isDefined),
-      expect(opt.get.isInstanceOf[Message.WithHeaders[?, ?]]),
-      expect.same(opt.get.asInstanceOf[Message.WithHeaders[String, String]].headers, "h"),
+      expect(opt.get.isInstanceOf[Message.Inbound.WithHeaders[?, ?]]),
+      expect.same(opt.get.asInstanceOf[Message.Inbound.WithHeaders[String, String]].headers, "h"),
       expect.same(c.vtOffset, 60)
     ).combineAll
 
@@ -386,7 +393,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     client
       .setVisibilityTimeout[String, String](q, MessageId(9L), visibilityTimeout = 60.secondsVisibility)
       .map: opt =>
-        expect(clue(opt.get).isInstanceOf[Message.Plain[?]])
+        expect(clue(opt.get).isInstanceOf[Message.Inbound.Plain[?]])
 
   pgmqTest("setVisibilityTimeout with headers returns None when backend returns None"): (client, _) =>
     client
@@ -470,7 +477,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("sendTopic encodes message and returns recipient count", Returns(sendTopic = 3)): (client, captured) =>
     for
-      count <- client.sendTopic[String](rk, "hello")
+      count <- client.sendTopic[String](rk, Message.Outbound.Plain("hello"))
       c <- captured
     yield List(
       expect.same(count, 3),
@@ -480,14 +487,14 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("sendTopic with delay forwards delay", Returns(sendTopic = 2)): (client, captured) =>
     for
-      count <- client.sendTopic[String](rk, "delayed", 30.secondsDelay)
+      count <- client.sendTopic[String](rk, Message.Outbound.Plain("delayed"), 30.secondsDelay)
       c <- captured
     yield expect.same(count, 2) and
       expect.same(c.delay, 30)
 
   pgmqTest("sendTopic with headers encodes both message and headers", Returns(sendTopic = 1)): (client, captured) =>
     for
-      count <- client.sendTopic[String, String](rk, "body", "hdrs")
+      count <- client.sendTopic[String, String](rk, Message.Outbound.WithHeaders("body", "hdrs"))
       c <- captured
     yield List(
       expect.same(count, 1),
@@ -497,7 +504,7 @@ object PgmqClientSuite extends SimpleIOSuite:
 
   pgmqTest("sendTopic with headers and delay forwards all arguments", Returns(sendTopic = 1)): (client, captured) =>
     for
-      count <- client.sendTopic[String, String](rk, "body", "hdrs", 15.secondsDelay)
+      count <- client.sendTopic[String, String](rk, Message.Outbound.WithHeaders("body", "hdrs"), 15.secondsDelay)
       c <- captured
     yield List(
       expect.same(count, 1),
@@ -513,7 +520,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     Returns(sendBatchTopic = List(("q1", 10L), ("q2", 20L)))
   ): (client, captured) =>
     for
-      ids <- client.sendBatchTopic[String](rk, List("a", "b"))
+      ids <- client.sendBatchTopic[String](rk, List(Message.Outbound.Plain("a"), Message.Outbound.Plain("b")))
       c <- captured
     yield List(
       expect.same(ids.map(_.queueName), List(q"q1", q"q2")),
@@ -524,7 +531,7 @@ object PgmqClientSuite extends SimpleIOSuite:
   pgmqTest("sendBatchTopic with delay forwards delay", Returns(sendBatchTopic = List(("q1", 1L)))):
     (client, captured) =>
       for
-        ids <- client.sendBatchTopic[String](rk, List("x"), 60.secondsDelay)
+        ids <- client.sendBatchTopic[String](rk, List(Message.Outbound.Plain("x")), 60.secondsDelay)
         c <- captured
       yield expect.same(ids.size, 1) and
         expect.same(c.delay, 60)
@@ -534,7 +541,10 @@ object PgmqClientSuite extends SimpleIOSuite:
     Returns(sendBatchTopic = List(("q1", 1L), ("q1", 2L)))
   ): (client, captured) =>
     for
-      ids <- client.sendBatchTopic[String, String](rk, List("a", "b"), List("h1", "h2"))
+      ids <- client.sendBatchTopic[String, String](
+        rk,
+        List(Message.Outbound.WithHeaders("a", "h1"), Message.Outbound.WithHeaders("b", "h2"))
+      )
       c <- captured
     yield List(
       expect.same(ids.size, 2),
@@ -547,7 +557,11 @@ object PgmqClientSuite extends SimpleIOSuite:
     Returns(sendBatchTopic = List(("q1", 1L)))
   ): (client, captured) =>
     for
-      ids <- client.sendBatchTopic[String, String](rk, List("a"), List("h1"), 45.secondsDelay)
+      ids <- client.sendBatchTopic[String, String](
+        rk,
+        List(Message.Outbound.WithHeaders("a", "h1")),
+        45.secondsDelay
+      )
       c <- captured
     yield List(
       expect.same(ids.size, 1),

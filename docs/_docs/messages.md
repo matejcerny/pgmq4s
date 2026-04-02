@@ -1,11 +1,21 @@
 # Messages
 
-`Message[P, +H]` is a sealed enum with two cases:
+`Message[+P, +H]` is a sealed trait hierarchy with two orthogonal dimensions:
 
-- **`Message.Plain[P]`** — payload only
-- **`Message.WithHeaders[P, H]`** — payload + headers
+- **Direction**: `Message.Outbound` (for sending) / `Message.Inbound` (received from queue)
+- **Shape**: `Message.IsPlain` (payload only) / `Message.HasHeaders` (payload + headers)
 
-Both cases expose the following fields:
+## Outbound messages (sending)
+
+- **`Message.Outbound.Plain[P]`** — payload only
+- **`Message.Outbound.WithHeaders[P, H]`** — payload + headers
+
+## Inbound messages (reading)
+
+- **`Message.Inbound.Plain[P]`** — payload only
+- **`Message.Inbound.WithHeaders[P, H]`** — payload + headers
+
+Inbound messages expose the following fields:
 
 | Field        | Type                     | Description                                                                |
 |--------------|--------------------------|----------------------------------------------------------------------------|
@@ -16,29 +26,35 @@ Both cases expose the following fields:
 | `visibleAt`  | `OffsetDateTime`         | When the message becomes visible again (end of current visibility timeout) |
 | `payload`    | `P`                      | Decoded payload                                                            |
 
-`Message.WithHeaders` additionally exposes `headers: H`.
+`Message.HasHeaders` (both inbound and outbound) additionally exposes `headers: H`.
 
-## Sending with Headers
+## Sending
 
-Provide both type parameters to attach typed headers:
+Wrap your payload in an `Outbound` case class:
 
 ```scala
-case class OrderHeaders(region: String, priority: Int)
+// Plain message
+client.send(queue, Message.Outbound.Plain(order))
 
-client.send[OrderCreated, OrderHeaders](queue, order, OrderHeaders("eu", 1))
+// With headers
+case class OrderHeaders(region: String, priority: Int)
+client.send(queue, Message.Outbound.WithHeaders(order, OrderHeaders("eu", 1)))
+
+// Batch send
+client.sendBatch(queue, orders.map(Message.Outbound.Plain(_)))
 ```
 
 ## Reading with Headers
 
 ```scala
-val messages: F[List[Message[OrderCreated, OrderHeaders]]] =
+val messages: F[List[Message.Inbound[OrderCreated, OrderHeaders]]] =
   client.read[OrderCreated, OrderHeaders](queue, 30.secondsVisibility, 10.messages)
 ```
 
 Reading without headers ignores any headers present:
 
 ```scala
-val messages: F[List[Message.Plain[OrderCreated]]] =
+val messages: F[List[Message.Inbound.Plain[OrderCreated]]] =
   client.read[OrderCreated](queue, 30.secondsVisibility, 10.messages)
 ```
 
