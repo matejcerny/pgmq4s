@@ -22,7 +22,6 @@
 package pgmq4s.domain
 
 import cats.syntax.foldable.*
-import pgmq4s.*
 import weaver.SimpleIOSuite
 
 import scala.concurrent.duration.*
@@ -40,8 +39,9 @@ object VisibilityTimeoutSuite extends SimpleIOSuite:
   pureTest("VisibilityTimeout.apply rejects negative durations"):
     expect(clue(VisibilityTimeout(-1.seconds)).isLeft)
 
-  pureTest("VisibilityTimeout.unsafe accepts non-negative durations"):
-    expect.same(30.secondsVisibility.toSeconds, 30)
+  pureTest("VisibilityTimeout.Zero and secondsVisibility convert to correct seconds"):
+    expect.same(VisibilityTimeout.Zero.toSeconds, 0) and
+      expect.same(30.secondsVisibility.toSeconds, 30)
 
   pureTest("VisibilityTimeout.unsafe throws on negative durations"):
     expect(Try(VisibilityTimeout.unsafe(-1.seconds)).isFailure)

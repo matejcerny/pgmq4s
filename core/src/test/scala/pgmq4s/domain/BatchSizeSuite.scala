@@ -21,7 +21,6 @@
 
 package pgmq4s.domain
 
-import pgmq4s.*
 import weaver.SimpleIOSuite
 
 import scala.util.Try

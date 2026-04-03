@@ -31,6 +31,8 @@ opaque type VisibilityTimeout = FiniteDuration
   * value is known to be valid, or the `30.secondsVisibility` / `5.minutesVisibility` inline extensions for literals.
   */
 object VisibilityTimeout:
+  val Zero: VisibilityTimeout = Duration.Zero
+
   def apply(duration: FiniteDuration): Either[String, VisibilityTimeout] =
     if duration.toSeconds >= 0 then Right(duration)
     else Left(s"VisibilityTimeout must be >= 0, got $duration")
