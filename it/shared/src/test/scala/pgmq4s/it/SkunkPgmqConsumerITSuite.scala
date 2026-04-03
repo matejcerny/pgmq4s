@@ -23,7 +23,7 @@ object SkunkPgmqConsumerITSuite extends PgmqConsumerITSuite:
       )
       client = SkunkPgmqClient[IO](pool)
       admin = SkunkPgmqAdmin[IO](pool)
-      queues  <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
+      queues <- Resource.eval(Ref.of[IO, List[QueueName]](Nil))
       counter <- Resource.eval(Ref.of[IO, Int](0))
 
       _ <- Resource.onFinalize:

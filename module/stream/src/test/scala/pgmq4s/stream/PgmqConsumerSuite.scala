@@ -44,55 +44,50 @@ object PgmqConsumerSuite extends SimpleIOSuite:
   private def rawMsg(id: Long, body: String, headers: Option[String] = None): RawMessage =
     RawMessage(id, readCt = 1, enqueuedAt = now, lastReadAt = None, vt = now, message = body, headers = headers)
 
-  /** A stub PgmqClient backed by a Ref holding a sequence of batches. Each call to `readRaw` pops and returns the next
-    * batch. When the sequence is exhausted, returns empty lists.
+  /** A stub backend backed by a Ref holding a sequence of batches. Each call to `read` pops and returns the next batch.
+    * When the sequence is exhausted, returns empty lists.
     */
-  private class StubClient(batches: Ref[IO, List[List[RawMessage]]]) extends PgmqClient[IO]:
-    def readRaw(queue: String, vt: Int, qty: Int): IO[List[RawMessage]] =
+  private class StubBackend(batches: Ref[IO, List[List[RawMessage]]]) extends PgmqClientBackend[IO]:
+    def read(queue: String, vt: Int, qty: Int): IO[List[RawMessage]] =
       batches.modify:
         case head :: tail => (tail, head)
         case Nil          => (Nil, Nil)
 
     // --- unused stubs ---
-    def sendRaw(queue: String, body: String): IO[Long] = ???
-    def sendRaw(queue: String, body: String, delay: Int): IO[Long] = ???
-    def sendRaw(queue: String, body: String, headers: String): IO[Long] = ???
-    def sendRaw(queue: String, body: String, headers: String, delay: Int): IO[Long] = ???
-    def sendBatchRaw(queue: String, bodies: List[String]): IO[List[Long]] = ???
-    def sendBatchRaw(queue: String, bodies: List[String], delay: Int): IO[List[Long]] = ???
-    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] = ???
-    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] = ???
-    def popRaw(queue: String): IO[Option[RawMessage]] = ???
-    def archiveRaw(queue: String, msgId: Long): IO[Boolean] = ???
-    def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
-    def deleteRaw(queue: String, msgId: Long): IO[Boolean] = ???
-    def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
-    def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
-    def sendTopicRaw(routingKey: String, body: String): IO[Int] = ???
-    def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] = ???
-    def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = ???
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] = ???
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] = ???
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] =
-      ???
-    def sendBatchTopicRaw(
+    def send(queue: String, body: String): IO[Long] = ???
+    def send(queue: String, body: String, delay: Int): IO[Long] = ???
+    def send(queue: String, body: String, headers: String): IO[Long] = ???
+    def send(queue: String, body: String, headers: String, delay: Int): IO[Long] = ???
+    def sendBatch(queue: String, bodies: List[String]): IO[List[Long]] = ???
+    def sendBatch(queue: String, bodies: List[String], delay: Int): IO[List[Long]] = ???
+    def sendBatch(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] = ???
+    def sendBatch(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] = ???
+    def pop(queue: String): IO[Option[RawMessage]] = ???
+    def archive(queue: String, msgId: Long): IO[Boolean] = ???
+    def archiveBatch(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
+    def delete(queue: String, msgId: Long): IO[Boolean] = ???
+    def deleteBatch(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
+    def setVisibilityTimeout(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
+    def sendTopic(routingKey: String, body: String): IO[Int] = ???
+    def sendTopic(routingKey: String, body: String, delay: Int): IO[Int] = ???
+    def sendTopic(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = ???
+    def sendBatchTopic(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] = ???
+    def sendBatchTopic(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] = ???
+    def sendBatchTopic(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] = ???
+    def sendBatchTopic(
         routingKey: String,
         bodies: List[String],
         headers: List[String],
         delay: Int
     ): IO[List[(String, Long)]] = ???
 
-  /** A test consumer where `notifications` is driven by an explicit Queue. */
-  private class StubConsumer(client: StubClient, pings: Queue[IO, Unit]) extends PgmqConsumer[IO](client):
-    def notifications(queue: QueueName): Stream[IO, Unit] =
-      Stream.fromQueueUnterminated(pings)
-
-  private def mkConsumer(batches: List[List[RawMessage]]): IO[(StubConsumer, Queue[IO, Unit])] =
+  private def mkConsumer(batches: List[List[RawMessage]]): IO[(PgmqConsumer[IO], Queue[IO, Unit])] =
     for
       ref <- Ref.of[IO, List[List[RawMessage]]](batches)
-      client = StubClient(ref)
+      client = PgmqClient(StubBackend(ref))
       pings <- Queue.unbounded[IO, Unit]
-      consumer = StubConsumer(client, pings)
+      listener: PgmqConsumer.QueueListener[IO] = _ => Stream.fromQueueUnterminated(pings)
+      consumer = PgmqConsumer(client, listener)
     yield (consumer, pings)
 
   // --- poll tests ---

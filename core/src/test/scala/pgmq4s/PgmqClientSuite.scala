@@ -68,75 +68,72 @@ object PgmqClientSuite extends SimpleIOSuite:
       sendBatchTopic: List[(String, Long)] = Nil
   )
 
-  private class StubClient(ref: Ref[IO, Captured], ret: Returns) extends PgmqClient[IO]:
+  private class StubBackend(ref: Ref[IO, Captured], ret: Returns) extends PgmqClientBackend[IO]:
 
-    def sendRaw(queue: String, body: String): IO[Long] =
+    def send(queue: String, body: String): IO[Long] =
       ref.update(_.copy(queue = queue, body = body)).as(ret.send)
 
-    def sendRaw(queue: String, body: String, delay: Int): IO[Long] =
+    def send(queue: String, body: String, delay: Int): IO[Long] =
       ref.update(_.copy(queue = queue, body = body, delay = delay)).as(ret.send)
 
-    def sendRaw(queue: String, body: String, headers: String): IO[Long] =
+    def send(queue: String, body: String, headers: String): IO[Long] =
       ref.update(_.copy(queue = queue, body = body, headers = headers)).as(ret.send)
 
-    def sendRaw(queue: String, body: String, headers: String, delay: Int): IO[Long] =
+    def send(queue: String, body: String, headers: String, delay: Int): IO[Long] =
       ref.update(_.copy(queue = queue, body = body, headers = headers, delay = delay)).as(ret.send)
 
-    def sendBatchRaw(queue: String, bodies: List[String]): IO[List[Long]] =
+    def sendBatch(queue: String, bodies: List[String]): IO[List[Long]] =
       ref.update(_.copy(queue = queue, bodies = bodies)).as(ret.sendBatch)
 
-    def sendBatchRaw(queue: String, bodies: List[String], delay: Int): IO[List[Long]] =
+    def sendBatch(queue: String, bodies: List[String], delay: Int): IO[List[Long]] =
       ref.update(_.copy(queue = queue, bodies = bodies, delay = delay)).as(ret.sendBatch)
 
-    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] =
+    def sendBatch(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] =
       ref.update(_.copy(queue = queue, bodies = bodies, headersList = headers)).as(ret.sendBatch)
 
-    def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] =
+    def sendBatch(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] =
       ref.update(_.copy(queue = queue, bodies = bodies, headersList = headers, delay = delay)).as(ret.sendBatch)
 
-    def readRaw(queue: String, vt: Int, qty: Int): IO[List[RawMessage]] =
+    def read(queue: String, vt: Int, qty: Int): IO[List[RawMessage]] =
       ref.update(_.copy(queue = queue, vt = vt, qty = qty)).as(ret.read)
 
-    def popRaw(queue: String): IO[Option[RawMessage]] =
+    def pop(queue: String): IO[Option[RawMessage]] =
       ref.update(_.copy(queue = queue)).as(ret.pop)
 
-    def archiveRaw(queue: String, msgId: Long): IO[Boolean] =
+    def archive(queue: String, msgId: Long): IO[Boolean] =
       ref.update(_.copy(queue = queue, msgId = msgId)).as(ret.archive)
 
-    def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] =
+    def archiveBatch(queue: String, msgIds: List[Long]): IO[List[Long]] =
       ref.update(_.copy(queue = queue, msgIds = msgIds)).as(ret.archiveBatch)
 
-    def deleteRaw(queue: String, msgId: Long): IO[Boolean] =
+    def delete(queue: String, msgId: Long): IO[Boolean] =
       ref.update(_.copy(queue = queue, msgId = msgId)).as(ret.delete)
 
-    def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] =
+    def deleteBatch(queue: String, msgIds: List[Long]): IO[List[Long]] =
       ref.update(_.copy(queue = queue, msgIds = msgIds)).as(ret.deleteBatch)
 
-    def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] =
+    def setVisibilityTimeout(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] =
       ref.update(_.copy(queue = queue, msgId = msgId, vtOffset = vtOffset)).as(ret.setVt)
 
-    def sendTopicRaw(routingKey: String, body: String): IO[Int] =
+    def sendTopic(routingKey: String, body: String): IO[Int] =
       ref.update(_.copy(routingKey = routingKey, body = body)).as(ret.sendTopic)
 
-    def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] =
+    def sendTopic(routingKey: String, body: String, delay: Int): IO[Int] =
       ref.update(_.copy(routingKey = routingKey, body = body, delay = delay)).as(ret.sendTopic)
 
-    def sendTopicRaw(routingKey: String, body: String, headers: String): IO[Int] =
-      ref.update(_.copy(routingKey = routingKey, body = body, headers = headers)).as(ret.sendTopic)
-
-    def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] =
+    def sendTopic(routingKey: String, body: String, headers: String, delay: Int): IO[Int] =
       ref.update(_.copy(routingKey = routingKey, body = body, headers = headers, delay = delay)).as(ret.sendTopic)
 
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] =
+    def sendBatchTopic(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] =
       ref.update(_.copy(routingKey = routingKey, bodies = bodies)).as(ret.sendBatchTopic)
 
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] =
+    def sendBatchTopic(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] =
       ref.update(_.copy(routingKey = routingKey, bodies = bodies, delay = delay)).as(ret.sendBatchTopic)
 
-    def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] =
+    def sendBatchTopic(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] =
       ref.update(_.copy(routingKey = routingKey, bodies = bodies, headersList = headers)).as(ret.sendBatchTopic)
 
-    def sendBatchTopicRaw(
+    def sendBatchTopic(
         routingKey: String,
         bodies: List[String],
         headers: List[String],
@@ -152,7 +149,7 @@ object PgmqClientSuite extends SimpleIOSuite:
     test(name):
       for
         ref <- Ref.of[IO, Captured](Captured())
-        client = StubClient(ref, ret)
+        client = PgmqClient(StubBackend(ref, ret))
         res <- body(client, ref.get)
       yield res
 

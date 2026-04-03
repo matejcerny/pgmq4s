@@ -24,8 +24,8 @@ object DoobiePgmqClientApp extends IOApp.Simple:
     yield xa
 
   val run: IO[Unit] = hikariTransactor.use: xa =>
-    val client: PgmqClient[IO] = DoobiePgmqClient[IO](xa)
-    val admin: PgmqAdmin[IO] = DoobiePgmqAdmin[IO](xa)
+    val client = DoobiePgmqClient[IO](xa)
+    val admin = DoobiePgmqAdmin[IO](xa)
     val service = OrderService[IO](OrderQueue.make(queue, client))
 
     for

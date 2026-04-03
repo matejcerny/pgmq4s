@@ -22,8 +22,8 @@ object SkunkPgmqClientApp extends IOApp.Simple:
         max = 10
       )
       .use: pool =>
-        val client: PgmqClient[IO] = SkunkPgmqClient[IO](pool)
-        val admin: PgmqAdmin[IO] = SkunkPgmqAdmin[IO](pool)
+        val client = SkunkPgmqClient[IO](pool)
+        val admin = SkunkPgmqAdmin[IO](pool)
         val service = OrderService[IO](OrderQueue.make(queue, client))
 
         for

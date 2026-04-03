@@ -4,8 +4,8 @@ import cats.effect.*
 import cats.syntax.foldable.*
 import io.circe.*
 import pgmq4s.*
-import pgmq4s.domain.*
 import pgmq4s.circe.given
+import pgmq4s.domain.*
 import weaver.*
 
 import scala.concurrent.duration.*
@@ -350,8 +350,11 @@ trait PgmqClientITSuite extends IOSuite:
     val hdrs = List(TestHeaders("td1"), TestHeaders("td2"))
     for
       _ <- admin.bindTopic(pattern, queue)
-      ids <- client.sendBatchTopic(routingKey, payloads.zip(hdrs).map(Message.Outbound.WithHeaders(_, _)),
-        delay = 0.secondsDelay)
+      ids <- client.sendBatchTopic(
+        routingKey,
+        payloads.zip(hdrs).map(Message.Outbound.WithHeaders(_, _)),
+        delay = 0.secondsDelay
+      )
       msgs <- client.read[TestPayload, TestHeaders](queue, visibilityTimeout, batchSize)
     yield expect.same(ids.size, 2) and
       expect(msgs.forall(_.isInstanceOf[Message.Inbound.WithHeaders[?, ?]]))
