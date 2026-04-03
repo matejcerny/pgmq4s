@@ -22,7 +22,6 @@
 package pgmq4s.domain
 
 import cats.syntax.foldable.*
-import pgmq4s.*
 import weaver.SimpleIOSuite
 
 import scala.concurrent.duration.*
@@ -40,7 +39,7 @@ object DelaySuite extends SimpleIOSuite:
   pureTest("Delay.apply rejects negative durations"):
     expect(clue(Delay(-1.seconds)).isLeft)
 
-  pureTest("Delay.unsafe accepts non-negative durations"):
+  pureTest("secondsDelay converts to correct seconds"):
     expect.same(30.secondsDelay.toSeconds, 30) and
       expect.same(0.secondsDelay.toSeconds, 0)
 
