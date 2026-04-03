@@ -21,10 +21,12 @@
 
 package pgmq4s
 
+import pgmq4s.domain.*
+
 /** Protected backend interface for raw (String-level) message operations. Implemented by each database backend; not
   * intended for direct use.
   */
-trait PgmqBackend[F[_]]:
+trait PgmqClientBackend[F[_]]:
 
   // Publishing — body already encoded to JSON String
   protected def sendRaw(queue: String, body: String): F[Long]

@@ -19,9 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
-
-import scala.compiletime
+package pgmq4s.domain
 
 opaque type BatchSize = Int
 
@@ -47,4 +45,4 @@ extension (n: Int)
     */
   inline def messages: BatchSize =
     inline if n > 0 then BatchSize.unsafe(n)
-    else compiletime.error("BatchSize must be positive")
+    else scala.compiletime.error("BatchSize must be positive")

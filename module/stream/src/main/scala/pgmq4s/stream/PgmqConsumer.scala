@@ -25,6 +25,7 @@ import cats.effect.Async
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 import pgmq4s.*
+import pgmq4s.domain.*
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -66,7 +67,7 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       queue: QueueName,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message.Plain[P]] =
+  ): Stream[F, Message.Inbound.Plain[P]] =
     drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P](_, _, _))
 
   /** Subscribe to messages with headers using the drain-then-wait pattern. */
@@ -74,7 +75,7 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       queue: QueueName,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message[P, H]] =
+  ): Stream[F, Message.Inbound[P, H]] =
     drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P, H](_, _, _))
 
   // --- poll (pull / interval-based) ---
@@ -98,7 +99,7 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       interval: FiniteDuration,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message.Plain[P]] =
+  ): Stream[F, Message.Inbound.Plain[P]] =
     pollLoop(interval, visibilityTimeout, batchSize)(client.read[P](queue, _, _))
 
   /** Poll for messages with headers at a fixed interval. */
@@ -107,7 +108,7 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       interval: FiniteDuration,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message[P, H]] =
+  ): Stream[F, Message.Inbound[P, H]] =
     pollLoop(interval, visibilityTimeout, batchSize)(client.read[P, H](queue, _, _))
 
   // --- private combinators ---

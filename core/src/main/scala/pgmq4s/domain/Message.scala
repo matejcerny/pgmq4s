@@ -19,42 +19,62 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
+package pgmq4s.domain
 
 import java.time.OffsetDateTime
 
-/** A message read from a PGMQ queue.
+/** A PGMQ message. Two orthogonal dimensions: direction (Outbound / Inbound) and shape (IsPlain / HasHeaders).
   *
   * @tparam P
   *   payload type
   * @tparam H
-  *   headers type (covariant; `Nothing` when no headers are present)
+  *   header's type (covariant; `Nothing` when no headers are present)
   */
-enum Message[P, +H]:
-  def id: MessageId
-  def readCount: Int
-  def enqueuedAt: OffsetDateTime
-  def lastReadAt: Option[OffsetDateTime]
-  def visibleAt: OffsetDateTime
+sealed trait Message[+P, +H]:
   def payload: P
 
-  /** A message carrying only a payload. */
-  case Plain[A](
-      id: MessageId,
-      readCount: Int,
-      enqueuedAt: OffsetDateTime,
-      lastReadAt: Option[OffsetDateTime],
-      visibleAt: OffsetDateTime,
-      payload: A
-  ) extends Message[A, Nothing]
+object Message:
+
+  /** A message carrying only a payload (no headers). */
+  sealed trait IsPlain[+P] extends Message[P, Nothing]
 
   /** A message carrying a payload and typed headers. */
-  case WithHeaders(
-      id: MessageId,
-      readCount: Int,
-      enqueuedAt: OffsetDateTime,
-      lastReadAt: Option[OffsetDateTime],
-      visibleAt: OffsetDateTime,
-      payload: P,
-      headers: H
-  )
+  sealed trait HasHeaders[+P, +H] extends Message[P, H]:
+    def headers: H
+
+  /** A message to be sent to a queue. */
+  sealed trait Outbound[+P, +H] extends Message[P, H]
+
+  object Outbound:
+    case class Plain[+P](payload: P) extends Outbound[P, Nothing] with IsPlain[P]
+    case class WithHeaders[+P, +H](payload: P, headers: H) extends Outbound[P, H] with HasHeaders[P, H]
+
+  /** A message received from a queue. */
+  sealed trait Inbound[+P, +H] extends Message[P, H]:
+    def id: MessageId
+    def readCount: Int
+    def enqueuedAt: OffsetDateTime
+    def lastReadAt: Option[OffsetDateTime]
+    def visibleAt: OffsetDateTime
+
+  object Inbound:
+    case class Plain[+P](
+        id: MessageId,
+        readCount: Int,
+        enqueuedAt: OffsetDateTime,
+        lastReadAt: Option[OffsetDateTime],
+        visibleAt: OffsetDateTime,
+        payload: P
+    ) extends Inbound[P, Nothing]
+        with IsPlain[P]
+
+    case class WithHeaders[+P, +H](
+        id: MessageId,
+        readCount: Int,
+        enqueuedAt: OffsetDateTime,
+        lastReadAt: Option[OffsetDateTime],
+        visibleAt: OffsetDateTime,
+        payload: P,
+        headers: H
+    ) extends Inbound[P, H]
+        with HasHeaders[P, H]

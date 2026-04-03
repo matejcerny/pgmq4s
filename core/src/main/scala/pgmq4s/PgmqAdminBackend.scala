@@ -21,6 +21,8 @@
 
 package pgmq4s
 
+import pgmq4s.domain.*
+
 /** Protected backend interface for raw queue management operations. Implemented by each database backend; not intended
   * for direct use.
   */

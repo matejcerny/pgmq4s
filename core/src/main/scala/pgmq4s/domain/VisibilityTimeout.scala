@@ -19,9 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
+package pgmq4s.domain
 
-import scala.compiletime
 import scala.concurrent.duration.*
 
 opaque type VisibilityTimeout = FiniteDuration
@@ -51,7 +50,7 @@ extension (n: Int)
     */
   inline def secondsVisibility: VisibilityTimeout =
     inline if n >= 0 then VisibilityTimeout.unsafe(n.seconds)
-    else compiletime.error("VisibilityTimeout must be >= 0")
+    else scala.compiletime.error("VisibilityTimeout must be >= 0")
 
   /** Construct a [[VisibilityTimeout]] from an integer literal (minutes) with a compile-time check.
     *
@@ -59,4 +58,4 @@ extension (n: Int)
     */
   inline def minutesVisibility: VisibilityTimeout =
     inline if n >= 0 then VisibilityTimeout.unsafe(n.minutes)
-    else compiletime.error("VisibilityTimeout must be >= 0")
+    else scala.compiletime.error("VisibilityTimeout must be >= 0")

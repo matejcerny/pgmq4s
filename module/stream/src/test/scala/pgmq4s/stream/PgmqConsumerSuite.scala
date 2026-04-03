@@ -25,6 +25,7 @@ import cats.effect.{ IO, Ref }
 import cats.effect.std.Queue
 import fs2.Stream
 import pgmq4s.*
+import pgmq4s.domain.*
 import weaver.SimpleIOSuite
 
 import java.time.OffsetDateTime
@@ -143,8 +144,8 @@ object PgmqConsumerSuite extends SimpleIOSuite:
       result <- mkConsumer(List(List(rawMsg(1L, "p", Some("h"))), Nil))
       msgs <- result._1.subscribe[String, String](q, visibilityTimeout, batchSize).take(1).compile.toList
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
-    yield expect(msg.isInstanceOf[Message.WithHeaders[?, ?]]) and
-      expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")
+    yield expect(msg.isInstanceOf[Message.Inbound.WithHeaders[?, ?]]) and
+      expect.same(msg.asInstanceOf[Message.Inbound.WithHeaders[String, String]].headers, "h")
 
   test("poll with headers returns WithHeaders"):
     for
@@ -155,5 +156,5 @@ object PgmqConsumerSuite extends SimpleIOSuite:
         .compile
         .toList
       msg <- IO.fromOption(msgs.headOption)(new NoSuchElementException("expected a message"))
-    yield expect(msg.isInstanceOf[Message.WithHeaders[?, ?]]) and
-      expect.same(msg.asInstanceOf[Message.WithHeaders[String, String]].headers, "h")
+    yield expect(msg.isInstanceOf[Message.Inbound.WithHeaders[?, ?]]) and
+      expect.same(msg.asInstanceOf[Message.Inbound.WithHeaders[String, String]].headers, "h")

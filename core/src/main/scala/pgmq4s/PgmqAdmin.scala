@@ -23,6 +23,7 @@ package pgmq4s
 
 import cats.Functor
 import cats.syntax.all.*
+import pgmq4s.domain.*
 import scala.concurrent.duration.*
 
 /** Tagless-final algebra for PGMQ queue management and observability.

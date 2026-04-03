@@ -4,6 +4,7 @@ import cats.effect.{ IO, IOApp, Resource }
 import doobie.ExecutionContexts
 import doobie.hikari.HikariTransactor
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.doobie.{ DoobiePgmqAdmin, DoobiePgmqClient }
 
 object DoobiePgmqClientApp extends IOApp.Simple:

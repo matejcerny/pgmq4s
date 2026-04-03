@@ -4,6 +4,7 @@ import _root_.skunk.Session
 import cats.effect.{ IO, IOApp }
 import natchez.Trace.Implicits.noop
 import pgmq4s.*
+import pgmq4s.domain.*
 import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
 
 object SkunkPgmqClientApp extends IOApp.Simple:

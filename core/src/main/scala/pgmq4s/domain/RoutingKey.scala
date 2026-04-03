@@ -19,9 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s
-
-import scala.quoted.*
+package pgmq4s.domain
 
 opaque type RoutingKey = String
 
@@ -58,6 +56,9 @@ object RoutingKey:
   extension (routingKey: RoutingKey) def value: String = routingKey
 
 private[pgmq4s] object RoutingKeyMacro:
+
+  import scala.quoted.*
+
   def impl(sc: Expr[StringContext], @scala.annotation.unused args: Expr[Seq[Any]])(using Quotes): Expr[RoutingKey] =
     import quotes.reflect.*
     sc match

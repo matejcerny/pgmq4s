@@ -29,6 +29,7 @@ import sk.implicits.*
 import cats.effect.{ Resource, Temporal }
 import cats.syntax.all.*
 import pgmq4s.*
+import pgmq4s.domain.*
 
 class SkunkPgmqAdmin[F[_]: Temporal](pool: Resource[F, Session[F]]) extends PgmqAdmin[F]:
 

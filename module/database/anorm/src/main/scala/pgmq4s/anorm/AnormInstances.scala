@@ -19,33 +19,17 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.anorm
 
-import cats.syntax.foldable.*
-import weaver.SimpleIOSuite
+import _root_.anorm.{ Column, TypeDoesNotMatch }
 
-import scala.concurrent.duration.*
-import scala.util.Try
+import java.time.{ OffsetDateTime, ZoneOffset }
 
-object ThrottleIntervalSuite extends SimpleIOSuite:
+private[pgmq4s] object AnormInstances:
 
-  pureTest("ThrottleInterval.apply accepts positive durations"):
-    List(
-      expect(clue(ThrottleInterval(250.millis)).isRight),
-      expect(clue(ThrottleInterval(1.second)).isRight)
-    ).combineAll
-
-  pureTest("ThrottleInterval.apply rejects zero"):
-    expect(clue(ThrottleInterval(0.millis)).isLeft)
-
-  pureTest("ThrottleInterval.apply rejects negative durations"):
-    expect(clue(ThrottleInterval(-1.millis)).isLeft)
-
-  pureTest("ThrottleInterval.unsafe accepts positive durations"):
-    expect.same(ThrottleInterval.unsafe(250.millis).toMillis, 250)
-
-  pureTest("ThrottleInterval.unsafe throws on non-positive durations"):
-    List(
-      expect(Try(ThrottleInterval.unsafe(0.millis)).isFailure),
-      expect(Try(ThrottleInterval.unsafe(-1.millis)).isFailure)
-    ).combineAll
+  given Column[OffsetDateTime] = Column.nonNull: (value, meta) =>
+    value match
+      case ts: java.sql.Timestamp => Right(ts.toInstant.atOffset(ZoneOffset.UTC))
+      case odt: OffsetDateTime    => Right(odt)
+      case other                  =>
+        Left(TypeDoesNotMatch(s"Cannot convert $other: ${other.getClass} to OffsetDateTime for column ${meta.column}"))

@@ -150,7 +150,10 @@ lazy val anorm = (project in file("module/database/anorm"))
   .dependsOn(core.jvm)
   .settings(
     name := "pgmq4s-anorm",
-    libraryDependencies += "org.playframework.anorm" %% "anorm" % AnormV,
+    libraryDependencies ++= Seq(
+      "org.playframework.anorm" %% "anorm" % AnormV,
+      "org.typelevel" %% "weaver-cats" % WeaverV % Test
+    ),
     mimaPreviousArtifacts := Set.empty
   )
 
