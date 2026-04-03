@@ -35,21 +35,12 @@ import scala.concurrent.duration.FiniteDuration
   *   - '''subscribe''' (push/notification-driven): drains the queue eagerly on startup and after each NOTIFY ping.
   *   - '''poll''' (pull/interval-based): periodically reads from the queue with configurable intervals.
   *
-  * Subclasses must implement [[notifications]] to provide the backend-specific LISTEN/NOTIFY stream.
+  * Construct via the companion `apply` factory, passing a [[PgmqClient]] and a [[PgmqConsumer.QueueListener]] function.
   *
-  * @param client
-  *   the underlying PGMQ client for read operations
   * @tparam F
   *   effect type with `Async` capabilities
   */
-trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
-
-  /** A stream of notification pings for the given queue. Each emitted `Unit` signals that new messages may be
-    * available. Backends implement this using PostgreSQL `LISTEN`/`NOTIFY`.
-    */
-  def notifications(queue: QueueName): Stream[F, Unit]
-
-  // --- subscribe (push / notification-driven) ---
+trait PgmqConsumer[F[_]]:
 
   /** Subscribe to plain messages using the drain-then-wait pattern.
     *
@@ -67,18 +58,14 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       queue: QueueName,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message.Inbound.Plain[P]] =
-    drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P](_, _, _))
+  ): Stream[F, Message.Inbound.Plain[P]]
 
   /** Subscribe to messages with headers using the drain-then-wait pattern. */
   def subscribe[P: PgmqDecoder, H: PgmqDecoder](
       queue: QueueName,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message.Inbound[P, H]] =
-    drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P, H](_, _, _))
-
-  // --- poll (pull / interval-based) ---
+  ): Stream[F, Message.Inbound[P, H]]
 
   /** Poll for plain messages at a fixed interval.
     *
@@ -99,8 +86,7 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       interval: FiniteDuration,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message.Inbound.Plain[P]] =
-    pollLoop(interval, visibilityTimeout, batchSize)(client.read[P](queue, _, _))
+  ): Stream[F, Message.Inbound.Plain[P]]
 
   /** Poll for messages with headers at a fixed interval. */
   def poll[P: PgmqDecoder, H: PgmqDecoder](
@@ -108,39 +94,85 @@ trait PgmqConsumer[F[_]: Async](client: PgmqClient[F]):
       interval: FiniteDuration,
       visibilityTimeout: VisibilityTimeout,
       batchSize: BatchSize
-  ): Stream[F, Message.Inbound[P, H]] =
-    pollLoop(interval, visibilityTimeout, batchSize)(client.read[P, H](queue, _, _))
+  ): Stream[F, Message.Inbound[P, H]]
 
-  // --- private combinators ---
+object PgmqConsumer:
 
-  /** Drain-then-wait with signal deduplication.
-    *
-    * Uses a `SignallingRef` as a dirty flag so that multiple notifications arriving during a drain collapse into a
-    * single re-drain rather than triggering one redundant drain per buffered notification.
+  /** A function that produces a stream of notification pings for a given queue. Each emitted `Unit` signals that new
+    * messages may be available. Backends implement this using PostgreSQL `LISTEN`/`NOTIFY`.
     */
-  private def drainOnSignal[A](queue: QueueName, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize)(
-      readBatch: (QueueName, VisibilityTimeout, BatchSize) => F[List[A]]
-  ): Stream[F, A] =
-    Stream
-      .eval(SignallingRef[F].of(true))
-      .flatMap: dirty =>
-        val wakeUp = notifications(queue).evalMap(_ => dirty.set(true)).drain
-        val consumer = dirty.discrete
-          .filter(identity)
-          .evalTap(_ => dirty.set(false))
-          .flatMap(_ => drainQueue(readBatch(queue, visibilityTimeout, batchSize)))
-        consumer.concurrently(wakeUp)
+  type QueueListener[F[_]] = QueueName => Stream[F, Unit]
 
-  /** Repeatedly read batches until one comes back empty, flattening each batch into individual elements. */
-  private def drainQueue[A](readBatch: F[List[A]]): Stream[F, A] =
-    Stream.eval(readBatch).repeat.takeWhile(_.nonEmpty).flatMap(Stream.emits)
+  def apply[F[_]: Async](client: PgmqClient[F], listener: QueueListener[F]): PgmqConsumer[F] =
+    PgmqConsumerImpl(client, listener)
 
-  /** Read loop: emit immediately when messages are available, sleep only when the queue is empty. */
-  private def pollLoop[A](interval: FiniteDuration, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize)(
-      readBatch: (VisibilityTimeout, BatchSize) => F[List[A]]
-  ): Stream[F, A] =
-    Stream
-      .repeatEval(readBatch(visibilityTimeout, batchSize))
-      .flatMap:
-        case Nil   => Stream.sleep_[F](interval)
-        case batch => Stream.emits(batch)
+  private class PgmqConsumerImpl[F[_]: Async](client: PgmqClient[F], listener: QueueListener[F])
+      extends PgmqConsumer[F]:
+
+    // --- subscribe (push / notification-driven) ---
+
+    def subscribe[P: PgmqDecoder](
+        queue: QueueName,
+        visibilityTimeout: VisibilityTimeout,
+        batchSize: BatchSize
+    ): Stream[F, Message.Inbound.Plain[P]] =
+      drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P](_, _, _))
+
+    def subscribe[P: PgmqDecoder, H: PgmqDecoder](
+        queue: QueueName,
+        visibilityTimeout: VisibilityTimeout,
+        batchSize: BatchSize
+    ): Stream[F, Message.Inbound[P, H]] =
+      drainOnSignal(queue, visibilityTimeout, batchSize)(client.read[P, H](_, _, _))
+
+    // --- poll (pull / interval-based) ---
+
+    def poll[P: PgmqDecoder](
+        queue: QueueName,
+        interval: FiniteDuration,
+        visibilityTimeout: VisibilityTimeout,
+        batchSize: BatchSize
+    ): Stream[F, Message.Inbound.Plain[P]] =
+      pollLoop(interval, visibilityTimeout, batchSize)(client.read[P](queue, _, _))
+
+    def poll[P: PgmqDecoder, H: PgmqDecoder](
+        queue: QueueName,
+        interval: FiniteDuration,
+        visibilityTimeout: VisibilityTimeout,
+        batchSize: BatchSize
+    ): Stream[F, Message.Inbound[P, H]] =
+      pollLoop(interval, visibilityTimeout, batchSize)(client.read[P, H](queue, _, _))
+
+    // --- private combinators ---
+
+    /** Drain-then-wait with signal deduplication.
+      *
+      * Uses a `SignallingRef` as a dirty flag so that multiple notifications arriving during a drain collapse into a
+      * single re-drain rather than triggering one redundant drain per buffered notification.
+      */
+    private def drainOnSignal[A](queue: QueueName, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize)(
+        readBatch: (QueueName, VisibilityTimeout, BatchSize) => F[List[A]]
+    ): Stream[F, A] =
+      Stream
+        .eval(SignallingRef[F].of(true))
+        .flatMap: dirty =>
+          val wakeUp = listener(queue).evalMap(_ => dirty.set(true)).drain
+          val consumer = dirty.discrete
+            .filter(identity)
+            .evalTap(_ => dirty.set(false))
+            .flatMap(_ => drainQueue(readBatch(queue, visibilityTimeout, batchSize)))
+          consumer.concurrently(wakeUp)
+
+    /** Repeatedly read batches until one comes back empty, flattening each batch into individual elements. */
+    private def drainQueue[A](readBatch: F[List[A]]): Stream[F, A] =
+      Stream.eval(readBatch).repeat.takeWhile(_.nonEmpty).flatMap(Stream.emits)
+
+    /** Read loop: emit immediately when messages are available, sleep only when the queue is empty. */
+    private def pollLoop[A](interval: FiniteDuration, visibilityTimeout: VisibilityTimeout, batchSize: BatchSize)(
+        readBatch: (VisibilityTimeout, BatchSize) => F[List[A]]
+    ): Stream[F, A] =
+      Stream
+        .repeatEval(readBatch(visibilityTimeout, batchSize))
+        .flatMap:
+          case Nil   => Stream.sleep_[F](interval)
+          case batch => Stream.emits(batch)

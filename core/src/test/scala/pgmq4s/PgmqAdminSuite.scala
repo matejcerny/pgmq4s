@@ -66,45 +66,45 @@ object PgmqAdminSuite extends SimpleIOSuite:
       testRouting: List[(String, String, String)] = Nil
   )
 
-  private class StubAdmin(ref: Ref[IO, Captured], ret: Returns) extends PgmqAdmin[IO]:
+  private class StubAdminBackend(ref: Ref[IO, Captured], ret: Returns) extends PgmqAdminBackend[IO]:
 
-    def createQueueRaw(queue: String): IO[Unit] =
+    def createQueue(queue: String): IO[Unit] =
       ref.update(_.copy(queue = queue))
 
-    def createPartitionedQueueRaw(queue: String, partitionInterval: String, retentionInterval: String): IO[Unit] =
+    def createPartitionedQueue(queue: String, partitionInterval: String, retentionInterval: String): IO[Unit] =
       ref.update(_.copy(queue = queue, partitionInterval = partitionInterval, retentionInterval = retentionInterval))
 
-    def dropQueueRaw(queue: String): IO[Boolean] =
+    def dropQueue(queue: String): IO[Boolean] =
       ref.update(_.copy(queue = queue)).as(ret.drop)
 
-    def purgeQueueRaw(queue: String): IO[Long] =
+    def purgeQueue(queue: String): IO[Long] =
       ref.update(_.copy(queue = queue)).as(ret.purge)
 
-    def detachArchiveRaw(queue: String): IO[Unit] =
+    def detachArchive(queue: String): IO[Unit] =
       ref.update(_.copy(queue = queue))
 
-    def metricsRaw(queue: String): IO[Option[QueueMetrics]] =
+    def metrics(queue: String): IO[Option[QueueMetrics]] =
       ref.update(_.copy(queue = queue)).as(ret.metrics)
 
-    def metricsAllRaw: IO[List[QueueMetrics]] =
+    def metricsAll: IO[List[QueueMetrics]] =
       IO.pure(ret.metricsAll)
 
-    def listQueuesRaw: IO[List[QueueInfo]] =
+    def listQueues: IO[List[QueueInfo]] =
       IO.pure(ret.listQueues)
 
-    def bindTopicRaw(pattern: String, queue: String): IO[Unit] =
+    def bindTopic(pattern: String, queue: String): IO[Unit] =
       ref.update(_.copy(pattern = pattern, queue = queue))
 
-    def unbindTopicRaw(pattern: String, queue: String): IO[Boolean] =
+    def unbindTopic(pattern: String, queue: String): IO[Boolean] =
       ref.update(_.copy(pattern = pattern, queue = queue)).as(ret.unbindTopic)
 
-    def testRoutingRaw(routingKey: String): IO[List[(String, String, String)]] =
+    def testRouting(routingKey: String): IO[List[(String, String, String)]] =
       ref.update(_.copy(routingKey = routingKey)).as(ret.testRouting)
 
-    def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = IO.unit
-    def disableNotifyInsertRaw(queue: String): IO[Unit] = IO.unit
-    def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = IO.unit
-    def listNotifyInsertThrottlesRaw: IO[List[(String, Int, java.time.OffsetDateTime)]] = IO.pure(Nil)
+    def enableNotifyInsert(queue: String, throttleIntervalMs: Int): IO[Unit] = IO.unit
+    def disableNotifyInsert(queue: String): IO[Unit] = IO.unit
+    def updateNotifyInsert(queue: String, throttleIntervalMs: Int): IO[Unit] = IO.unit
+    def listNotifyInsertThrottles: IO[List[(String, Int, java.time.OffsetDateTime)]] = IO.pure(Nil)
 
   private def pgmqTest(name: String, ret: Returns = Returns())(
       body: (PgmqAdmin[IO], IO[Captured]) => IO[Expectations]
@@ -112,7 +112,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
     test(name):
       for
         ref <- Ref.of[IO, Captured](Captured())
-        admin = StubAdmin(ref, ret)
+        admin = PgmqAdmin(StubAdminBackend(ref, ret))
         res <- body(admin, ref.get)
       yield res
 

@@ -23,32 +23,34 @@ package pgmq4s
 
 import pgmq4s.domain.*
 
-/** Protected backend interface for raw queue management operations. Implemented by each database backend; not intended
-  * for direct use.
+/** SPI trait for database backends. Implement this to provide a PGMQ admin backend.
+  *
+  * All operations work at the raw (String-level) representation. The higher-level `PgmqAdmin[F]` API wraps a backend
+  * instance and handles domain type conversions.
   */
 trait PgmqAdminBackend[F[_]]:
 
   // Queue Management
-  protected def createQueueRaw(queue: String): F[Unit]
-  protected def createPartitionedQueueRaw(queue: String, partitionInterval: String, retentionInterval: String): F[Unit]
-  protected def dropQueueRaw(queue: String): F[Boolean]
+  def createQueue(queue: String): F[Unit]
+  def createPartitionedQueue(queue: String, partitionInterval: String, retentionInterval: String): F[Unit]
+  def dropQueue(queue: String): F[Boolean]
 
   // Queue Lifecycle
-  protected def purgeQueueRaw(queue: String): F[Long]
-  protected def detachArchiveRaw(queue: String): F[Unit]
+  def purgeQueue(queue: String): F[Long]
+  def detachArchive(queue: String): F[Unit]
 
   // Observability
-  protected def metricsRaw(queue: String): F[Option[QueueMetrics]]
-  protected def metricsAllRaw: F[List[QueueMetrics]]
-  protected def listQueuesRaw: F[List[QueueInfo]]
+  def metrics(queue: String): F[Option[QueueMetrics]]
+  def metricsAll: F[List[QueueMetrics]]
+  def listQueues: F[List[QueueInfo]]
 
   // Topic management
-  protected def bindTopicRaw(pattern: String, queue: String): F[Unit]
-  protected def unbindTopicRaw(pattern: String, queue: String): F[Boolean]
-  protected def testRoutingRaw(routingKey: String): F[List[(String, String, String)]]
+  def bindTopic(pattern: String, queue: String): F[Unit]
+  def unbindTopic(pattern: String, queue: String): F[Boolean]
+  def testRouting(routingKey: String): F[List[(String, String, String)]]
 
   // Notify insert
-  protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit]
-  protected def disableNotifyInsertRaw(queue: String): F[Unit]
-  protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): F[Unit]
-  protected def listNotifyInsertThrottlesRaw: F[List[(String, Int, java.time.OffsetDateTime)]]
+  def enableNotifyInsert(queue: String, throttleIntervalMs: Int): F[Unit]
+  def disableNotifyInsert(queue: String): F[Unit]
+  def updateNotifyInsert(queue: String, throttleIntervalMs: Int): F[Unit]
+  def listNotifyInsertThrottles: F[List[(String, Int, java.time.OffsetDateTime)]]

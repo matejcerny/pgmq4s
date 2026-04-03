@@ -125,30 +125,6 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
     ): IO[List[TopicMessageId]] =
       liftF(underlying.sendBatchTopic(routingKey, messages, delay))
 
-    protected def sendRaw(queue: String, body: String): IO[Long] = ???
-    protected def sendRaw(queue: String, body: String, delay: Int): IO[Long] = ???
-    protected def sendRaw(queue: String, body: String, headers: String): IO[Long] = ???
-    protected def sendRaw(queue: String, body: String, headers: String, delay: Int): IO[Long] = ???
-    protected def sendBatchRaw(queue: String, bodies: List[String]): IO[List[Long]] = ???
-    protected def sendBatchRaw(queue: String, bodies: List[String], delay: Int): IO[List[Long]] = ???
-    protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String]): IO[List[Long]] = ???
-    protected def sendBatchRaw(queue: String, bodies: List[String], headers: List[String], delay: Int): IO[List[Long]] =
-      ???
-    protected def sendTopicRaw(routingKey: String, body: String): IO[Int] = ???
-    protected def sendTopicRaw(routingKey: String, body: String, delay: Int): IO[Int] = ???
-    protected def sendTopicRaw(routingKey: String, body: String, headers: String, delay: Int): IO[Int] = ???
-    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String]): IO[List[(String, Long)]] = ???
-    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], delay: Int): IO[List[(String, Long)]] = ???
-    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String]): IO[List[(String, Long)]] = ???
-    protected def sendBatchTopicRaw(routingKey: String, bodies: List[String], headers: List[String], delay: Int): IO[List[(String, Long)]] = ???
-    protected def readRaw(queue: String, vt: Int, qty: Int): IO[List[RawMessage]] = ???
-    protected def popRaw(queue: String): IO[Option[RawMessage]] = ???
-    protected def archiveRaw(queue: String, msgId: Long): IO[Boolean] = ???
-    protected def archiveBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
-    protected def deleteRaw(queue: String, msgId: Long): IO[Boolean] = ???
-    protected def deleteBatchRaw(queue: String, msgIds: List[Long]): IO[List[Long]] = ???
-    protected def setVisibilityTimeoutRaw(queue: String, msgId: Long, vtOffset: Int): IO[Option[RawMessage]] = ???
-
   private class FutureAdminToIO(underlying: PgmqAdmin[Future]) extends PgmqAdmin[IO]:
     private def liftF[A](f: => Future[A]): IO[A] = IO.fromFuture(IO(f))
 
@@ -180,22 +156,6 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
       liftF(underlying.updateNotifyInsert(queue, throttleInterval))
     override def listNotifyInsertThrottles: IO[List[NotifyThrottle]] =
       liftF(underlying.listNotifyInsertThrottles)
-
-    protected def createQueueRaw(queue: String): IO[Unit] = ???
-    protected def createPartitionedQueueRaw(queue: String, p: String, r: String): IO[Unit] = ???
-    protected def dropQueueRaw(queue: String): IO[Boolean] = ???
-    protected def purgeQueueRaw(queue: String): IO[Long] = ???
-    protected def detachArchiveRaw(queue: String): IO[Unit] = ???
-    protected def metricsRaw(queue: String): IO[Option[QueueMetrics]] = ???
-    protected def metricsAllRaw: IO[List[QueueMetrics]] = ???
-    protected def listQueuesRaw: IO[List[QueueInfo]] = ???
-    protected def bindTopicRaw(pattern: String, queue: String): IO[Unit] = ???
-    protected def unbindTopicRaw(pattern: String, queue: String): IO[Boolean] = ???
-    protected def testRoutingRaw(routingKey: String): IO[List[(String, String, String)]] = ???
-    protected def enableNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = ???
-    protected def disableNotifyInsertRaw(queue: String): IO[Unit] = ???
-    protected def updateNotifyInsertRaw(queue: String, throttleIntervalMs: Int): IO[Unit] = ???
-    protected def listNotifyInsertThrottlesRaw: IO[List[(String, Int, java.time.OffsetDateTime)]] = ???
 
   private given ExecutionContext = ExecutionContext.global
 
