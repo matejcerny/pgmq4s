@@ -19,6 +19,7 @@ CLAUDE.md
 .codex/
 .mcp.json
 .cellar
+.scalex
 # Logfiles and rotated logfiles.
 *.log
 *.log.[0-9]*

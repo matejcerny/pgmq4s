@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.9"
+ThisBuild / tlBaseVersion := "0.10"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -101,8 +101,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "pgmq4s-core",
     libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
   .jvmSettings(
     // sbt-typelevel sets -project to the module name; replace with the top-level project name
@@ -153,8 +152,7 @@ lazy val anorm = (project in file("module/database/anorm"))
     libraryDependencies ++= Seq(
       "org.playframework.anorm" %% "anorm" % AnormV,
       "org.typelevel" %% "weaver-cats" % WeaverV % Test
-    ),
-    mimaPreviousArtifacts := Set.empty
+    )
   )
 
 lazy val doobie = (project in file("module/database/doobie"))
@@ -164,8 +162,7 @@ lazy val doobie = (project in file("module/database/doobie"))
     libraryDependencies ++= Seq(
       "org.tpolecat" %% "doobie-core" % DoobieV,
       "org.tpolecat" %% "doobie-postgres" % DoobieV
-    ),
-    mimaPreviousArtifacts := Set.empty
+    )
   )
 
 lazy val skunk = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -177,16 +174,14 @@ lazy val skunk = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.tpolecat" %%% "skunk-core" % SkunkV,
       "org.typelevel" %%% "weaver-cats" % WeaverV % Test
-    ),
-    mimaPreviousArtifacts := Set.empty
+    )
   )
 
 lazy val slick = (project in file("module/database/slick"))
   .dependsOn(core.jvm)
   .settings(
     name := "pgmq4s-slick",
-    libraryDependencies += "com.typesafe.slick" %% "slick" % SlickV,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "com.typesafe.slick" %% "slick" % SlickV
   )
 
 // === JSON ===
@@ -200,8 +195,7 @@ lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "io.circe" %%% "circe-core" % CirceV,
       "io.circe" %%% "circe-parser" % CirceV
     ),
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
 lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -214,8 +208,7 @@ lazy val jsoniter = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % JsoniterV,
       "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % JsoniterV % Provided
     ),
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
 lazy val upickle = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -225,8 +218,7 @@ lazy val upickle = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "pgmq4s-upickle",
     libraryDependencies += "com.lihaoyi" %%% "upickle" % UpickleV,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
   )
 
 lazy val playJson = (project in file("module/json/play-json"))
@@ -234,8 +226,7 @@ lazy val playJson = (project in file("module/json/play-json"))
   .settings(
     name := "pgmq4s-play-json",
     libraryDependencies += "org.playframework" %% "play-json" % PlayJsonV,
-    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test
   )
 
 lazy val sprayJson = (project in file("module/json/spray-json"))
@@ -243,8 +234,7 @@ lazy val sprayJson = (project in file("module/json/spray-json"))
   .settings(
     name := "pgmq4s-spray-json",
     libraryDependencies += "io.spray" %% "spray-json" % SprayJsonV,
-    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test
   )
 
 lazy val examples = (project in file("examples"))

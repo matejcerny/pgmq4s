@@ -19,17 +19,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.domain.pagination
 
-import java.time.OffsetDateTime
+import weaver.SimpleIOSuite
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
-    enqueuedAt: OffsetDateTime,
-    lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
-    headers: Option[String]
-)
+object SortDirectionSuite extends SimpleIOSuite:
+
+  pureTest("Asc.flip returns Desc"):
+    expect.same(SortDirection.Asc.flip, SortDirection.Desc)
+
+  pureTest("Desc.flip returns Asc"):
+    expect.same(SortDirection.Desc.flip, SortDirection.Asc)

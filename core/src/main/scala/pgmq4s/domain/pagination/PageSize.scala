@@ -19,17 +19,27 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.domain.pagination
 
-import java.time.OffsetDateTime
+opaque type PageSize = Int
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
-    enqueuedAt: OffsetDateTime,
-    lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
-    headers: Option[String]
-)
+object PageSize:
+  val Ten: PageSize = 10
+  val Fifty: PageSize = 50
+
+  def apply(n: Int): Either[String, PageSize] =
+    if n > 0 then Right(n) else Left(s"PageSize must be > 0, got $n")
+
+  def unsafe(n: Int): PageSize =
+    require(n > 0, s"PageSize must be > 0, got $n")
+    n
+
+  extension (ps: PageSize)
+    def value: Int = ps
+    private[pgmq4s] def fetchLimit: Int = ps + 1
+    private[pgmq4s] def hasMore(items: Seq[?]): Boolean = items.lengthCompare(ps) > 0
+
+extension (n: Int)
+  inline def pageSize: PageSize =
+    inline if n > 0 then PageSize.unsafe(n)
+    else scala.compiletime.error("PageSize must be positive")

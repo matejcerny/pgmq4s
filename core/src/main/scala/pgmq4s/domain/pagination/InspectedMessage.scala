@@ -19,17 +19,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.domain.pagination
+
+import pgmq4s.domain.{ MessageId, RawMessage }
 
 import java.time.OffsetDateTime
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
+case class InspectedMessage(
+    id: MessageId,
+    readCount: Int,
     enqueuedAt: OffsetDateTime,
     lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
+    visibleAt: OffsetDateTime,
+    payload: String,
     headers: Option[String]
 )
+
+object InspectedMessage:
+
+  private[pgmq4s] def fromRaw(raw: RawMessage): InspectedMessage =
+    InspectedMessage(
+      id = MessageId(raw.msgId),
+      readCount = raw.readCt,
+      enqueuedAt = raw.enqueuedAt,
+      lastReadAt = raw.lastReadAt,
+      visibleAt = raw.vt,
+      payload = raw.message,
+      headers = raw.headers
+    )

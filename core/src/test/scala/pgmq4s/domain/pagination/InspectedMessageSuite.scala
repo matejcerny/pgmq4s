@@ -19,17 +19,37 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.domain.pagination
+
+import cats.syntax.foldable.*
+import pgmq4s.domain.{ MessageId, RawMessage }
+import weaver.SimpleIOSuite
 
 import java.time.OffsetDateTime
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
-    enqueuedAt: OffsetDateTime,
-    lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
-    headers: Option[String]
-)
+object InspectedMessageSuite extends SimpleIOSuite:
+
+  private val now = OffsetDateTime.parse("2025-01-01T00:00:00Z")
+  private val later = OffsetDateTime.parse("2025-01-01T01:00:00Z")
+
+  pureTest("fromRaw maps all fields correctly"):
+    val raw = RawMessage(
+      msgId = 42L,
+      readCt = 3,
+      enqueuedAt = now,
+      lastReadAt = Some(later),
+      vt = now,
+      message = """{"key":"value"}""",
+      headers = Some("""{"h":"1"}""")
+    )
+    val msg = InspectedMessage.fromRaw(raw)
+
+    List(
+      expect.same(msg.id, MessageId(42L)),
+      expect.same(msg.readCount, 3),
+      expect.same(msg.enqueuedAt, now),
+      expect.same(msg.lastReadAt, Some(later)),
+      expect.same(msg.visibleAt, now),
+      expect.same(msg.payload, """{"key":"value"}"""),
+      expect.same(msg.headers, Some("""{"h":"1"}"""))
+    ).combineAll
