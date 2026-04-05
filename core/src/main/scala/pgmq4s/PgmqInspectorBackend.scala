@@ -19,17 +19,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s
 
-import java.time.OffsetDateTime
+import pgmq4s.domain.*
+import pgmq4s.domain.pagination.*
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
-    enqueuedAt: OffsetDateTime,
-    lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
-    headers: Option[String]
-)
+/** SPI trait for database backends providing non-destructive message browsing.
+  *
+  * All operations work at the raw (String-level) representation for queue names. Sort and cursor types are passed
+  * through as-is because they are library-controlled and backends need their types for correct SQL codec selection.
+  */
+private[pgmq4s] trait PgmqInspectorBackend[F[_]]:
+
+  def browseMessages(
+      queue: String,
+      limit: Int,
+      sort: Sort[MessageSortField],
+      cursor: Option[MessageCursor]
+  ): F[List[RawMessage]]
+
+  def browseArchive(
+      queue: String,
+      limit: Int,
+      sort: Sort[MessageSortField],
+      cursor: Option[MessageCursor]
+  ): F[List[RawMessage]]
+
+  def countMessages(queue: String): F[Long]
+  def countArchive(queue: String): F[Long]

@@ -19,17 +19,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.domain.pagination
 
 import java.time.OffsetDateTime
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
-    enqueuedAt: OffsetDateTime,
-    lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
-    headers: Option[String]
-)
+private[pgmq4s] sealed trait MessageCursor:
+  def msgId: Long
+
+private[pgmq4s] object MessageCursor:
+  case class ById(msgId: Long) extends MessageCursor
+  case class ByTimestamp(value: Option[OffsetDateTime], msgId: Long) extends MessageCursor
+  case class ByInt(value: Int, msgId: Long) extends MessageCursor
+
+  def fromCursor(
+      cursor: Cursor,
+      sortField: MessageSortField
+  ): Option[(Cursor.Direction, MessageCursor)] =
+    for
+      (direction, fieldName, value, tiebreaker) <- Cursor.decode(cursor).toOption
+      field <- MessageSortField.fromColumnName(fieldName) if field == sortField
+      messageCursor <- field.parseCursorValue(value, tiebreaker)
+    yield (direction, messageCursor)
+
+  def toCursor(
+      direction: Cursor.Direction,
+      sortField: MessageSortField,
+      msg: InspectedMessage
+  ): Cursor =
+    Cursor.encode(direction, sortField.columnName, sortField.encodeSortValue(msg), msg.id.value)

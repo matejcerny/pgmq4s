@@ -19,17 +19,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain
+package pgmq4s.domain.pagination
 
-import java.time.OffsetDateTime
+enum SortDirection:
+  case Asc, Desc
 
-/** Internal DTO representing a raw database row before JSON decoding. */
-private[pgmq4s] case class RawMessage(
-    msgId: Long,
-    readCt: Int,
-    enqueuedAt: OffsetDateTime,
-    lastReadAt: Option[OffsetDateTime],
-    vt: OffsetDateTime,
-    message: String,
-    headers: Option[String]
-)
+  private[pgmq4s] def flip: SortDirection = this match
+    case Asc  => Desc
+    case Desc => Asc
+
+case class Sort[F](field: F, direction: SortDirection)
