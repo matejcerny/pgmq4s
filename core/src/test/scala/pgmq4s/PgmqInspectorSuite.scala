@@ -48,7 +48,7 @@ object PgmqInspectorSuite extends SimpleIOSuite:
   private case class Captured(
       table: String = "",
       limit: Int = 0,
-      sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Asc),
+      sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Desc),
       cursor: Option[MessageCursor] = None
   )
 

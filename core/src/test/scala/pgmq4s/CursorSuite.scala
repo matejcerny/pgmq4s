@@ -21,16 +21,15 @@
 
 package pgmq4s
 
+import cats.syntax.foldable.*
 import pgmq4s.domain.pagination.*
 import pgmq4s.domain.pagination.Cursor.Direction
 import weaver.SimpleIOSuite
 
 object CursorSuite extends SimpleIOSuite:
 
-  private def b64(raw: String): Cursor =
-    Cursor.fromString(
-      java.util.Base64.getUrlEncoder.withoutPadding.encodeToString(raw.getBytes("UTF-8"))
-    )
+  private def b64(raw: String): String =
+    java.util.Base64.getUrlEncoder.withoutPadding.encodeToString(raw.getBytes("UTF-8"))
 
   pureTest("encode then decode round-trips for Forward direction"):
     val cursor = Cursor.encode(Direction.Forward, "EnqueuedAt", "2024-01-15T10:30:00Z", 12345L)
@@ -47,21 +46,30 @@ object CursorSuite extends SimpleIOSuite:
     expect(cursor.value.nonEmpty) and
       expect(!cursor.value.contains("|"))
 
-  pureTest("decode rejects invalid base64"):
-    val result = Cursor.decode(Cursor.fromString("!!!not-base64!!!"))
-    expect(result.isLeft)
+  pureTest("fromString rejects invalid base64"):
+    expect(Cursor.fromString("!!!not-base64!!!").isLeft)
 
-  pureTest("decode rejects malformed payload"):
-    val result = Cursor.decode(b64("bad-format"))
-    expect(result.isLeft)
+  pureTest("fromString rejects malformed payload"):
+    expect(Cursor.fromString(b64("bad-format")).isLeft)
 
-  pureTest("decode rejects invalid direction"):
-    val result = Cursor.decode(b64("X|id|1|1"))
-    expect(result.isLeft)
+  pureTest("fromString rejects invalid direction"):
+    expect(Cursor.fromString(b64("X|id|1|1")).isLeft)
 
-  pureTest("decode rejects non-numeric tiebreaker"):
-    val result = Cursor.decode(b64("F|id|1|notlong"))
-    expect(result.isLeft)
+  pureTest("fromString rejects non-numeric tiebreaker"):
+    List(
+      expect.same(
+        Cursor.fromString(b64("F|Id|1|notlong")),
+        Left("Invalid cursor: tiebreaker is not a number: notlong")
+      ),
+      expect.same(
+        Cursor.fromString(b64("B|Id|1|notlong")),
+        Left("Invalid cursor: tiebreaker is not a number: notlong")
+      )
+    ).combineAll
+
+  pureTest("fromString accepts valid cursor"):
+    val cursor = Cursor.encode(Direction.Forward, "Id", "1", 1L)
+    expect(Cursor.fromString(cursor.value).isRight)
 
   pureTest("round-trip preserves sort value with special characters"):
     val sortValue = "2024-01-15T10:30:00.123456789Z"

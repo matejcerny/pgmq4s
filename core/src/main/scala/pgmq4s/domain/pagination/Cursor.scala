@@ -21,6 +21,8 @@
 
 package pgmq4s.domain.pagination
 
+import cats.syntax.either.*
+
 import java.util.Base64
 import scala.util.Try
 
@@ -39,18 +41,24 @@ object Cursor:
     Base64.getUrlEncoder.withoutPadding.encodeToString(raw.getBytes("UTF-8"))
 
   private[pgmq4s] def decode(cursor: Cursor): Either[String, (Direction, String, String, Long)] =
-    Try:
-      val raw = new String(Base64.getUrlDecoder.decode(cursor), "UTF-8")
-      raw.split("\\|", 4) match
-        case Array(dir, field, value, tb) =>
-          val direction = dir match
-            case "F" => Direction.Forward
-            case "B" => Direction.Backward
-            case _   => throw IllegalArgumentException(s"Invalid direction: $dir")
-          (direction, field, value, tb.toLong)
-        case _ => throw IllegalArgumentException(s"Invalid cursor format")
-    .toEither.left.map(e => s"Invalid cursor: ${e.getMessage}")
+    Try(new String(Base64.getUrlDecoder.decode(cursor), "UTF-8")).toEither
+      .leftMap(e => s"Invalid cursor: ${e.getMessage}")
+      .flatMap: string =>
+        val tiebreaker = (tb: String) =>
+          tb.toLongOption
+            .toRight(s"Invalid cursor: tiebreaker is not a number: $tb")
 
-  private[pgmq4s] def fromString(s: String): Cursor = s
+        string.split("\\|", 4) match
+          case Array("F", field, value, tb) =>
+            tiebreaker(tb).map(n => (Direction.Forward, field, value, n))
+          case Array("B", field, value, tb) =>
+            tiebreaker(tb).map(n => (Direction.Backward, field, value, n))
+          case Array(dir, _, _, _) =>
+            Left(s"Invalid cursor: invalid direction: $dir")
+          case _ =>
+            Left("Invalid cursor: invalid format")
+
+  def fromString(s: String): Either[String, Cursor] =
+    decode(s).map(_ => s)
 
   extension (c: Cursor) def value: String = c

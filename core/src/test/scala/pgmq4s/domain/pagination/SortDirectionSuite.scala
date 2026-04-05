@@ -21,6 +21,7 @@
 
 package pgmq4s.domain.pagination
 
+import cats.syntax.foldable.*
 import weaver.SimpleIOSuite
 
 object SortDirectionSuite extends SimpleIOSuite:
@@ -30,3 +31,12 @@ object SortDirectionSuite extends SimpleIOSuite:
 
   pureTest("Desc.flip returns Asc"):
     expect.same(SortDirection.Desc.flip, SortDirection.Asc)
+
+  pureTest("fromName round-trips with toString for all fields"):
+    SortDirection.values.toList
+      .map: f =>
+        expect.same(SortDirection.fromName(f.toString), Some(f))
+      .combineAll
+
+  pureTest("fromName returns None for unknown name"):
+    expect.same(SortDirection.fromName("unknown"), None)

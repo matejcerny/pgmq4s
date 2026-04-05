@@ -106,8 +106,8 @@ object MessageCursorSuite extends SimpleIOSuite:
 
   // --- fromCursor: malformed input ---
 
-  pureTest("fromCursor returns None for malformed cursor"):
-    expect(MessageCursor.fromCursor(Cursor.fromString("not-base64!"), MessageSortField.Id).isEmpty)
+  pureTest("fromString returns Left for malformed cursor"):
+    expect(Cursor.fromString("not-base64!").isLeft)
 
   pureTest("fromCursor returns None for cursor with invalid sort value"):
     val cursor = Cursor.encode(Cursor.Direction.Forward, "Id", "not-a-number", 1L)

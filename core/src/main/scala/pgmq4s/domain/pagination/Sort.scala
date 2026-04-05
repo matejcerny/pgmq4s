@@ -36,4 +36,8 @@ enum SortDirection:
     case Asc  => "ASC"
     case Desc => "DESC"
 
+object SortDirection:
+  def fromName(name: String): Option[SortDirection] =
+    values.find(_.toString == name)
+
 case class Sort[F](field: F, direction: SortDirection)

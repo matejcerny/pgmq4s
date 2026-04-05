@@ -39,7 +39,7 @@ trait PgmqInspector[F[_]]:
   def browseMessages(
       queue: QueueName,
       limit: PageSize,
-      sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Asc),
+      sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Desc),
       cursor: Option[Cursor] = None
   ): F[CursorPage[InspectedMessage]]
 
@@ -47,7 +47,7 @@ trait PgmqInspector[F[_]]:
   def browseArchive(
       queue: QueueName,
       limit: PageSize,
-      sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Asc),
+      sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Desc),
       cursor: Option[Cursor] = None
   ): F[CursorPage[InspectedMessage]]
 
