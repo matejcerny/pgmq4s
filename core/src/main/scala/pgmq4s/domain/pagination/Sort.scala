@@ -28,4 +28,12 @@ enum SortDirection:
     case Asc  => Desc
     case Desc => Asc
 
+  private[pgmq4s] def operator: String = this match
+    case Asc  => ">"
+    case Desc => "<"
+
+  private[pgmq4s] def sql: String = this match
+    case Asc  => "ASC"
+    case Desc => "DESC"
+
 case class Sort[F](field: F, direction: SortDirection)

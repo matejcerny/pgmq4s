@@ -46,7 +46,7 @@ object PgmqInspectorSuite extends SimpleIOSuite:
     )
 
   private case class Captured(
-      queue: String = "",
+      table: String = "",
       limit: Int = 0,
       sort: Sort[MessageSortField] = Sort(MessageSortField.Id, SortDirection.Asc),
       cursor: Option[MessageCursor] = None
@@ -54,33 +54,23 @@ object PgmqInspectorSuite extends SimpleIOSuite:
 
   private class StubBackend(
       ref: Ref[IO, Captured],
-      messages: List[RawMessage] = Nil,
-      archive: List[RawMessage] = Nil,
-      msgCount: Long = 0L,
-      archiveCount: Long = 0L
+      data: Map[String, List[RawMessage]] = Map.empty,
+      counts: Map[String, Long] = Map.empty
   ) extends PgmqInspectorBackend[IO]:
 
     def browseMessages(
-        queue: String,
+        table: String,
         limit: Int,
         sort: Sort[MessageSortField],
         cursor: Option[MessageCursor]
     ): IO[List[RawMessage]] =
-      ref.set(Captured(queue, limit, sort, cursor)).as(messages)
+      ref.set(Captured(table, limit, sort, cursor)).as(data.getOrElse(table, Nil))
 
-    def browseArchive(
-        queue: String,
-        limit: Int,
-        sort: Sort[MessageSortField],
-        cursor: Option[MessageCursor]
-    ): IO[List[RawMessage]] =
-      ref.set(Captured(queue, limit, sort, cursor)).as(archive)
+    def countMessages(table: String): IO[Long] =
+      ref.update(_.copy(table = table)).as(counts.getOrElse(table, 0L))
 
-    def countMessages(queue: String): IO[Long] =
-      ref.update(_.copy(queue = queue)).as(msgCount)
-
-    def countArchive(queue: String): IO[Long] =
-      ref.update(_.copy(queue = queue)).as(archiveCount)
+  private val qTable = "pgmq.q_test-queue"
+  private val aTable = "pgmq.a_test-queue"
 
   private def inspectorTest(
       name: String,
@@ -92,36 +82,41 @@ object PgmqInspectorSuite extends SimpleIOSuite:
     test(name):
       for
         ref <- Ref.of[IO, Captured](Captured())
-        backend = StubBackend(ref, messages.map(rawMsg(_)), archive.map(rawMsg(_)), msgCount, archiveCount)
+        data = Map(
+          qTable -> messages.map(rawMsg(_)),
+          aTable -> archive.map(rawMsg(_))
+        )
+        counts = Map(qTable -> msgCount, aTable -> archiveCount)
+        backend = StubBackend(ref, data, counts)
         inspector = PgmqInspector(backend)
         res <- body(inspector, ref.get)
       yield res
 
   // --- QueueName unwrapping ---
 
-  inspectorTest("browseMessages unwraps QueueName"): (inspector, captured) =>
+  inspectorTest("browseMessages resolves queue table name"): (inspector, captured) =>
     for
       _ <- inspector.browseMessages(q, PageSize.Ten)
       c <- captured
-    yield expect.same(c.queue, "test-queue")
+    yield expect.same(c.table, qTable)
 
-  inspectorTest("browseArchive unwraps QueueName"): (inspector, captured) =>
+  inspectorTest("browseArchive resolves archive table name"): (inspector, captured) =>
     for
       _ <- inspector.browseArchive(q, PageSize.Ten)
       c <- captured
-    yield expect.same(c.queue, "test-queue")
+    yield expect.same(c.table, aTable)
 
-  inspectorTest("countMessages unwraps QueueName", msgCount = 42L): (inspector, captured) =>
+  inspectorTest("countMessages resolves queue table name", msgCount = 42L): (inspector, captured) =>
     for
       n <- inspector.countMessages(q)
       c <- captured
-    yield expect.same(n, 42L) and expect.same(c.queue, "test-queue")
+    yield expect.same(n, 42L) and expect.same(c.table, qTable)
 
-  inspectorTest("countArchive unwraps QueueName", archiveCount = 7L): (inspector, captured) =>
+  inspectorTest("countArchive resolves archive table name", archiveCount = 7L): (inspector, captured) =>
     for
       n <- inspector.countArchive(q)
       c <- captured
-    yield expect.same(n, 7L) and expect.same(c.queue, "test-queue")
+    yield expect.same(n, 7L) and expect.same(c.table, aTable)
 
   // --- limit + 1 trick ---
 
@@ -172,7 +167,7 @@ object PgmqInspectorSuite extends SimpleIOSuite:
           q,
           PageSize.Ten,
           Sort(MessageSortField.Id, SortDirection.Asc),
-          Some(Cursor.encode(Cursor.Direction.Forward, "enqueued_at", "2025-01-01T00:00:00Z", 1L))
+          Some(Cursor.encode(Cursor.Direction.Forward, "EnqueuedAt", "2025-01-01T00:00:00Z", 1L))
         )
         c <- captured
       yield List(
@@ -197,7 +192,7 @@ object PgmqInspectorSuite extends SimpleIOSuite:
           q,
           PageSize.Ten,
           Sort(MessageSortField.Id, SortDirection.Asc),
-          Some(Cursor.encode(Cursor.Direction.Backward, "id", "5", 5L))
+          Some(Cursor.encode(Cursor.Direction.Backward, "Id", "5", 5L))
         )
         c <- captured
       yield expect.same(c.sort.direction, SortDirection.Desc)
@@ -209,7 +204,7 @@ object PgmqInspectorSuite extends SimpleIOSuite:
       page <- inspector.browseArchive(q, PageSize.Ten)
       c <- captured
     yield List(
-      expect.same(c.queue, "test-queue"),
+      expect.same(c.table, aTable),
       expect.same(page.items.size, 1),
       expect.same(page.items.head.id, MessageId(1L))
     ).combineAll

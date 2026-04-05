@@ -33,31 +33,48 @@ object MessageSortFieldSuite extends SimpleIOSuite:
 
   // --- columnName ---
 
-  pureTest("Id.columnName returns id"):
-    expect.same(MessageSortField.Id.columnName, "id")
+  pureTest("Id.columnName returns msg_id"):
+    expect.same(MessageSortField.Id.columnName, "msg_id")
 
   pureTest("EnqueuedAt.columnName returns enqueued_at"):
     expect.same(MessageSortField.EnqueuedAt.columnName, "enqueued_at")
 
-  pureTest("VisibleAt.columnName returns visible_at"):
-    expect.same(MessageSortField.VisibleAt.columnName, "visible_at")
+  pureTest("VisibleAt.columnName returns vt"):
+    expect.same(MessageSortField.VisibleAt.columnName, "vt")
 
-  pureTest("ReadCount.columnName returns read_count"):
-    expect.same(MessageSortField.ReadCount.columnName, "read_count")
+  pureTest("ReadCount.columnName returns read_ct"):
+    expect.same(MessageSortField.ReadCount.columnName, "read_ct")
 
   pureTest("LastReadAt.columnName returns last_read_at"):
     expect.same(MessageSortField.LastReadAt.columnName, "last_read_at")
 
-  // --- fromColumnName round-trips ---
+  // --- toString ---
 
-  pureTest("fromColumnName round-trips with columnName for all fields"):
+  pureTest("Id.toString returns Id"):
+    expect.same(MessageSortField.Id.toString, "Id")
+
+  pureTest("EnqueuedAt.toString returns EnqueuedAt"):
+    expect.same(MessageSortField.EnqueuedAt.toString, "EnqueuedAt")
+
+  pureTest("VisibleAt.toString returns VisibleAt"):
+    expect.same(MessageSortField.VisibleAt.toString, "VisibleAt")
+
+  pureTest("ReadCount.toString returns ReadCount"):
+    expect.same(MessageSortField.ReadCount.toString, "ReadCount")
+
+  pureTest("LastReadAt.toString returns LastReadAt"):
+    expect.same(MessageSortField.LastReadAt.toString, "LastReadAt")
+
+  // --- fromName round-trips ---
+
+  pureTest("fromName round-trips with toString for all fields"):
     MessageSortField.values.toList
       .map: f =>
-        expect.same(MessageSortField.fromColumnName(f.columnName), Some(f))
+        expect.same(MessageSortField.fromName(f.toString), Some(f))
       .combineAll
 
-  pureTest("fromColumnName returns None for unknown name"):
-    expect.same(MessageSortField.fromColumnName("unknown"), None)
+  pureTest("fromName returns None for unknown name"):
+    expect.same(MessageSortField.fromName("unknown"), None)
 
   // --- parseCursorValue ---
 

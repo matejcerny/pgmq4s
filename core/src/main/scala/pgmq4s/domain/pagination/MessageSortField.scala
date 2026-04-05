@@ -30,10 +30,10 @@ enum MessageSortField:
   case Id, EnqueuedAt, VisibleAt, ReadCount, LastReadAt
 
   private[pgmq4s] def columnName: String = this match
-    case Id         => "id"
+    case Id         => "msg_id"
     case EnqueuedAt => "enqueued_at"
-    case VisibleAt  => "visible_at"
-    case ReadCount  => "read_count"
+    case VisibleAt  => "vt"
+    case ReadCount  => "read_ct"
     case LastReadAt => "last_read_at"
 
   private[pgmq4s] def parseCursorValue(value: String, tiebreaker: Long): Option[MessageCursor] =
@@ -61,10 +61,5 @@ enum MessageSortField:
 
 object MessageSortField:
 
-  private[pgmq4s] def fromColumnName(name: String): Option[MessageSortField] = name match
-    case "id"           => Some(Id)
-    case "enqueued_at"  => Some(EnqueuedAt)
-    case "visible_at"   => Some(VisibleAt)
-    case "read_count"   => Some(ReadCount)
-    case "last_read_at" => Some(LastReadAt)
-    case _              => None
+  private[pgmq4s] def fromName(name: String): Option[MessageSortField] =
+    values.find(_.toString == name)

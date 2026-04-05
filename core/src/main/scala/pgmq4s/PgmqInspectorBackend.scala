@@ -26,24 +26,18 @@ import pgmq4s.domain.pagination.*
 
 /** SPI trait for database backends providing non-destructive message browsing.
   *
-  * All operations work at the raw (String-level) representation for queue names. Sort and cursor types are passed
-  * through as-is because they are library-controlled and backends need their types for correct SQL codec selection.
+  * All operations work with fully-qualified table names (e.g. `pgmq.q_myqueue`). The calling layer resolves queue names
+  * to table names via [[domain.QueueName]] extensions, so backends do not need to know the naming convention. Sort and
+  * cursor types are passed through as-is because they are library-controlled and backends need their types for correct
+  * SQL codec selection.
   */
 private[pgmq4s] trait PgmqInspectorBackend[F[_]]:
 
   def browseMessages(
-      queue: String,
+      table: String,
       limit: Int,
       sort: Sort[MessageSortField],
       cursor: Option[MessageCursor]
   ): F[List[RawMessage]]
 
-  def browseArchive(
-      queue: String,
-      limit: Int,
-      sort: Sort[MessageSortField],
-      cursor: Option[MessageCursor]
-  ): F[List[RawMessage]]
-
-  def countMessages(queue: String): F[Long]
-  def countArchive(queue: String): F[Long]
+  def countMessages(table: String): F[Long]

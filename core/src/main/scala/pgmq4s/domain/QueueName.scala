@@ -56,7 +56,10 @@ object QueueName:
 
   private[pgmq4s] def trusted(name: String): QueueName = name
 
-  extension (q: QueueName) def value: String = q
+  extension (q: QueueName)
+    def value: String = q
+    private[pgmq4s] def tableName: String = s"pgmq.q_$q"
+    private[pgmq4s] def archiveName: String = s"pgmq.a_$q"
 
 private[pgmq4s] object QueueNameMacro:
 
