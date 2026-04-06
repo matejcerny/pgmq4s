@@ -19,31 +19,16 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain.pagination
+package pgmq4s.skunk
 
-import java.time.OffsetDateTime
+import _root_.skunk as sk
+import pgmq4s.domain.RawMessage
+import sk.*
+import sk.codec.all.*
 
-private[pgmq4s] sealed trait MessageCursor:
-  def msgId: Long
+private[skunk] object SkunkCodecs:
 
-private[pgmq4s] object MessageCursor:
-  case class ById(msgId: Long) extends MessageCursor
-  case class ByTimestamp(value: Option[OffsetDateTime], msgId: Long) extends MessageCursor
-  case class ByInt(value: Int, msgId: Long) extends MessageCursor
-
-  def fromCursor(
-      cursor: Cursor,
-      sortField: MessageSortField
-  ): Option[(Cursor.Direction, MessageCursor)] =
-    for
-      (direction, fieldName, value, tiebreaker) <- Cursor.decode(cursor).toOption
-      field <- MessageSortField.fromName(fieldName) if field == sortField
-      messageCursor <- field.parseCursorValue(value, tiebreaker)
-    yield (direction, messageCursor)
-
-  def toCursor(
-      direction: Cursor.Direction,
-      sortField: MessageSortField,
-      msg: InspectedMessage
-  ): Cursor =
-    Cursor.encode(direction, sortField.toString, sortField.encodeSortValue(msg), msg.id.value)
+  val rawMessageDecoder: Decoder[RawMessage] =
+    (int8 ~ int4 ~ timestamptz ~ timestamptz.opt ~ timestamptz ~ text ~ text.opt).map:
+      case msgId ~ readCt ~ enqueuedAt ~ lastReadAt ~ vt ~ message ~ headers =>
+        RawMessage(msgId, readCt, enqueuedAt, lastReadAt, vt, message, headers)

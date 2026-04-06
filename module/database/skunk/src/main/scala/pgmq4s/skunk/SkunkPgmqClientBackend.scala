@@ -33,11 +33,7 @@ import pgmq4s.domain.*
 
 class SkunkPgmqClientBackend[F[_]: Temporal](pool: Resource[F, Session[F]]) extends PgmqClientBackend[F]:
 
-  private val rawMessageDecoder: Decoder[RawMessage] =
-    (int8 ~ int4 ~ timestamptz ~ timestamptz.opt ~ timestamptz ~ text ~ text.opt).map {
-      case msgId ~ readCt ~ enqueuedAt ~ lastReadAt ~ vt ~ message ~ headers =>
-        RawMessage(msgId, readCt, enqueuedAt, lastReadAt, vt, message, headers)
-    }
+  import SkunkCodecs.rawMessageDecoder
 
   // Publishing
 

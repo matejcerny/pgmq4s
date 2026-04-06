@@ -70,7 +70,7 @@ object PgmqInspector:
         sort: Sort[MessageSortField],
         cursor: Option[Cursor]
     ): F[CursorPage[InspectedMessage]] =
-      browse(backend.browseMessages, queue, limit, sort, cursor)
+      browse(queue.tableName, limit, sort, cursor)
 
     def browseArchive(
         queue: QueueName,
@@ -78,15 +78,14 @@ object PgmqInspector:
         sort: Sort[MessageSortField],
         cursor: Option[Cursor]
     ): F[CursorPage[InspectedMessage]] =
-      browse(backend.browseArchive, queue, limit, sort, cursor)
+      browse(queue.archiveName, limit, sort, cursor)
 
-    def countMessages(queue: QueueName): F[Long] = backend.countMessages(queue.value)
+    def countMessages(queue: QueueName): F[Long] = backend.countMessages(queue.tableName)
 
-    def countArchive(queue: QueueName): F[Long] = backend.countArchive(queue.value)
+    def countArchive(queue: QueueName): F[Long] = backend.countMessages(queue.archiveName)
 
     private def browse(
-        fetch: (String, Int, Sort[MessageSortField], Option[MessageCursor]) => F[List[RawMessage]],
-        queue: QueueName,
+        table: String,
         limit: PageSize,
         sort: Sort[MessageSortField],
         cursor: Option[Cursor]
@@ -96,4 +95,4 @@ object PgmqInspector:
         mapItem = InspectedMessage.fromRaw,
         makeCursor = (dir, msg) => MessageCursor.toCursor(dir, sort.field, msg)
       ): (fetchLimit, effectiveSort, typedCursor) =>
-        fetch(queue.value, fetchLimit, effectiveSort, typedCursor)
+        backend.browseMessages(table, fetchLimit, effectiveSort, typedCursor)

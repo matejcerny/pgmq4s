@@ -46,13 +46,13 @@ object MessageCursorSuite extends SimpleIOSuite:
   // --- fromCursor: Id ---
 
   pureTest("fromCursor decodes Id cursor with Forward direction"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "id", "42", 42L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "Id", "42", 42L)
     MessageCursor.fromCursor(cursor, MessageSortField.Id) match
       case Some((Cursor.Direction.Forward, MessageCursor.ById(42L))) => success
       case other => failure(s"Expected (Forward, ById(42)), got $other")
 
   pureTest("fromCursor decodes Id cursor with Backward direction"):
-    val cursor = Cursor.encode(Cursor.Direction.Backward, "id", "42", 42L)
+    val cursor = Cursor.encode(Cursor.Direction.Backward, "Id", "42", 42L)
     MessageCursor.fromCursor(cursor, MessageSortField.Id) match
       case Some((Cursor.Direction.Backward, MessageCursor.ById(42L))) => success
       case other => failure(s"Expected (Backward, ById(42)), got $other")
@@ -60,7 +60,7 @@ object MessageCursorSuite extends SimpleIOSuite:
   // --- fromCursor: EnqueuedAt ---
 
   pureTest("fromCursor decodes EnqueuedAt cursor"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "enqueued_at", "2025-01-01T00:00:00Z", 1L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "EnqueuedAt", "2025-01-01T00:00:00Z", 1L)
     MessageCursor.fromCursor(cursor, MessageSortField.EnqueuedAt) match
       case Some((Cursor.Direction.Forward, MessageCursor.ByTimestamp(Some(ts), 1L))) =>
         expect.same(ts.toInstant.toString, "2025-01-01T00:00:00Z")
@@ -69,7 +69,7 @@ object MessageCursorSuite extends SimpleIOSuite:
   // --- fromCursor: VisibleAt ---
 
   pureTest("fromCursor decodes VisibleAt cursor"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "visible_at", "2025-01-01T00:00:00Z", 2L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "VisibleAt", "2025-01-01T00:00:00Z", 2L)
     MessageCursor.fromCursor(cursor, MessageSortField.VisibleAt) match
       case Some((Cursor.Direction.Forward, MessageCursor.ByTimestamp(Some(ts), 2L))) =>
         expect.same(ts.toInstant.toString, "2025-01-01T00:00:00Z")
@@ -78,7 +78,7 @@ object MessageCursorSuite extends SimpleIOSuite:
   // --- fromCursor: ReadCount ---
 
   pureTest("fromCursor decodes ReadCount cursor"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "read_count", "5", 1L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "ReadCount", "5", 1L)
     MessageCursor.fromCursor(cursor, MessageSortField.ReadCount) match
       case Some((Cursor.Direction.Forward, MessageCursor.ByInt(5, 1L))) => success
       case other                                                        => failure(s"Expected ByInt(5, 1), got $other")
@@ -86,13 +86,13 @@ object MessageCursorSuite extends SimpleIOSuite:
   // --- fromCursor: LastReadAt ---
 
   pureTest("fromCursor decodes LastReadAt with null sentinel"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "last_read_at", "null", 1L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "LastReadAt", "null", 1L)
     MessageCursor.fromCursor(cursor, MessageSortField.LastReadAt) match
       case Some((Cursor.Direction.Forward, MessageCursor.ByTimestamp(None, 1L))) => success
       case other => failure(s"Expected ByTimestamp(None, 1), got $other")
 
   pureTest("fromCursor decodes LastReadAt with timestamp"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "last_read_at", "2025-01-01T00:00:00Z", 3L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "LastReadAt", "2025-01-01T00:00:00Z", 3L)
     MessageCursor.fromCursor(cursor, MessageSortField.LastReadAt) match
       case Some((Cursor.Direction.Forward, MessageCursor.ByTimestamp(Some(ts), 3L))) =>
         expect.same(ts.toInstant.toString, "2025-01-01T00:00:00Z")
@@ -101,7 +101,7 @@ object MessageCursorSuite extends SimpleIOSuite:
   // --- fromCursor: mismatched sort field ---
 
   pureTest("fromCursor returns None when sort field does not match cursor field"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "enqueued_at", "2025-01-01T00:00:00Z", 1L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "EnqueuedAt", "2025-01-01T00:00:00Z", 1L)
     expect(MessageCursor.fromCursor(cursor, MessageSortField.Id).isEmpty)
 
   // --- fromCursor: malformed input ---
@@ -110,7 +110,7 @@ object MessageCursorSuite extends SimpleIOSuite:
     expect(MessageCursor.fromCursor(Cursor.fromString("not-base64!"), MessageSortField.Id).isEmpty)
 
   pureTest("fromCursor returns None for cursor with invalid sort value"):
-    val cursor = Cursor.encode(Cursor.Direction.Forward, "id", "not-a-number", 1L)
+    val cursor = Cursor.encode(Cursor.Direction.Forward, "Id", "not-a-number", 1L)
     expect(MessageCursor.fromCursor(cursor, MessageSortField.Id).isEmpty)
 
   // --- toCursor ---
@@ -118,38 +118,38 @@ object MessageCursorSuite extends SimpleIOSuite:
   pureTest("toCursor encodes Id field"):
     val cursor = MessageCursor.toCursor(Cursor.Direction.Forward, MessageSortField.Id, msg)
     Cursor.decode(cursor) match
-      case Right((Cursor.Direction.Forward, "id", "42", 42L)) => success
+      case Right((Cursor.Direction.Forward, "Id", "42", 42L)) => success
       case other                                              => failure(s"Expected (Forward, id, 42, 42), got $other")
 
   pureTest("toCursor encodes EnqueuedAt field"):
     val cursor = MessageCursor.toCursor(Cursor.Direction.Forward, MessageSortField.EnqueuedAt, msg)
     Cursor.decode(cursor) match
-      case Right((Cursor.Direction.Forward, "enqueued_at", "2025-01-01T00:00:00Z", 42L)) => success
+      case Right((Cursor.Direction.Forward, "EnqueuedAt", "2025-01-01T00:00:00Z", 42L)) => success
       case other => failure(s"Unexpected: $other")
 
   pureTest("toCursor encodes VisibleAt field"):
     val cursor = MessageCursor.toCursor(Cursor.Direction.Backward, MessageSortField.VisibleAt, msg)
     Cursor.decode(cursor) match
-      case Right((Cursor.Direction.Backward, "visible_at", "2025-01-01T00:00:00Z", 42L)) => success
+      case Right((Cursor.Direction.Backward, "VisibleAt", "2025-01-01T00:00:00Z", 42L)) => success
       case other => failure(s"Unexpected: $other")
 
   pureTest("toCursor encodes ReadCount field"):
     val cursor = MessageCursor.toCursor(Cursor.Direction.Forward, MessageSortField.ReadCount, msg)
     Cursor.decode(cursor) match
-      case Right((Cursor.Direction.Forward, "read_count", "3", 42L)) => success
-      case other                                                     => failure(s"Unexpected: $other")
+      case Right((Cursor.Direction.Forward, "ReadCount", "3", 42L)) => success
+      case other                                                    => failure(s"Unexpected: $other")
 
   pureTest("toCursor encodes LastReadAt with timestamp"):
     val cursor = MessageCursor.toCursor(Cursor.Direction.Forward, MessageSortField.LastReadAt, msg)
     Cursor.decode(cursor) match
-      case Right((Cursor.Direction.Forward, "last_read_at", "2025-01-01T00:00:00Z", 42L)) => success
+      case Right((Cursor.Direction.Forward, "LastReadAt", "2025-01-01T00:00:00Z", 42L)) => success
       case other => failure(s"Unexpected: $other")
 
   pureTest("toCursor encodes LastReadAt with null when absent"):
     val cursor = MessageCursor.toCursor(Cursor.Direction.Forward, MessageSortField.LastReadAt, msgNoLastRead)
     Cursor.decode(cursor) match
-      case Right((Cursor.Direction.Forward, "last_read_at", "null", 42L)) => success
-      case other                                                          => failure(s"Unexpected: $other")
+      case Right((Cursor.Direction.Forward, "LastReadAt", "null", 42L)) => success
+      case other                                                        => failure(s"Unexpected: $other")
 
   // --- round-trip: toCursor -> fromCursor ---
 

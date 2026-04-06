@@ -19,31 +19,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.domain.pagination
+package pgmq4s.skunk
 
-import java.time.OffsetDateTime
+import _root_.skunk.Session
+import cats.effect.{ Resource, Temporal }
+import pgmq4s.PgmqInspector
 
-private[pgmq4s] sealed trait MessageCursor:
-  def msgId: Long
+object SkunkPgmqInspector:
 
-private[pgmq4s] object MessageCursor:
-  case class ById(msgId: Long) extends MessageCursor
-  case class ByTimestamp(value: Option[OffsetDateTime], msgId: Long) extends MessageCursor
-  case class ByInt(value: Int, msgId: Long) extends MessageCursor
-
-  def fromCursor(
-      cursor: Cursor,
-      sortField: MessageSortField
-  ): Option[(Cursor.Direction, MessageCursor)] =
-    for
-      (direction, fieldName, value, tiebreaker) <- Cursor.decode(cursor).toOption
-      field <- MessageSortField.fromName(fieldName) if field == sortField
-      messageCursor <- field.parseCursorValue(value, tiebreaker)
-    yield (direction, messageCursor)
-
-  def toCursor(
-      direction: Cursor.Direction,
-      sortField: MessageSortField,
-      msg: InspectedMessage
-  ): Cursor =
-    Cursor.encode(direction, sortField.toString, sortField.encodeSortValue(msg), msg.id.value)
+  def apply[F[_]: Temporal](pool: Resource[F, Session[F]]): PgmqInspector[F] =
+    PgmqInspector(SkunkPgmqInspectorBackend[F](pool))

@@ -33,17 +33,17 @@ object CursorSuite extends SimpleIOSuite:
     )
 
   pureTest("encode then decode round-trips for Forward direction"):
-    val cursor = Cursor.encode(Direction.Forward, "enqueued_at", "2024-01-15T10:30:00Z", 12345L)
+    val cursor = Cursor.encode(Direction.Forward, "EnqueuedAt", "2024-01-15T10:30:00Z", 12345L)
     val result = Cursor.decode(cursor)
-    expect.same(result, Right((Direction.Forward, "enqueued_at", "2024-01-15T10:30:00Z", 12345L)))
+    expect.same(result, Right((Direction.Forward, "EnqueuedAt", "2024-01-15T10:30:00Z", 12345L)))
 
   pureTest("encode then decode round-trips for Backward direction"):
-    val cursor = Cursor.encode(Direction.Backward, "id", "99", 99L)
+    val cursor = Cursor.encode(Direction.Backward, "Id", "99", 99L)
     val result = Cursor.decode(cursor)
-    expect.same(result, Right((Direction.Backward, "id", "99", 99L)))
+    expect.same(result, Right((Direction.Backward, "Id", "99", 99L)))
 
   pureTest("encode produces a base64 string without pipe characters"):
-    val cursor = Cursor.encode(Direction.Forward, "id", "1", 1L)
+    val cursor = Cursor.encode(Direction.Forward, "Id", "1", 1L)
     expect(cursor.value.nonEmpty) and
       expect(!cursor.value.contains("|"))
 
@@ -65,15 +65,15 @@ object CursorSuite extends SimpleIOSuite:
 
   pureTest("round-trip preserves sort value with special characters"):
     val sortValue = "2024-01-15T10:30:00.123456789Z"
-    val cursor = Cursor.encode(Direction.Forward, "enqueued_at", sortValue, 42L)
+    val cursor = Cursor.encode(Direction.Forward, "EnqueuedAt", sortValue, 42L)
     val result = Cursor.decode(cursor)
-    expect.same(result, Right((Direction.Forward, "enqueued_at", sortValue, 42L)))
+    expect.same(result, Right((Direction.Forward, "EnqueuedAt", sortValue, 42L)))
 
   pureTest("round-trip preserves null sort value"):
-    val cursor = Cursor.encode(Direction.Forward, "last_read_at", "null", 1L)
+    val cursor = Cursor.encode(Direction.Forward, "LastReadAt", "null", 1L)
     val result = Cursor.decode(cursor)
-    expect.same(result, Right((Direction.Forward, "last_read_at", "null", 1L)))
+    expect.same(result, Right((Direction.Forward, "LastReadAt", "null", 1L)))
 
   pureTest("value extension returns the underlying string"):
-    val cursor = Cursor.encode(Direction.Forward, "id", "1", 1L)
+    val cursor = Cursor.encode(Direction.Forward, "Id", "1", 1L)
     expect(cursor.value.nonEmpty)
