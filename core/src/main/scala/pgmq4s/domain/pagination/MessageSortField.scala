@@ -61,5 +61,5 @@ enum MessageSortField:
 
 object MessageSortField:
 
-  private[pgmq4s] def fromName(name: String): Option[MessageSortField] =
+  def fromName(name: String): Option[MessageSortField] =
     values.find(_.toString == name)
