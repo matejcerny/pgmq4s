@@ -2,7 +2,8 @@ package pgmq4s.examples
 
 import _root_.skunk.Session
 import cats.effect.{ IO, IOApp }
-import natchez.Trace.Implicits.noop
+import org.typelevel.otel4s.metrics.Meter.Implicits.noop
+import org.typelevel.otel4s.trace.Tracer.Implicits.noop
 import pgmq4s.*
 import pgmq4s.domain.*
 import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient }
@@ -13,14 +14,12 @@ object SkunkPgmqClientApp extends IOApp.Simple:
 
   val run: IO[Unit] =
     Session
-      .pooled[IO](
-        host = "localhost",
-        port = 5432,
-        user = "pgmq",
-        database = "pgmq",
-        password = Some("pgmq"),
-        max = 10
-      )
+      .Builder[IO]
+      .withHost("localhost")
+      .withPort(5432)
+      .withUserAndPassword("pgmq", "pgmq")
+      .withDatabase("pgmq")
+      .pooled(10)
       .use: pool =>
         val client = SkunkPgmqClient[IO](pool)
         val admin = SkunkPgmqAdmin[IO](pool)

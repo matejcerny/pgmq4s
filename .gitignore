@@ -66,3 +66,5 @@ Session.vim
 Thumbs.db
 Desktop.ini
 app.version
+# Generators
+examples/src/main/scala/pgmq4s/examples/SkunkPgmqClientGen.scala

@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.10"
+ThisBuild / tlBaseVersion := "0.11"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -46,19 +46,19 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 
 // === VERSIONS ===
 val AnormV = "2.11.0"
-val CatsEffectV = "3.6.3"
-val CirceV = "0.14.8"
+val CatsEffectV = "3.7.0"
+val CirceV = "0.14.15"
 val DoobieV = "1.0.0-RC12"
-val Fs2V = "3.12.2"
-val SkunkV = "0.6.5"
+val Fs2V = "3.13.0"
+val SkunkV = "1.0.0"
 val ScalaJavaTimeV = "2.6.0"
-val JsoniterV = "2.30.2"
-val PostgresV = "42.7.5"
+val JsoniterV = "2.38.9"
+val PostgresV = "42.7.10"
 val PlayJsonV = "3.0.4"
 val SlickV = "3.6.1"
 val SprayJsonV = "1.3.6"
-val UpickleV = "3.2.0"
-val WeaverV = "0.11.3"
+val UpickleV = "4.4.3"
+val WeaverV = "0.12.0"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
