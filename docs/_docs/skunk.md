@@ -27,17 +27,17 @@ Create a `Session` pool as a `Resource` and pass it to `SkunkPgmqClient` and `Sk
 ```scala
 import _root_.skunk.Session
 import cats.effect.{IO, Resource}
-import natchez.Trace.Implicits.noop
+import org.typelevel.otel4s.metrics.Meter.Implicits.noop
+import org.typelevel.otel4s.trace.Tracer.Implicits.noop
 
 val pool: Resource[IO, Resource[IO, Session[IO]]] =
-  Session.pooled[IO](
-    host = "localhost",
-    port = 5432,
-    user = "pgmq",
-    database = "pgmq",
-    password = Some("pgmq"),
-    max = 10
-  )
+  Session
+    .Builder[IO]
+    .withHost("localhost")
+    .withPort(5432)
+    .withUserAndPassword("pgmq", "pgmq")
+    .withDatabase("pgmq")
+    .pooled(10)
 ```
 
 Then instantiate the client and admin:
@@ -56,7 +56,8 @@ val admin: PgmqAdmin[IO]   = SkunkPgmqAdmin[IO](pool)
 import _root_.skunk.Session
 import cats.effect.{IO, IOApp}
 import io.circe.{Decoder, Encoder}
-import natchez.Trace.Implicits.noop
+import org.typelevel.otel4s.metrics.Meter.Implicits.noop
+import org.typelevel.otel4s.trace.Tracer.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
 import pgmq4s.skunk.{SkunkPgmqAdmin, SkunkPgmqClient}
@@ -69,14 +70,12 @@ object SkunkExample extends IOApp.Simple:
 
   val run: IO[Unit] =
     Session
-      .pooled[IO](
-        host = "localhost",
-        port = 5432,
-        user = "pgmq",
-        database = "pgmq",
-        password = Some("pgmq"),
-        max = 10
-      )
+      .Builder[IO]
+      .withHost("localhost")
+      .withPort(5432)
+      .withUserAndPassword("pgmq", "pgmq")
+      .withDatabase("pgmq")
+      .pooled(10)
       .use: pool =>
         val client = SkunkPgmqClient[IO](pool)
         val admin  = SkunkPgmqAdmin[IO](pool)

@@ -10,7 +10,7 @@ The quickest way to get a [PGMQ](https://github.com/pgmq/pgmq)-enabled Postgres 
 # docker-compose.yml
 services:
   postgres:
-    image: ghcr.io/pgmq/pg18-pgmq:v1.10.0
+    image: ghcr.io/pgmq/pg18-pgmq:v1.11.0
     ports:
       - "5432:5432"
     environment:
@@ -35,7 +35,8 @@ Save the following as `pgmq-example.scala` and run it with `scala-cli run pgmq-e
 import _root_.skunk.Session
 import cats.effect.{IO, IOApp}
 import io.circe.{Decoder, Encoder}
-import natchez.Trace.Implicits.noop
+import org.typelevel.otel4s.metrics.Meter.Implicits.noop
+import org.typelevel.otel4s.trace.Tracer.Implicits.noop
 import pgmq4s.*
 import pgmq4s.circe.given
 import pgmq4s.skunk.{SkunkPgmqAdmin, SkunkPgmqClient}
@@ -46,14 +47,12 @@ case class OrderCreated(orderId: Long, email: String) derives Encoder.AsObject, 
 object Main extends IOApp.Simple:
   val run: IO[Unit] =
     Session
-      .pooled[IO](
-        host = "localhost",
-        port = 5432,
-        user = "pgmq",
-        database = "pgmq",
-        password = Some("pgmq"),
-        max = 10
-      )
+      .Builder[IO]
+      .withHost("localhost")
+      .withPort(5432)
+      .withUserAndPassword("pgmq", "pgmq")
+      .withDatabase("pgmq")
+      .pooled(10)
       .use: pool =>
         val client = SkunkPgmqClient[IO](pool)
         val admin  = SkunkPgmqAdmin[IO](pool)
