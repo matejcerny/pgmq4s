@@ -33,6 +33,7 @@ trait PgmqAdminBackend[F[_]]:
   // Queue Management
   def createQueue(queue: String): F[Unit]
   def createPartitionedQueue(queue: String, partitionInterval: String, retentionInterval: String): F[Unit]
+  def createUnloggedQueue(queue: String): F[Unit]
   def dropQueue(queue: String): F[Boolean]
 
   // Queue Lifecycle

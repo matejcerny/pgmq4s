@@ -32,6 +32,7 @@ Implemented in `PgmqAdmin[F]`.
 |---------------------------------|-----------------------------|-------------------------------------------------|
 | `create`                        | `createQueue`               | Create a new queue                              |
 | `create_partitioned`            | `createPartitionedQueue`    | Create a partitioned queue                      |
+| `create_unlogged`               | `createUnloggedQueue`       | Create an unlogged queue (no WAL)               |
 | `drop_queue`                    | `dropQueue`                 | Drop a queue                                    |
 | `purge_queue`                   | `purgeQueue`                | Purge all messages from a queue                 |
 | `metrics`                       | `metrics`                   | Get metrics for a single queue                  |
@@ -61,7 +62,6 @@ Long-polling and grouped reads for consumer loops and FIFO patterns:
 
 ### Queue Management
 
-- `create_unlogged` — create an unlogged queue (higher throughput, no WAL)
 - `convert_archive_partitioned` — convert an archive table to partitioned
 
 ### Utilities

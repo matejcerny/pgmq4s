@@ -74,6 +74,9 @@ object PgmqAdminSuite extends SimpleIOSuite:
     def createPartitionedQueue(queue: String, partitionInterval: String, retentionInterval: String): IO[Unit] =
       ref.update(_.copy(queue = queue, partitionInterval = partitionInterval, retentionInterval = retentionInterval))
 
+    def createUnloggedQueue(queue: String): IO[Unit] =
+      ref.update(_.copy(queue = queue))
+
     def dropQueue(queue: String): IO[Boolean] =
       ref.update(_.copy(queue = queue)).as(ret.drop)
 
@@ -135,6 +138,12 @@ object PgmqAdminSuite extends SimpleIOSuite:
       expect.same(c.partitionInterval, "daily"),
       expect.same(c.retentionInterval, "30 days")
     ).combineAll
+
+  pgmqTest("createUnloggedQueue unwraps QueueName"): (admin, captured) =>
+    for
+      _ <- admin.createUnloggedQueue(q)
+      c <- captured
+    yield expect.same(c.queue, "my-queue")
 
   pgmqTest("dropQueue unwraps QueueName"): (admin, captured) =>
     for

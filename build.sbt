@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.11"
+ThisBuild / tlBaseVersion := "0.12"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"

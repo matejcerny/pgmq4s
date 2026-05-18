@@ -67,6 +67,12 @@ class AnormPgmqAdminBackend(dataSource: DataSource)(using ExecutionContext) exte
         .execute()
       ()
 
+  def createUnloggedQueue(queue: String): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.create_unlogged({queue})").on("queue" -> queue).execute()
+      ()
+
   def dropQueue(queue: String): Future[Boolean] =
     withConnection: conn =>
       given Connection = conn
