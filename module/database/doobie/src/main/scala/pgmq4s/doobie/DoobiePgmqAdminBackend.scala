@@ -45,6 +45,9 @@ class DoobiePgmqAdminBackend[F[_]: Sync](xa: Transactor[F]) extends PgmqAdminBac
       .unique
       .transact(xa)
 
+  def createUnloggedQueue(queue: String): F[Unit] =
+    sql"SELECT pgmq.create_unlogged($queue)".query[Unit].unique.transact(xa)
+
   def dropQueue(queue: String): F[Boolean] =
     sql"SELECT pgmq.drop_queue($queue)".query[Boolean].unique.transact(xa)
 

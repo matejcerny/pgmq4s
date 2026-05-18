@@ -42,6 +42,11 @@ trait PgmqAdmin[F[_]]:
   /** Create a partitioned queue with the given partition and retention intervals (e.g. `"daily"`, `"7 days"`). */
   def createPartitionedQueue(queue: QueueName, partitionInterval: String, retentionInterval: String): F[Unit]
 
+  /** Create an unlogged queue. Higher throughput than a regular queue because writes skip the WAL, but contents are
+    * lost on a Postgres crash. See the Postgres docs on unlogged tables for details.
+    */
+  def createUnloggedQueue(queue: QueueName): F[Unit]
+
   /** Drop a queue and its archive table. Returns `true` if the queue existed. */
   def dropQueue(queue: QueueName): F[Boolean]
 
@@ -97,6 +102,8 @@ object PgmqAdmin:
 
     def createPartitionedQueue(queue: QueueName, partitionInterval: String, retentionInterval: String): F[Unit] =
       backend.createPartitionedQueue(queue.value, partitionInterval, retentionInterval)
+
+    def createUnloggedQueue(queue: QueueName): F[Unit] = backend.createUnloggedQueue(queue.value)
 
     def dropQueue(queue: QueueName): F[Boolean] = backend.dropQueue(queue.value)
 

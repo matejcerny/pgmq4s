@@ -136,6 +136,7 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
     ): IO[Unit] =
       liftF(underlying.createPartitionedQueue(queue, partitionInterval, retentionInterval))
 
+    override def createUnloggedQueue(queue: QueueName): IO[Unit] = liftF(underlying.createUnloggedQueue(queue))
     override def dropQueue(queue: QueueName): IO[Boolean] = liftF(underlying.dropQueue(queue))
     override def purgeQueue(queue: QueueName): IO[Long] = liftF(underlying.purgeQueue(queue))
     override def detachArchive(queue: QueueName): IO[Unit] = liftF(underlying.detachArchive(queue))

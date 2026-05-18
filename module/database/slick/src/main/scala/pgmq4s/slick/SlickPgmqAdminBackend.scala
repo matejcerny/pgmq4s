@@ -63,6 +63,9 @@ class SlickPgmqAdminBackend(db: Database)(using ExecutionContext) extends PgmqAd
   ): Future[Unit] =
     db.run(sql"SELECT pgmq.create_partitioned($queue, $partitionInterval, $retentionInterval)".as[Unit].head)
 
+  def createUnloggedQueue(queue: String): Future[Unit] =
+    db.run(sql"SELECT pgmq.create_unlogged($queue)".as[Unit].head)
+
   def dropQueue(queue: String): Future[Boolean] =
     db.run(sql"SELECT pgmq.drop_queue($queue)".as[Boolean].head)
 

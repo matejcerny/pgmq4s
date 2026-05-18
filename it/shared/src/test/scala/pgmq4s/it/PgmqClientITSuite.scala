@@ -134,6 +134,13 @@ trait PgmqClientITSuite extends IOSuite:
         case Right(_) => success
         case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))
 
+  pgmqTest("create unlogged queue", createQueue = false): (_, admin, queue) =>
+    for
+      _ <- admin.createUnloggedQueue(queue)
+      info <- admin.listQueues.map(_.find(_.queueName == queue))
+    yield expect(clue(info).isDefined) and
+      expect.same(info.map(_.isUnlogged), Some(true))
+
   pgmqTest("send with headers and read"): (client, _, queue) =>
     val payload = TestPayload(100, "with headers")
     val hdrs = TestHeaders("trace-abc")

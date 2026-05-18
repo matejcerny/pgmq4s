@@ -58,6 +58,9 @@ class SkunkPgmqAdminBackend[F[_]: Temporal](pool: Resource[F, Session[F]]) exten
       _.prepare(sql"SELECT pgmq.create_partitioned($text, $text, $text)".query(voidCodec))
         .flatMap(_.unique((queue, partitionInterval, retentionInterval)))
 
+  def createUnloggedQueue(queue: String): F[Unit] =
+    pool.use(_.prepare(sql"SELECT pgmq.create_unlogged($text)".query(voidCodec)).flatMap(_.unique(queue)))
+
   def dropQueue(queue: String): F[Boolean] =
     pool.use(_.prepare(sql"SELECT pgmq.drop_queue($text)".query(bool)).flatMap(_.unique(queue)))
 
