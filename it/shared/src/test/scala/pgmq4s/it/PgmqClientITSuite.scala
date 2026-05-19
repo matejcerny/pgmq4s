@@ -128,7 +128,7 @@ trait PgmqClientITSuite extends IOSuite:
 
   pgmqTest("create partitioned queue", createQueue = false): (_, admin, queue) =>
     admin
-      .createPartitionedQueue(queue, "10000", "100000")
+      .createPartitionedQueue(queue, PartitionInterval.Numeric.unsafe(10000), RetentionInterval.Numeric.unsafe(100000))
       .attempt
       .map:
         case Right(_) => success
@@ -140,6 +140,33 @@ trait PgmqClientITSuite extends IOSuite:
       info <- admin.listQueues.map(_.find(_.queueName == queue))
     yield expect(clue(info).isDefined) and
       expect.same(info.map(_.isUnlogged), Some(true))
+
+  pgmqTest("convert archive partitioned"): (_, admin, queue) =>
+    admin
+      .convertArchivePartitioned(
+        queue,
+        PartitionInterval.Numeric.unsafe(10000),
+        RetentionInterval.Numeric.unsafe(100000),
+        5.partitions
+      )
+      .attempt
+      .map:
+        case Right(_) => success
+        case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))
+
+  pgmqTest("drop old archive"): (_, admin, queue) =>
+    admin
+      .convertArchivePartitioned(
+        queue,
+        PartitionInterval.Numeric.unsafe(10000),
+        RetentionInterval.Numeric.unsafe(100000),
+        5.partitions
+      )
+      .flatMap(_ => admin.dropOldArchive(queue))
+      .attempt
+      .map:
+        case Right(_) => success
+        case Left(e)  => expect(clue(e.getMessage.toLowerCase).contains("pg_partman"))
 
   pgmqTest("send with headers and read"): (client, _, queue) =>
     val payload = TestPayload(100, "with headers")

@@ -101,7 +101,8 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "pgmq4s-core",
     libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
+    libraryDependencies += "org.typelevel" %%% "weaver-scalacheck" % WeaverV % Test
   )
   .jvmSettings(
     // sbt-typelevel sets -project to the module name; replace with the top-level project name

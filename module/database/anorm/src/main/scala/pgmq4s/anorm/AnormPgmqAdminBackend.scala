@@ -73,6 +73,30 @@ class AnormPgmqAdminBackend(dataSource: DataSource)(using ExecutionContext) exte
       SQL("SELECT pgmq.create_unlogged({queue})").on("queue" -> queue).execute()
       ()
 
+  def convertArchivePartitioned(
+      queue: String,
+      partitionInterval: String,
+      retentionInterval: String,
+      leadingPartition: Int
+  ): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL("SELECT pgmq.convert_archive_partitioned({queue}, {pi}, {ri}, {lp})")
+        .on(
+          "queue" -> queue,
+          "pi" -> partitionInterval,
+          "ri" -> retentionInterval,
+          "lp" -> leadingPartition
+        )
+        .execute()
+      ()
+
+  def dropOldArchive(queue: String): Future[Unit] =
+    withConnection: conn =>
+      given Connection = conn
+      SQL(s"DROP TABLE IF EXISTS pgmq.a_${queue}_old").execute()
+      ()
+
   def dropQueue(queue: String): Future[Boolean] =
     withConnection: conn =>
       given Connection = conn

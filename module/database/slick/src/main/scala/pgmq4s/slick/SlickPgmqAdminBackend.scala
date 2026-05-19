@@ -66,6 +66,21 @@ class SlickPgmqAdminBackend(db: Database)(using ExecutionContext) extends PgmqAd
   def createUnloggedQueue(queue: String): Future[Unit] =
     db.run(sql"SELECT pgmq.create_unlogged($queue)".as[Unit].head)
 
+  def convertArchivePartitioned(
+      queue: String,
+      partitionInterval: String,
+      retentionInterval: String,
+      leadingPartition: Int
+  ): Future[Unit] =
+    db.run(
+      sql"SELECT pgmq.convert_archive_partitioned($queue, $partitionInterval, $retentionInterval, $leadingPartition)"
+        .as[Unit]
+        .head
+    )
+
+  def dropOldArchive(queue: String): Future[Unit] =
+    db.run(sqlu"DROP TABLE IF EXISTS pgmq.a_#${queue}_old").map(_ => ())
+
   def dropQueue(queue: String): Future[Boolean] =
     db.run(sql"SELECT pgmq.drop_queue($queue)".as[Boolean].head)
 

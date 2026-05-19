@@ -28,7 +28,7 @@ object DoobiePgmqClientITSuite extends PgmqClientITSuite:
 
       _ <- Resource.onFinalize:
         queues.get
-          .flatMap(_.traverse_(admin.dropQueue))
+          .flatMap(_.traverse_(q => admin.dropQueue(q).flatMap(_ => admin.dropOldArchive(q).attempt.void)))
           .attempt
           .void
     yield (client, admin, queues, counter)

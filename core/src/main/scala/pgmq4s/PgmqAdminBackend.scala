@@ -34,6 +34,14 @@ trait PgmqAdminBackend[F[_]]:
   def createQueue(queue: String): F[Unit]
   def createPartitionedQueue(queue: String, partitionInterval: String, retentionInterval: String): F[Unit]
   def createUnloggedQueue(queue: String): F[Unit]
+  def convertArchivePartitioned(
+      queue: String,
+      partitionInterval: String,
+      retentionInterval: String,
+      leadingPartition: Int
+  ): F[Unit]
+
+  def dropOldArchive(queue: String): F[Unit]
   def dropQueue(queue: String): F[Boolean]
 
   // Queue Lifecycle

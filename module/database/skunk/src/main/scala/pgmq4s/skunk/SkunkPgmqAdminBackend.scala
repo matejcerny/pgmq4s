@@ -61,6 +61,19 @@ class SkunkPgmqAdminBackend[F[_]: Temporal](pool: Resource[F, Session[F]]) exten
   def createUnloggedQueue(queue: String): F[Unit] =
     pool.use(_.prepare(sql"SELECT pgmq.create_unlogged($text)".query(voidCodec)).flatMap(_.unique(queue)))
 
+  def convertArchivePartitioned(
+      queue: String,
+      partitionInterval: String,
+      retentionInterval: String,
+      leadingPartition: Int
+  ): F[Unit] =
+    pool.use:
+      _.prepare(sql"SELECT pgmq.convert_archive_partitioned($text, $text, $text, $int4)".query(voidCodec))
+        .flatMap(_.unique((queue, partitionInterval, retentionInterval, leadingPartition)))
+
+  def dropOldArchive(queue: String): F[Unit] =
+    pool.use(_.execute(sql"DROP TABLE IF EXISTS pgmq.a_#${queue}_old".command).void)
+
   def dropQueue(queue: String): F[Boolean] =
     pool.use(_.prepare(sql"SELECT pgmq.drop_queue($text)".query(bool)).flatMap(_.unique(queue)))
 

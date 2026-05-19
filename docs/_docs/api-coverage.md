@@ -33,6 +33,8 @@ Implemented in `PgmqAdmin[F]`.
 | `create`                        | `createQueue`               | Create a new queue                              |
 | `create_partitioned`            | `createPartitionedQueue`    | Create a partitioned queue                      |
 | `create_unlogged`               | `createUnloggedQueue`       | Create an unlogged queue (no WAL)               |
+| `convert_archive_partitioned`   | `convertArchivePartitioned` | Convert archive table to partitioned            |
+| *(none)*                        | `dropOldArchive`            | Drop `pgmq.a_<queue>_old` left by `convertArchivePartitioned` |
 | `drop_queue`                    | `dropQueue`                 | Drop a queue                                    |
 | `purge_queue`                   | `purgeQueue`                | Purge all messages from a queue                 |
 | `metrics`                       | `metrics`                   | Get metrics for a single queue                  |
@@ -59,10 +61,6 @@ Long-polling and grouped reads for consumer loops and FIFO patterns:
 - `read_grouped` — AWS SQS FIFO-style grouped reads
 - `read_grouped_with_poll` — grouped + long-poll
 - `read_grouped_rr` / `read_grouped_rr_with_poll` — round-robin interleaving
-
-### Queue Management
-
-- `convert_archive_partitioned` — convert an archive table to partitioned
 
 ### Utilities
 
