@@ -45,7 +45,7 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 )
 
 // === VERSIONS ===
-val AnormV = "2.11.0"
+val AnormV = "3.0.0"
 val CatsEffectV = "3.7.0"
 val CirceV = "0.14.15"
 val DoobieV = "1.0.0-RC12"
