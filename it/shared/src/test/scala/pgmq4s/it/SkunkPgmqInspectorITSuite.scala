@@ -7,7 +7,7 @@ import org.typelevel.otel4s.metrics.Meter.Implicits.noop
 import org.typelevel.otel4s.trace.Tracer.Implicits.noop
 import pgmq4s.*
 import pgmq4s.domain.*
-import pgmq4s.skunk.{SkunkPgmqAdmin, SkunkPgmqClient, SkunkPgmqInspector}
+import pgmq4s.skunk.{ SkunkPgmqAdmin, SkunkPgmqClient, SkunkPgmqInspector }
 import weaver.*
 
 object SkunkPgmqInspectorITSuite extends PgmqInspectorITSuite:
