@@ -29,11 +29,14 @@ opaque type BatchSize = Int
   * `n.messages` inline extension for compile-time literal checks.
   */
 object BatchSize:
+  private def condition(n: Int): Boolean = n > 0
+  private def errorMessage(n: Int): String = s"BatchSize must be > 0, got $n"
+
   def apply(n: Int): Either[String, BatchSize] =
-    if n > 0 then Right(n) else Left(s"BatchSize must be > 0, got $n")
+    Either.cond(condition(n), n, errorMessage(n))
 
   def unsafe(n: Int): BatchSize =
-    require(n > 0, s"BatchSize must be > 0, got $n")
+    require(condition(n), errorMessage(n))
     n
 
   extension (bs: BatchSize) def value: Int = bs

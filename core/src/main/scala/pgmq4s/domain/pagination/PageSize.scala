@@ -27,11 +27,14 @@ object PageSize:
   val Ten: PageSize = 10
   val Fifty: PageSize = 50
 
+  private def condition(n: Int): Boolean = n > 0
+  private def errorMessage(n: Int): String = s"PageSize must be > 0, got $n"
+
   def apply(n: Int): Either[String, PageSize] =
-    if n > 0 then Right(n) else Left(s"PageSize must be > 0, got $n")
+    Either.cond(condition(n), n, errorMessage(n))
 
   def unsafe(n: Int): PageSize =
-    require(n > 0, s"PageSize must be > 0, got $n")
+    require(condition(n), errorMessage(n))
     n
 
   extension (ps: PageSize)

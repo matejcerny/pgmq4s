@@ -31,12 +31,14 @@ opaque type Delay = FiniteDuration
   * or the `10.secondsDelay` / `2.minutesDelay` inline extensions for literals.
   */
 object Delay:
+  private def condition(duration: FiniteDuration): Boolean = duration.toSeconds >= 0
+  private def errorMessage(duration: FiniteDuration): String = s"Delay must be >= 0, got $duration"
+
   def apply(duration: FiniteDuration): Either[String, Delay] =
-    if duration.toSeconds >= 0 then Right(duration)
-    else Left(s"Delay must be >= 0, got $duration")
+    Either.cond(condition(duration), duration, errorMessage(duration))
 
   def unsafe(duration: FiniteDuration): Delay =
-    require(duration.toSeconds >= 0, s"Delay must be >= 0, got $duration")
+    require(condition(duration), errorMessage(duration))
     duration
 
   private[pgmq4s] def trusted(duration: FiniteDuration): Delay = duration

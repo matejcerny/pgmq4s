@@ -33,12 +33,14 @@ opaque type VisibilityTimeout = FiniteDuration
 object VisibilityTimeout:
   val Zero: VisibilityTimeout = Duration.Zero
 
+  private def condition(duration: FiniteDuration): Boolean = duration.toSeconds >= 0
+  private def errorMessage(duration: FiniteDuration): String = s"VisibilityTimeout must be >= 0, got $duration"
+
   def apply(duration: FiniteDuration): Either[String, VisibilityTimeout] =
-    if duration.toSeconds >= 0 then Right(duration)
-    else Left(s"VisibilityTimeout must be >= 0, got $duration")
+    Either.cond(condition(duration), duration, errorMessage(duration))
 
   def unsafe(duration: FiniteDuration): VisibilityTimeout =
-    require(duration.toSeconds >= 0, s"VisibilityTimeout must be >= 0, got $duration")
+    require(condition(duration), errorMessage(duration))
     duration
 
   private[pgmq4s] def trusted(duration: FiniteDuration): VisibilityTimeout = duration
