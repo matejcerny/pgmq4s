@@ -31,12 +31,14 @@ opaque type ThrottleInterval = FiniteDuration
   * is known to be valid.
   */
 object ThrottleInterval:
+  private def condition(duration: FiniteDuration): Boolean = duration.toMillis > 0
+  private def errorMessage(duration: FiniteDuration): String = s"ThrottleInterval must be > 0, got $duration"
+
   def apply(duration: FiniteDuration): Either[String, ThrottleInterval] =
-    if duration.toMillis > 0 then Right(duration)
-    else Left(s"ThrottleInterval must be > 0, got $duration")
+    Either.cond(condition(duration), duration, errorMessage(duration))
 
   def unsafe(duration: FiniteDuration): ThrottleInterval =
-    require(duration.toMillis > 0, s"ThrottleInterval must be > 0, got $duration")
+    require(condition(duration), errorMessage(duration))
     duration
 
   private[pgmq4s] def trusted(duration: FiniteDuration): ThrottleInterval = duration
