@@ -27,6 +27,7 @@ import pgmq4s.domain.*
 import weaver.{ Expectations, SimpleIOSuite }
 
 import java.time.OffsetDateTime
+import scala.concurrent.duration.*
 
 object PgmqAdminSuite extends SimpleIOSuite:
 
@@ -52,6 +53,7 @@ object PgmqAdminSuite extends SimpleIOSuite:
       queue: String = "",
       partitionInterval: String = "",
       retentionInterval: String = "",
+      leadingPartition: Int = 0,
       pattern: String = "",
       routingKey: String = ""
   )
@@ -77,6 +79,21 @@ object PgmqAdminSuite extends SimpleIOSuite:
     def createUnloggedQueue(queue: String): IO[Unit] =
       ref.update(_.copy(queue = queue))
 
+    def convertArchivePartitioned(
+        queue: String,
+        partitionInterval: String,
+        retentionInterval: String,
+        leadingPartition: Int
+    ): IO[Unit] =
+      ref.update(
+        _.copy(
+          queue = queue,
+          partitionInterval = partitionInterval,
+          retentionInterval = retentionInterval,
+          leadingPartition = leadingPartition
+        )
+      )
+
     def dropQueue(queue: String): IO[Boolean] =
       ref.update(_.copy(queue = queue)).as(ret.drop)
 
@@ -84,6 +101,9 @@ object PgmqAdminSuite extends SimpleIOSuite:
       ref.update(_.copy(queue = queue)).as(ret.purge)
 
     def detachArchive(queue: String): IO[Unit] =
+      ref.update(_.copy(queue = queue))
+
+    def dropOldArchive(queue: String): IO[Unit] =
       ref.update(_.copy(queue = queue))
 
     def metrics(queue: String): IO[Option[QueueMetrics]] =
@@ -131,11 +151,15 @@ object PgmqAdminSuite extends SimpleIOSuite:
 
   pgmqTest("createPartitionedQueue forwards all arguments"): (admin, captured) =>
     for
-      _ <- admin.createPartitionedQueue(q, "daily", "30 days")
+      _ <- admin.createPartitionedQueue(
+        q,
+        PartitionInterval.TimeBased.unsafe(1.day),
+        RetentionInterval.TimeBased.unsafe(30.days)
+      )
       c <- captured
     yield List(
       expect.same(c.queue, "my-queue"),
-      expect.same(c.partitionInterval, "daily"),
+      expect.same(c.partitionInterval, "1 day"),
       expect.same(c.retentionInterval, "30 days")
     ).combineAll
 
@@ -144,6 +168,33 @@ object PgmqAdminSuite extends SimpleIOSuite:
       _ <- admin.createUnloggedQueue(q)
       c <- captured
     yield expect.same(c.queue, "my-queue")
+
+  pgmqTest("convertArchivePartitioned forwards all arguments"): (admin, captured) =>
+    for
+      _ <- admin.convertArchivePartitioned(
+        q,
+        PartitionInterval.TimeBased.unsafe(1.day),
+        RetentionInterval.TimeBased.unsafe(30.days),
+        5.partitions
+      )
+      c <- captured
+    yield List(
+      expect.same(c.queue, "my-queue"),
+      expect.same(c.partitionInterval, "1 day"),
+      expect.same(c.retentionInterval, "30 days"),
+      expect.same(c.leadingPartition, 5)
+    ).combineAll
+
+  pgmqTest("convertArchivePartitioned uses defaults"): (admin, captured) =>
+    for
+      _ <- admin.convertArchivePartitioned(q)
+      c <- captured
+    yield List(
+      expect.same(c.queue, "my-queue"),
+      expect.same(c.partitionInterval, "10000"),
+      expect.same(c.retentionInterval, "100000"),
+      expect.same(c.leadingPartition, 10)
+    ).combineAll
 
   pgmqTest("dropQueue unwraps QueueName"): (admin, captured) =>
     for
@@ -164,6 +215,23 @@ object PgmqAdminSuite extends SimpleIOSuite:
       _ <- admin.detachArchive(q)
       c <- captured
     yield expect.same(c.queue, "my-queue")
+
+  pgmqTest("dropOldArchive unwraps QueueName"): (admin, captured) =>
+    for
+      _ <- admin.dropOldArchive(q)
+      c <- captured
+    yield expect.same(c.queue, "my-queue")
+
+  List("foo$bar", "foo;bar", "foo'bar", "foo--bar").foreach: unsafe =>
+    pgmqTest(s"dropOldArchive rejects unsafe identifier '$unsafe'"): (admin, captured) =>
+      for
+        result <- admin.dropOldArchive(QueueName.trusted(unsafe)).attempt
+        c <- captured
+      yield List(
+        expect(clue(result).isLeft),
+        expect(result.left.exists(_.isInstanceOf[IllegalArgumentException])),
+        expect.same(c.queue, "")
+      ).combineAll
 
   // --- metrics ---
 

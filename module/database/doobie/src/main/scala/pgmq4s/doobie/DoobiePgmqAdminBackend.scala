@@ -22,6 +22,7 @@
 package pgmq4s.doobie
 
 import cats.effect.Sync
+import cats.syntax.functor.*
 import doobie.*
 import doobie.implicits.*
 import doobie.postgres.implicits.*
@@ -47,6 +48,20 @@ class DoobiePgmqAdminBackend[F[_]: Sync](xa: Transactor[F]) extends PgmqAdminBac
 
   def createUnloggedQueue(queue: String): F[Unit] =
     sql"SELECT pgmq.create_unlogged($queue)".query[Unit].unique.transact(xa)
+
+  def convertArchivePartitioned(
+      queue: String,
+      partitionInterval: String,
+      retentionInterval: String,
+      leadingPartition: Int
+  ): F[Unit] =
+    sql"SELECT pgmq.convert_archive_partitioned($queue, $partitionInterval, $retentionInterval, $leadingPartition)"
+      .query[Unit]
+      .unique
+      .transact(xa)
+
+  def dropOldArchive(queue: String): F[Unit] =
+    Fragment.const(s"DROP TABLE IF EXISTS pgmq.a_${queue}_old").update.run.transact(xa).void
 
   def dropQueue(queue: String): F[Boolean] =
     sql"SELECT pgmq.drop_queue($queue)".query[Boolean].unique.transact(xa)

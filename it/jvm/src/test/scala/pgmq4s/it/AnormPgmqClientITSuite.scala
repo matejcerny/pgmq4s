@@ -131,12 +131,23 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
     override def createQueue(queue: QueueName): IO[Unit] = liftF(underlying.createQueue(queue))
     override def createPartitionedQueue(
         queue: QueueName,
-        partitionInterval: String,
-        retentionInterval: String
+        partitionInterval: PartitionInterval,
+        retentionInterval: RetentionInterval
     ): IO[Unit] =
       liftF(underlying.createPartitionedQueue(queue, partitionInterval, retentionInterval))
 
     override def createUnloggedQueue(queue: QueueName): IO[Unit] = liftF(underlying.createUnloggedQueue(queue))
+    override def convertArchivePartitioned(
+        queue: QueueName,
+        partitionInterval: PartitionInterval,
+        retentionInterval: RetentionInterval,
+        leadingPartition: LeadingPartition
+    ): IO[Unit] =
+      liftF(underlying.convertArchivePartitioned(queue, partitionInterval, retentionInterval, leadingPartition))
+
+    override def dropOldArchive(queue: QueueName): IO[Unit] =
+      liftF(underlying.dropOldArchive(queue))
+
     override def dropQueue(queue: QueueName): IO[Boolean] = liftF(underlying.dropQueue(queue))
     override def purgeQueue(queue: QueueName): IO[Long] = liftF(underlying.purgeQueue(queue))
     override def detachArchive(queue: QueueName): IO[Unit] = liftF(underlying.detachArchive(queue))
@@ -177,7 +188,7 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
 
       _ <- Resource.onFinalize:
         queues.get
-          .flatMap(_.traverse_(admin.dropQueue))
+          .flatMap(_.traverse_(q => admin.dropQueue(q).flatMap(_ => admin.dropOldArchive(q).attempt.void)))
           .attempt
           .void
     yield (client, admin, queues, counter)

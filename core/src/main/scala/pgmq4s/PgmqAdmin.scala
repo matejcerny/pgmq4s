@@ -21,9 +21,10 @@
 
 package pgmq4s
 
-import cats.Functor
+import cats.MonadThrow
 import cats.syntax.all.*
 import pgmq4s.domain.*
+
 import scala.concurrent.duration.*
 
 /** Tagless-final algebra for PGMQ queue management and observability.
@@ -39,13 +40,48 @@ trait PgmqAdmin[F[_]]:
   /** Create a new queue (and its archive table). */
   def createQueue(queue: QueueName): F[Unit]
 
-  /** Create a partitioned queue with the given partition and retention intervals (e.g. `"daily"`, `"7 days"`). */
-  def createPartitionedQueue(queue: QueueName, partitionInterval: String, retentionInterval: String): F[Unit]
+  /** Create a partitioned queue with the given partition and retention intervals.
+    *
+    * @param partitionInterval
+    *   either a numeric value for `msg_id`-based partitioning (e.g. `PartitionInterval.Numeric.unsafe(10000)`) or a
+    *   time interval for timestamp-based partitioning (e.g. `PartitionInterval.TimeBased.unsafe(1.day)`)
+    * @param retentionInterval
+    *   how long / how many messages to retain before dropping old partitions; same flavor as `partitionInterval`
+    */
+  def createPartitionedQueue(
+      queue: QueueName,
+      partitionInterval: PartitionInterval,
+      retentionInterval: RetentionInterval
+  ): F[Unit]
 
   /** Create an unlogged queue. Higher throughput than a regular queue because writes skip the WAL, but contents are
     * lost on a Postgres crash. See the Postgres docs on unlogged tables for details.
     */
   def createUnloggedQueue(queue: QueueName): F[Unit]
+
+  /** Convert an existing non-partitioned archive table to a partitioned one. Requires the `pg_partman` extension.
+    * Renames the existing archive table to `<queue>_old` and creates a new partitioned table; you may need to migrate
+    * data from the old table to the new one.
+    *
+    * @param partitionInterval
+    *   either a numeric value for `msg_id`-based partitioning (e.g. `PartitionInterval.Numeric.unsafe(10000)`) or a
+    *   time interval for timestamp-based partitioning (e.g. `PartitionInterval.TimeBased.unsafe(1.day)`)
+    * @param retentionInterval
+    *   how long / how many messages to retain before deleting old partitions; same flavor as `partitionInterval`
+    * @param leadingPartition
+    *   number of partitions to create in advance
+    */
+  def convertArchivePartitioned(
+      queue: QueueName,
+      partitionInterval: PartitionInterval = PartitionInterval.Numeric.trusted(10000),
+      retentionInterval: RetentionInterval = RetentionInterval.Numeric.trusted(100000),
+      leadingPartition: LeadingPartition = LeadingPartition.trusted(10)
+  ): F[Unit]
+
+  /** Drop the backup archive table left behind by [[convertArchivePartitioned]] (named `pgmq.a_<queue>_old`).
+    * Idempotent: succeeds whether or not the table exists.
+    */
+  def dropOldArchive(queue: QueueName): F[Unit]
 
   /** Drop a queue and its archive table. Returns `true` if the queue existed. */
   def dropQueue(queue: QueueName): F[Boolean]
@@ -93,17 +129,37 @@ trait PgmqAdmin[F[_]]:
 
 object PgmqAdmin:
 
-  def apply[F[_]: Functor](backend: PgmqAdminBackend[F]): PgmqAdmin[F] =
+  def apply[F[_]: MonadThrow](backend: PgmqAdminBackend[F]): PgmqAdmin[F] =
     PgmqAdminImpl[F](backend)
 
-  private class PgmqAdminImpl[F[_]: Functor](backend: PgmqAdminBackend[F]) extends PgmqAdmin[F]:
+  private class PgmqAdminImpl[F[_]: MonadThrow](backend: PgmqAdminBackend[F]) extends PgmqAdmin[F]:
 
     def createQueue(queue: QueueName): F[Unit] = backend.createQueue(queue.value)
 
-    def createPartitionedQueue(queue: QueueName, partitionInterval: String, retentionInterval: String): F[Unit] =
-      backend.createPartitionedQueue(queue.value, partitionInterval, retentionInterval)
+    def createPartitionedQueue(
+        queue: QueueName,
+        partitionInterval: PartitionInterval,
+        retentionInterval: RetentionInterval
+    ): F[Unit] =
+      backend.createPartitionedQueue(queue.value, partitionInterval.render, retentionInterval.render)
 
     def createUnloggedQueue(queue: QueueName): F[Unit] = backend.createUnloggedQueue(queue.value)
+
+    def convertArchivePartitioned(
+        queue: QueueName,
+        partitionInterval: PartitionInterval = PartitionInterval.Numeric.trusted(10000),
+        retentionInterval: RetentionInterval = RetentionInterval.Numeric.trusted(100000),
+        leadingPartition: LeadingPartition = LeadingPartition.trusted(10)
+    ): F[Unit] =
+      backend.convertArchivePartitioned(
+        queue.value,
+        partitionInterval.render,
+        retentionInterval.render,
+        leadingPartition.value
+      )
+
+    def dropOldArchive(queue: QueueName): F[Unit] =
+      safely(queue.value) *> backend.dropOldArchive(queue.value)
 
     def dropQueue(queue: QueueName): F[Boolean] = backend.dropQueue(queue.value)
 
@@ -146,3 +202,10 @@ object PgmqAdmin:
       backend.listNotifyInsertThrottles.map(
         _.map((q, ms, ts) => NotifyThrottle(QueueName.trusted(q), ThrottleInterval.trusted(ms.millis), ts))
       )
+
+    private lazy val forbidden = """[\$;']|--""".r
+    private def safely(s: String): F[String] =
+      forbidden
+        .findFirstIn(s)
+        .map(c => MonadThrow[F].raiseError(new IllegalArgumentException(s"unsafe identifier: '$c' in '$s'")))
+        .getOrElse(s.pure[F])
