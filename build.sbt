@@ -58,7 +58,7 @@ val PlayJsonV = "3.0.6"
 val SlickV = "3.6.1"
 val SprayJsonV = "1.3.6"
 val UpickleV = "4.4.3"
-val WeaverV = "0.12.0"
+val WeaverV = "0.13.0"
 
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
