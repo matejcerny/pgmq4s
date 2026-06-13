@@ -15,6 +15,7 @@ subsection:
   - page: json-codecs.md
     title: JSON Codecs
   - title: Backends
+    index: backends.md
     subsection:
       - page: doobie.md
         title: Doobie
