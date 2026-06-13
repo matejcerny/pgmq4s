@@ -2,7 +2,7 @@ package pgmq4s.it
 
 import cats.effect.*
 import cats.syntax.foldable.*
-import doobie.hikari.HikariTransactor
+import org.typelevel.doobie.hikari.HikariTransactor
 import pgmq4s.*
 import pgmq4s.domain.*
 import pgmq4s.doobie.{ DoobiePgmqAdmin, DoobiePgmqClient }

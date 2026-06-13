@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.12"
+ThisBuild / tlBaseVersion := "0.13"
 ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -48,7 +48,7 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 val AnormV = "3.0.0"
 val CatsEffectV = "3.7.0"
 val CirceV = "0.14.15"
-val DoobieV = "1.0.0-RC12"
+val DoobieV = "1.0.0-RC13"
 val Fs2V = "3.13.0"
 val SkunkV = "1.0.0"
 val ScalaJavaTimeV = "2.6.0"
@@ -89,7 +89,7 @@ lazy val integration = crossProject(JVMPlatform, NativePlatform)
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-hikari" % DoobieV % Test,
+      "org.typelevel" %% "doobie-hikari" % DoobieV % Test,
       "com.typesafe.slick" %% "slick-hikaricp" % SlickV % Test,
       "org.postgresql" % "postgresql" % PostgresV % Test
     )
@@ -161,8 +161,8 @@ lazy val doobie = (project in file("module/database/doobie"))
   .settings(
     name := "pgmq4s-doobie",
     libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-core" % DoobieV,
-      "org.tpolecat" %% "doobie-postgres" % DoobieV
+      "org.typelevel" %% "doobie-core" % DoobieV,
+      "org.typelevel" %% "doobie-postgres" % DoobieV
     )
   )
 
@@ -247,6 +247,6 @@ lazy val examples = (project in file("examples"))
     mimaPreviousArtifacts := Set.empty,
     coverageEnabled := false,
     libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-hikari" % DoobieV
+      "org.typelevel" %% "doobie-hikari" % DoobieV
     )
   )
