@@ -22,9 +22,9 @@
 package pgmq4s.doobie
 
 import cats.effect.Sync
-import doobie.*
-import doobie.implicits.*
-import doobie.postgres.implicits.*
+import org.typelevel.doobie.*
+import org.typelevel.doobie.implicits.*
+import org.typelevel.doobie.postgres.implicits.*
 import pgmq4s.*
 import pgmq4s.domain.*
 
