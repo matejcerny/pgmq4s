@@ -13,7 +13,13 @@ Requires **PGMQ v1.11.0+** (topic-based routing). Core messaging works with v1.1
 
 ## Features
 
-- **Typelevel ecosystem** — built on Cats Effect with tagless final `PgmqClient[F]` and `PgmqAdmin[F]`
+- **Effect-agnostic** — tagless final `PgmqClient[F]` and `PgmqAdmin[F]` with no required effect dependency; bring your own via `PgmqEffect[F]`, with a `Future` instance built in and a Cats adapter (`pgmq4s-cats`) for Cats Effect
 - **Multiple backends** — Doobie, Skunk, Anorm, Slick
 - **Multiple JSON codecs** — Circe, Jsoniter-scala, uPickle, Play JSON, Spray JSON
 - **Cross-platform** — Skunk backend + Circe/Jsoniter/uPickle codecs work on JVM, JS, and Native
+
+## Work-in-progress 🚧
+
+- Streaming (fs2)
+- Native ZIO support (Quill)
+- Native kyo support (kyo-sql)
