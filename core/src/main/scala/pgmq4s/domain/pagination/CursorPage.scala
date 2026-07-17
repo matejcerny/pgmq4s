@@ -21,8 +21,7 @@
 
 package pgmq4s.domain.pagination
 
-import cats.Functor
-import cats.syntax.functor.*
+import pgmq4s.PgmqEffect
 
 case class CursorPage[+A](
     items: List[A],
@@ -31,7 +30,7 @@ case class CursorPage[+A](
 )
 
 object CursorPage:
-  private[pgmq4s] def withPagination[F[_]: Functor, SF, TC, RAW, A](
+  private[pgmq4s] def withPagination[F[_]: PgmqEffect, SF, TC, RAW, A](
       limit: PageSize,
       sort: Sort[SF],
       cursor: Option[Cursor]
@@ -47,7 +46,7 @@ object CursorPage:
       case Some((Cursor.Direction.Forward, tc))  => (false, sort, Some(tc))
       case None                                  => (false, sort, None)
 
-    fetch(limit.fetchLimit, effectiveSort, typedCursor).map: rawRows =>
+    PgmqEffect[F].map(fetch(limit.fetchLimit, effectiveSort, typedCursor)): rawRows =>
       val hasMore = limit.hasMore(rawRows)
       val page = rawRows.take(limit.value)
       val ordered = if isBackward then page.reverse else page

@@ -21,7 +21,6 @@
 
 package pgmq4s
 
-import cats.Functor
 import pgmq4s.domain.*
 import pgmq4s.domain.pagination.*
 
@@ -59,10 +58,10 @@ trait PgmqInspector[F[_]]:
 
 object PgmqInspector:
 
-  def apply[F[_]: Functor](backend: PgmqInspectorBackend[F]): PgmqInspector[F] =
+  def apply[F[_]: PgmqEffect](backend: PgmqInspectorBackend[F]): PgmqInspector[F] =
     PgmqInspectorImpl[F](backend)
 
-  private class PgmqInspectorImpl[F[_]: Functor](backend: PgmqInspectorBackend[F]) extends PgmqInspector[F]:
+  private class PgmqInspectorImpl[F[_]: PgmqEffect](backend: PgmqInspectorBackend[F]) extends PgmqInspector[F]:
 
     def browseMessages(
         queue: QueueName,

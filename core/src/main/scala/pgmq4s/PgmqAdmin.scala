@@ -21,8 +21,6 @@
 
 package pgmq4s
 
-import cats.MonadThrow
-import cats.syntax.all.*
 import pgmq4s.domain.*
 
 import scala.concurrent.duration.*
@@ -129,10 +127,12 @@ trait PgmqAdmin[F[_]]:
 
 object PgmqAdmin:
 
-  def apply[F[_]: MonadThrow](backend: PgmqAdminBackend[F]): PgmqAdmin[F] =
+  def apply[F[_]: PgmqEffect](backend: PgmqAdminBackend[F]): PgmqAdmin[F] =
     PgmqAdminImpl[F](backend)
 
-  private class PgmqAdminImpl[F[_]: MonadThrow](backend: PgmqAdminBackend[F]) extends PgmqAdmin[F]:
+  private class PgmqAdminImpl[F[_]: PgmqEffect](backend: PgmqAdminBackend[F]) extends PgmqAdmin[F]:
+
+    private val effect = PgmqEffect[F]
 
     def createQueue(queue: QueueName): F[Unit] = backend.createQueue(queue.value)
 
@@ -159,7 +159,10 @@ object PgmqAdmin:
       )
 
     def dropOldArchive(queue: QueueName): F[Unit] =
-      safely(queue.value) *> backend.dropOldArchive(queue.value)
+      forbidden.findFirstIn(queue.value) match
+        case Some(forbiddenPart) =>
+          effect.raiseError(new IllegalArgumentException(s"unsafe identifier: '$forbiddenPart' in '${queue.value}'"))
+        case None => backend.dropOldArchive(queue.value)
 
     def dropQueue(queue: QueueName): F[Boolean] = backend.dropQueue(queue.value)
 
@@ -180,11 +183,9 @@ object PgmqAdmin:
       backend.unbindTopic(pattern.value, queue.value)
 
     def testRouting(routingKey: RoutingKey): F[List[RoutingMatch]] =
-      backend
-        .testRouting(routingKey.value)
-        .map:
-          _.map: (pattern, queue, regex) =>
-            RoutingMatch(TopicPattern.trusted(pattern), QueueName.trusted(queue), regex)
+      effect.map(backend.testRouting(routingKey.value)):
+        _.map: (pattern, queue, regex) =>
+          RoutingMatch(TopicPattern.trusted(pattern), QueueName.trusted(queue), regex)
 
     def enableNotifyInsert(
         queue: QueueName,
@@ -199,13 +200,8 @@ object PgmqAdmin:
       backend.updateNotifyInsert(queue.value, throttleInterval.toMillis)
 
     def listNotifyInsertThrottles: F[List[NotifyThrottle]] =
-      backend.listNotifyInsertThrottles.map(
+      effect.map(backend.listNotifyInsertThrottles)(
         _.map((q, ms, ts) => NotifyThrottle(QueueName.trusted(q), ThrottleInterval.trusted(ms.millis), ts))
       )
 
     private lazy val forbidden = """[\$;']|--""".r
-    private def safely(s: String): F[String] =
-      forbidden
-        .findFirstIn(s)
-        .map(c => MonadThrow[F].raiseError(new IllegalArgumentException(s"unsafe identifier: '$c' in '$s'")))
-        .getOrElse(s.pure[F])

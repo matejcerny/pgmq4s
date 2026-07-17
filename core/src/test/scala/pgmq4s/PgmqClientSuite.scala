@@ -23,10 +23,12 @@ package pgmq4s
 
 import cats.effect.{ IO, Ref }
 import cats.syntax.all.*
+import pgmq4s.PgmqEffectTestInstances.given
 import pgmq4s.domain.*
 import weaver.{ Expectations, SimpleIOSuite }
 
 import java.time.OffsetDateTime
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.*
 
 object PgmqClientSuite extends SimpleIOSuite:
@@ -262,6 +264,18 @@ object PgmqClientSuite extends SimpleIOSuite:
         expect.same(c.qty, 5)
       ).combineAll
 
+  pgmqTest(
+    "read preserves backend order while decoding a batch",
+    Returns(read = List(rawMsg(3L, "third"), rawMsg(1L, "first"), rawMsg(2L, "second")))
+  ): (client, _) =>
+    client
+      .read[String](q, visibilityTimeout = 30.secondsVisibility, batchSize = 5.messages)
+      .map: messages =>
+        expect.same(
+          messages.map(message => (message.id.value, message.payload)),
+          List((3L, "third"), (1L, "first"), (2L, "second"))
+        )
+
   pgmqTest("read with decode failure raises PgmqDecodingError", Returns(read = List(rawMsg(1L, "not-an-int")))):
     (client, _) =>
       val failing: PgmqDecoder[Int] = PgmqDecoder.instance(_ => Left(new Exception("bad")))
@@ -272,8 +286,32 @@ object PgmqClientSuite extends SimpleIOSuite:
           case Left(e: PgmqDecodingError) =>
             expect.same(e.messageId, MessageId(1L)) and
               expect.same(e.queue, q) and
-              expect.same(e.getCause.getMessage, "bad")
+              expect.same(e.getCause.getMessage, "bad") and
+              expect.same(e.getMessage, "Failed to decode message 1 from queue 'my-queue'")
           case other => failure(s"expected PgmqDecodingError, got $other")
+
+  pgmqTest(
+    "read decoding is left-to-right and stops at the first error",
+    Returns(read = List(rawMsg(1L, "first"), rawMsg(2L, "bad"), rawMsg(3L, "never")))
+  ): (client, _) =>
+    val visited = ListBuffer.empty[String]
+    val cause = new IllegalStateException("second message failed")
+    val decoder = PgmqDecoder.instance[String]: value =>
+      visited += value
+      if value == "bad" then Left(cause) else Right(value)
+
+    client
+      .read[String](q, 30.secondsVisibility, 5.messages)(using decoder)
+      .attempt
+      .map:
+        case Left(error: PgmqDecodingError) =>
+          List(
+            expect.same(visited.toList, List("first", "bad")),
+            expect.same(error.messageId, MessageId(2L)),
+            expect.same(error.queue, q),
+            expect.same(error.getCause, cause)
+          ).combineAll
+        case other => failure(s"expected PgmqDecodingError, got $other")
 
   pgmqTest(
     "read with headers returns WithHeaders when headers present",

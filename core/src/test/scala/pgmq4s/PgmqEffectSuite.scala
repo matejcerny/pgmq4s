@@ -19,14 +19,32 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.anorm
+package pgmq4s
 
-import pgmq4s.PgmqAdmin
+import cats.effect.IO
+import weaver.SimpleIOSuite
 
-import javax.sql.DataSource
 import scala.concurrent.{ ExecutionContext, Future }
 
-object AnormPgmqAdmin:
+object PgmqEffectSuite extends SimpleIOSuite:
 
-  def apply(dataSource: DataSource)(using ExecutionContext): PgmqAdmin[Future] =
-    PgmqAdmin(AnormPgmqAdminBackend(dataSource))
+  given ExecutionContext = ExecutionContext.global
+
+  private val futureCapability = PgmqEffect[Future]
+
+  test("Future instance maps successful values"):
+    IO.fromFuture(IO(futureCapability.map(Future.successful(41))(_ + 1))).map(result => expect.same(result, 42))
+
+  test("Future instance mapOrRaise maps Right values"):
+    IO.fromFuture(IO(futureCapability.mapOrRaise(Future.successful(41))(value => Right(value + 1))))
+      .map(result => expect.same(result, 42))
+
+  test("Future instance mapOrRaise fails on Left values"):
+    val error = new IllegalStateException("decode failed")
+    IO.fromFuture(IO(futureCapability.mapOrRaise(Future.successful(1))(_ => Left(error): Either[Throwable, Int])))
+      .attempt
+      .map(result => expect.same(result, Left(error)))
+
+  test("Future instance raiseError creates a failed Future"):
+    val error = new IllegalArgumentException("invalid")
+    IO.fromFuture(IO(futureCapability.raiseError[Int](error))).attempt.map(result => expect.same(result, Left(error)))

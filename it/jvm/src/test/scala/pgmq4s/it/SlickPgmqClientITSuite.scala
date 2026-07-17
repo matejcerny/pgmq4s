@@ -206,10 +206,12 @@ object SlickPgmqClientITSuite extends PgmqClientITSuite:
   override def sharedResource: Resource[IO, Res] =
     given ExecutionContext = ExecutionContext.global
 
+    val config = PgmqTestConfig.default
+
     val db = Database.forURL(
-      url = "jdbc:postgresql://localhost:5432/pgmq",
-      user = "pgmq",
-      password = "pgmq",
+      url = config.jdbcUrl,
+      user = config.user,
+      password = config.password,
       driver = "org.postgresql.Driver"
     )
 

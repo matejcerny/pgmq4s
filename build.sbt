@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.13"
+ThisBuild / tlBaseVersion := "0.14"
 ThisBuild / scalaVersion := "3.3.8"
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
@@ -46,6 +46,7 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 
 // === VERSIONS ===
 val AnormV = "3.1.0"
+val CatsV = "2.13.0"
 val CatsEffectV = "3.7.0"
 val CirceV = "0.14.16"
 val DoobieV = "1.0.0-RC13"
@@ -64,6 +65,7 @@ lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
   .aggregate(
     core,
+    cats,
     stream,
     circe,
     jsoniter,
@@ -100,7 +102,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("core"))
   .settings(
     name := "pgmq4s-core",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV,
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % CatsEffectV % Test,
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
     libraryDependencies += "org.typelevel" %%% "weaver-scalacheck" % WeaverV % Test
   )
@@ -132,14 +134,29 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % ScalaJavaTimeV
   )
 
+lazy val cats = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("module/cats"))
+  .dependsOn(core)
+  .settings(
+    name := "pgmq4s-cats",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % CatsV,
+      "org.typelevel" %%% "cats-effect" % CatsEffectV % Test,
+      "org.typelevel" %%% "weaver-cats" % WeaverV % Test
+    ),
+    mimaPreviousArtifacts := Set.empty
+  )
+
 lazy val stream = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("module/stream"))
-  .dependsOn(core)
+  .dependsOn(core, cats % "test->compile")
   .settings(
     name := "pgmq4s-stream",
     libraryDependencies ++= Seq(
       "co.fs2" %%% "fs2-core" % Fs2V,
+      "org.typelevel" %%% "cats-effect" % CatsEffectV,
       "org.typelevel" %%% "weaver-cats" % WeaverV % Test
     ),
     mimaPreviousArtifacts := Set.empty
@@ -157,10 +174,11 @@ lazy val anorm = (project in file("module/database/anorm"))
   )
 
 lazy val doobie = (project in file("module/database/doobie"))
-  .dependsOn(core.jvm)
+  .dependsOn(cats.jvm)
   .settings(
     name := "pgmq4s-doobie",
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % CatsEffectV,
       "org.typelevel" %% "doobie-core" % DoobieV,
       "org.typelevel" %% "doobie-postgres" % DoobieV
     )
@@ -169,10 +187,11 @@ lazy val doobie = (project in file("module/database/doobie"))
 lazy val skunk = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("module/database/skunk"))
-  .dependsOn(core)
+  .dependsOn(cats)
   .settings(
     name := "pgmq4s-skunk",
     libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-effect" % CatsEffectV,
       "org.tpolecat" %%% "skunk-core" % SkunkV,
       "org.typelevel" %%% "weaver-cats" % WeaverV % Test
     )

@@ -56,6 +56,7 @@ libraryDependencies ++= Seq(
 | Artifact             | Description                      | Platforms       |
 |----------------------|----------------------------------|-----------------|
 | `pgmq4s-core`        | Core types and algebra           | JVM, JS, Native |
+| `pgmq4s-cats`        | Cats `MonadThrow` effect adapter | JVM, JS, Native |
 | `pgmq4s-circe`       | Circe JSON codec bridge          | JVM, JS, Native |
 | `pgmq4s-jsoniter`    | Jsoniter-scala JSON codec bridge | JVM, JS, Native |
 | `pgmq4s-upickle`     | uPickle JSON codec bridge        | JVM, JS, Native |
@@ -65,4 +66,3 @@ libraryDependencies ++= Seq(
 | `pgmq4s-doobie`      | Doobie backend                   | JVM only        |
 | `pgmq4s-anorm`       | Anorm backend                    | JVM only        |
 | `pgmq4s-slick`       | Slick backend                    | JVM only        |
-

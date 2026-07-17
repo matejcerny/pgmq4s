@@ -21,8 +21,6 @@
 
 package pgmq4s.domain.pagination
 
-import cats.syntax.either.*
-
 import java.util.Base64
 import scala.util.Try
 
@@ -41,8 +39,8 @@ object Cursor:
     Base64.getUrlEncoder.withoutPadding.encodeToString(raw.getBytes("UTF-8"))
 
   private[pgmq4s] def decode(cursor: Cursor): Either[String, (Direction, String, String, Long)] =
-    Try(new String(Base64.getUrlDecoder.decode(cursor), "UTF-8")).toEither
-      .leftMap(e => s"Invalid cursor: ${e.getMessage}")
+    Try(new String(Base64.getUrlDecoder.decode(cursor), "UTF-8")).toEither.left
+      .map(e => s"Invalid cursor: ${e.getMessage}")
       .flatMap: string =>
         val tiebreaker = (tb: String) =>
           tb.toLongOption

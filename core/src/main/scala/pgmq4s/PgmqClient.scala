@@ -21,9 +21,9 @@
 
 package pgmq4s
 
-import cats.MonadThrow
-import cats.syntax.all.*
 import pgmq4s.domain.*
+
+import scala.annotation.tailrec
 
 /** Tagless-final algebra for PGMQ message operations.
   *
@@ -169,145 +169,171 @@ trait PgmqClient[F[_]]:
 
 object PgmqClient:
 
-  def apply[F[_]: MonadThrow](backend: PgmqClientBackend[F]): PgmqClient[F] =
+  def apply[F[_]: PgmqEffect](backend: PgmqClientBackend[F]): PgmqClient[F] =
     PgmqClientImpl[F](backend)
 
-  private class PgmqClientImpl[F[_]: MonadThrow](backend: PgmqClientBackend[F]) extends PgmqClient[F]:
+  private class PgmqClientImpl[F[_]: PgmqEffect](backend: PgmqClientBackend[F]) extends PgmqClient[F]:
+
+    private val effect = PgmqEffect[F]
 
     private def decodeRaw[P](queue: QueueName, raw: RawMessage)(using
         dec: PgmqDecoder[P]
-    ): F[Message.Inbound.Plain[P]] =
+    ): Either[Throwable, Message.Inbound.Plain[P]] =
       val msgId = MessageId(raw.msgId)
-      MonadThrow[F].fromEither(
-        dec
-          .decode(raw.message)
-          .leftMap(PgmqDecodingError(msgId, queue, _))
-          .map(Message.Inbound.Plain(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, _))
-      )
+      dec
+        .decode(raw.message)
+        .left
+        .map(PgmqDecodingError(msgId, queue, _))
+        .map(Message.Inbound.Plain(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, _))
 
     private def decodeRaw[P, H](queue: QueueName, raw: RawMessage)(using
         decP: PgmqDecoder[P],
         decH: PgmqDecoder[H]
-    ): F[Message.Inbound[P, H]] =
+    ): Either[Throwable, Message.Inbound[P, H]] =
       val msgId = MessageId(raw.msgId)
-      MonadThrow[F].fromEither:
-        (for
-          p <- decP.decode(raw.message)
-          h <- raw.headers.traverse(decH.decode)
-        yield h match
-          case None    => Message.Inbound.Plain(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, p)
-          case Some(v) =>
-            Message.Inbound.WithHeaders(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, p, v)
-        ).leftMap(PgmqDecodingError(msgId, queue, _))
+      (for
+        payload <- decP.decode(raw.message)
+        headers <- traverseOption(raw.headers)(decH.decode)
+      yield headers match
+        case None        => Message.Inbound.Plain(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, payload)
+        case Some(value) =>
+          Message.Inbound.WithHeaders(msgId, raw.readCt, raw.enqueuedAt, raw.lastReadAt, raw.vt, payload, value)
+      ).left
+        .map(PgmqDecodingError(msgId, queue, _))
+
+    private def traverseList[A, B](values: List[A])(
+        transform: A => Either[Throwable, B]
+    ): Either[Throwable, List[B]] =
+      @tailrec
+      def loop(remaining: List[A], reversed: List[B]): Either[Throwable, List[B]] =
+        remaining match
+          case Nil          => Right(reversed.reverse)
+          case head :: tail =>
+            transform(head) match
+              case Right(value) => loop(tail, value :: reversed)
+              case Left(error)  => Left(error)
+
+      loop(values, Nil)
+
+    private def traverseOption[A, B](value: Option[A])(
+        transform: A => Either[Throwable, B]
+    ): Either[Throwable, Option[B]] =
+      value match
+        case Some(item) => transform(item).map(Some(_))
+        case None       => Right(None)
 
     def send[P](queue: QueueName, message: Message.Outbound.Plain[P])(using enc: PgmqEncoder[P]): F[MessageId] =
-      backend.send(queue.value, enc.encode(message.payload)).map(MessageId(_))
+      effect.map(backend.send(queue.value, enc.encode(message.payload)))(MessageId(_))
 
     def send[P](queue: QueueName, message: Message.Outbound.Plain[P], delay: Delay)(using
         enc: PgmqEncoder[P]
     ): F[MessageId] =
-      backend.send(queue.value, enc.encode(message.payload), delay.toSeconds).map(MessageId(_))
+      effect.map(backend.send(queue.value, enc.encode(message.payload), delay.toSeconds))(MessageId(_))
 
     def send[P, H](queue: QueueName, message: Message.Outbound.WithHeaders[P, H])(using
         encP: PgmqEncoder[P],
         encH: PgmqEncoder[H]
     ): F[MessageId] =
-      backend.send(queue.value, encP.encode(message.payload), encH.encode(message.headers)).map(MessageId(_))
+      effect.map(backend.send(queue.value, encP.encode(message.payload), encH.encode(message.headers)))(MessageId(_))
 
     def send[P, H](queue: QueueName, message: Message.Outbound.WithHeaders[P, H], delay: Delay)(using
         encP: PgmqEncoder[P],
         encH: PgmqEncoder[H]
     ): F[MessageId] =
-      backend
-        .send(queue.value, encP.encode(message.payload), encH.encode(message.headers), delay.toSeconds)
-        .map(MessageId(_))
+      effect.map(
+        backend.send(queue.value, encP.encode(message.payload), encH.encode(message.headers), delay.toSeconds)
+      )(MessageId(_))
 
     def sendBatch[P](queue: QueueName, messages: List[Message.Outbound.Plain[P]])(using
         enc: PgmqEncoder[P]
     ): F[List[MessageId]] =
-      backend.sendBatch(queue.value, messages.map(m => enc.encode(m.payload))).map(_.map(MessageId(_)))
+      effect.map(backend.sendBatch(queue.value, messages.map(m => enc.encode(m.payload))))(_.map(MessageId(_)))
 
     def sendBatch[P](queue: QueueName, messages: List[Message.Outbound.Plain[P]], delay: Delay)(using
         enc: PgmqEncoder[P]
     ): F[List[MessageId]] =
-      backend
-        .sendBatch(queue.value, messages.map(m => enc.encode(m.payload)), delay.toSeconds)
-        .map(_.map(MessageId(_)))
+      effect.map(backend.sendBatch(queue.value, messages.map(m => enc.encode(m.payload)), delay.toSeconds))(
+        _.map(MessageId(_))
+      )
 
     def sendBatch[P, H](queue: QueueName, messages: List[Message.Outbound.WithHeaders[P, H]])(using
         encP: PgmqEncoder[P],
         encH: PgmqEncoder[H]
     ): F[List[MessageId]] =
-      backend
-        .sendBatch(queue.value, messages.map(m => encP.encode(m.payload)), messages.map(m => encH.encode(m.headers)))
-        .map(_.map(MessageId(_)))
+      effect.map(
+        backend.sendBatch(
+          queue.value,
+          messages.map(m => encP.encode(m.payload)),
+          messages.map(m => encH.encode(m.headers))
+        )
+      )(_.map(MessageId(_)))
 
     def sendBatch[P, H](queue: QueueName, messages: List[Message.Outbound.WithHeaders[P, H]], delay: Delay)(using
         encP: PgmqEncoder[P],
         encH: PgmqEncoder[H]
     ): F[List[MessageId]] =
-      backend
-        .sendBatch(
+      effect.map(
+        backend.sendBatch(
           queue.value,
           messages.map(m => encP.encode(m.payload)),
           messages.map(m => encH.encode(m.headers)),
           delay.toSeconds
         )
-        .map(_.map(MessageId(_)))
+      )(_.map(MessageId(_)))
 
     def read[P: PgmqDecoder](
         queue: QueueName,
         visibilityTimeout: VisibilityTimeout,
         batchSize: BatchSize
     ): F[List[Message.Inbound.Plain[P]]] =
-      backend
-        .read(queue.value, visibilityTimeout.toSeconds, batchSize.value)
-        .flatMap(_.traverse(decodeRaw[P](queue, _)))
+      effect.mapOrRaise(backend.read(queue.value, visibilityTimeout.toSeconds, batchSize.value))(
+        traverseList(_)(decodeRaw[P](queue, _))
+      )
 
     def read[P: PgmqDecoder, H: PgmqDecoder](
         queue: QueueName,
         visibilityTimeout: VisibilityTimeout,
         batchSize: BatchSize
     ): F[List[Message.Inbound[P, H]]] =
-      backend
-        .read(queue.value, visibilityTimeout.toSeconds, batchSize.value)
-        .flatMap(_.traverse(decodeRaw[P, H](queue, _)))
+      effect.mapOrRaise(backend.read(queue.value, visibilityTimeout.toSeconds, batchSize.value))(
+        traverseList(_)(decodeRaw[P, H](queue, _))
+      )
 
     def pop[P: PgmqDecoder](queue: QueueName): F[Option[Message.Inbound.Plain[P]]] =
-      backend.pop(queue.value).flatMap(_.traverse(decodeRaw[P](queue, _)))
+      effect.mapOrRaise(backend.pop(queue.value))(traverseOption(_)(decodeRaw[P](queue, _)))
 
     def pop[P: PgmqDecoder, H: PgmqDecoder](queue: QueueName): F[Option[Message.Inbound[P, H]]] =
-      backend.pop(queue.value).flatMap(_.traverse(decodeRaw[P, H](queue, _)))
+      effect.mapOrRaise(backend.pop(queue.value))(traverseOption(_)(decodeRaw[P, H](queue, _)))
 
     def archive(queue: QueueName, msgId: MessageId): F[Boolean] =
       backend.archive(queue.value, msgId.value)
 
     def archiveBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
-      backend.archiveBatch(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
+      effect.map(backend.archiveBatch(queue.value, msgIds.map(_.value)))(_.map(MessageId(_)))
 
     def delete(queue: QueueName, msgId: MessageId): F[Boolean] =
       backend.delete(queue.value, msgId.value)
 
     def deleteBatch(queue: QueueName, msgIds: List[MessageId]): F[List[MessageId]] =
-      backend.deleteBatch(queue.value, msgIds.map(_.value)).map(_.map(MessageId(_)))
+      effect.map(backend.deleteBatch(queue.value, msgIds.map(_.value)))(_.map(MessageId(_)))
 
     def setVisibilityTimeout[P: PgmqDecoder](
         queue: QueueName,
         msgId: MessageId,
         visibilityTimeout: VisibilityTimeout
     ): F[Option[Message.Inbound.Plain[P]]] =
-      backend
-        .setVisibilityTimeout(queue.value, msgId.value, visibilityTimeout.toSeconds)
-        .flatMap(_.traverse(decodeRaw[P](queue, _)))
+      effect.mapOrRaise(backend.setVisibilityTimeout(queue.value, msgId.value, visibilityTimeout.toSeconds))(
+        traverseOption(_)(decodeRaw[P](queue, _))
+      )
 
     def setVisibilityTimeout[P: PgmqDecoder, H: PgmqDecoder](
         queue: QueueName,
         msgId: MessageId,
         visibilityTimeout: VisibilityTimeout
     ): F[Option[Message.Inbound[P, H]]] =
-      backend
-        .setVisibilityTimeout(queue.value, msgId.value, visibilityTimeout.toSeconds)
-        .flatMap(_.traverse(decodeRaw[P, H](queue, _)))
+      effect.mapOrRaise(backend.setVisibilityTimeout(queue.value, msgId.value, visibilityTimeout.toSeconds))(
+        traverseOption(_)(decodeRaw[P, H](queue, _))
+      )
 
     def sendTopic[P](routingKey: RoutingKey, message: Message.Outbound.Plain[P])(using
         enc: PgmqEncoder[P]
@@ -339,28 +365,28 @@ object PgmqClient:
     def sendBatchTopic[P](routingKey: RoutingKey, messages: List[Message.Outbound.Plain[P]])(using
         enc: PgmqEncoder[P]
     ): F[List[TopicMessageId]] =
-      backend
-        .sendBatchTopic(routingKey.value, messages.map(m => enc.encode(m.payload)))
-        .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
+      effect.map(backend.sendBatchTopic(routingKey.value, messages.map(m => enc.encode(m.payload))))(
+        _.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId)))
+      )
 
     def sendBatchTopic[P](routingKey: RoutingKey, messages: List[Message.Outbound.Plain[P]], delay: Delay)(using
         enc: PgmqEncoder[P]
     ): F[List[TopicMessageId]] =
-      backend
-        .sendBatchTopic(routingKey.value, messages.map(m => enc.encode(m.payload)), delay.toSeconds)
-        .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
+      effect.map(
+        backend.sendBatchTopic(routingKey.value, messages.map(m => enc.encode(m.payload)), delay.toSeconds)
+      )(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
 
     def sendBatchTopic[P, H](routingKey: RoutingKey, messages: List[Message.Outbound.WithHeaders[P, H]])(using
         encP: PgmqEncoder[P],
         encH: PgmqEncoder[H]
     ): F[List[TopicMessageId]] =
-      backend
-        .sendBatchTopic(
+      effect.map(
+        backend.sendBatchTopic(
           routingKey.value,
           messages.map(m => encP.encode(m.payload)),
           messages.map(m => encH.encode(m.headers))
         )
-        .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
+      )(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
 
     def sendBatchTopic[P, H](
         routingKey: RoutingKey,
@@ -370,11 +396,11 @@ object PgmqClient:
         encP: PgmqEncoder[P],
         encH: PgmqEncoder[H]
     ): F[List[TopicMessageId]] =
-      backend
-        .sendBatchTopic(
+      effect.map(
+        backend.sendBatchTopic(
           routingKey.value,
           messages.map(m => encP.encode(m.payload)),
           messages.map(m => encH.encode(m.headers)),
           delay.toSeconds
         )
-        .map(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))
+      )(_.map((queue, msgId) => TopicMessageId(QueueName.trusted(queue), MessageId(msgId))))

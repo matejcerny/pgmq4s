@@ -19,14 +19,19 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.anorm
+package pgmq4s
 
-import pgmq4s.PgmqAdmin
+import cats.effect.IO
 
-import javax.sql.DataSource
-import scala.concurrent.{ ExecutionContext, Future }
+private[pgmq4s] object PgmqEffectTestInstances:
 
-object AnormPgmqAdmin:
+  given PgmqEffect[IO] with
+    def map[A, B](effect: IO[A])(transform: A => B): IO[B] = effect.map(transform)
 
-  def apply(dataSource: DataSource)(using ExecutionContext): PgmqAdmin[Future] =
-    PgmqAdmin(AnormPgmqAdminBackend(dataSource))
+    def mapOrRaise[A, B](effect: IO[A])(transform: A => Either[Throwable, B]): IO[B] =
+      effect.flatMap: value =>
+        transform(value) match
+          case Right(result) => IO.pure(result)
+          case Left(error)   => IO.raiseError(error)
+
+    def raiseError[A](error: Throwable): IO[A] = IO.raiseError(error)
