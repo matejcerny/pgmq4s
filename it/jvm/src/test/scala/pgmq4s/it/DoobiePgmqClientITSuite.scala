@@ -12,13 +12,15 @@ import scala.concurrent.ExecutionContext
 
 object DoobiePgmqClientITSuite extends PgmqClientITSuite:
 
+  private val config = PgmqTestConfig.default
+
   override def sharedResource: Resource[IO, Res] =
     for
       xa <- HikariTransactor.newHikariTransactor[IO](
         driverClassName = "org.postgresql.Driver",
-        url = "jdbc:postgresql://localhost:5432/pgmq",
-        user = "pgmq",
-        pass = "pgmq",
+        url = config.jdbcUrl,
+        user = config.user,
+        pass = config.password,
         connectEC = ExecutionContext.global
       )
       client = DoobiePgmqClient[IO](xa)

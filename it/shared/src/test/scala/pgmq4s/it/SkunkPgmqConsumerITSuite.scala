@@ -12,14 +12,16 @@ import weaver.*
 
 object SkunkPgmqConsumerITSuite extends PgmqConsumerITSuite:
 
+  private val config = PgmqTestConfig.default
+
   override def sharedResource: Resource[IO, Res] =
     for
       pool <- Session
         .Builder[IO]
-        .withHost("localhost")
-        .withPort(5432)
-        .withUserAndPassword("pgmq", "pgmq")
-        .withDatabase("pgmq")
+        .withHost(config.host)
+        .withPort(config.port)
+        .withUserAndPassword(config.user, config.password)
+        .withDatabase(config.database)
         .pooled(10)
       client = SkunkPgmqClient[IO](pool)
       admin = SkunkPgmqAdmin[IO](pool)

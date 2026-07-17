@@ -21,10 +21,20 @@
 
 package pgmq4s.domain.pagination
 
-import cats.Id
+import pgmq4s.PgmqEffect
 import weaver.SimpleIOSuite
 
 object CursorPageSuite extends SimpleIOSuite:
+
+  private type Identity[A] = A
+
+  private given PgmqEffect[Identity] with
+    def map[A, B](effect: A)(transform: A => B): B = transform(effect)
+
+    def mapOrRaise[A, B](effect: A)(transform: A => Either[Throwable, B]): B =
+      transform(effect).fold(throw _, identity)
+
+    def raiseError[A](error: Throwable): A = throw error
 
   private val limit = PageSize.unsafe(3)
 
@@ -37,7 +47,7 @@ object CursorPageSuite extends SimpleIOSuite:
   private val idSort = Sort("id", SortDirection.Asc)
 
   private def paginate(items: List[Int], cursor: Option[Cursor] = None): CursorPage[Int] =
-    CursorPage.withPagination[Id, String, Int, Int, Int](limit, idSort, cursor)(
+    CursorPage.withPagination[Identity, String, Int, Int, Int](limit, idSort, cursor)(
       decodeCursor = decodeCursor,
       mapItem = identity,
       makeCursor = makeCursor
@@ -97,7 +107,7 @@ object CursorPageSuite extends SimpleIOSuite:
 
   pureTest("no cursor passes original sort and no typed cursor to fetch"):
     var captured: (Int, Sort[String], Option[Int]) = null
-    CursorPage.withPagination[Id, String, Int, Int, Int](limit, idSort, cursor = None)(
+    CursorPage.withPagination[Identity, String, Int, Int, Int](limit, idSort, cursor = None)(
       decodeCursor = decodeCursor,
       mapItem = identity,
       makeCursor = makeCursor
@@ -111,7 +121,7 @@ object CursorPageSuite extends SimpleIOSuite:
   pureTest("forward cursor passes original sort and decoded cursor to fetch"):
     var captured: (Int, Sort[String], Option[Int]) = null
     val fwd = makeCursor(Cursor.Direction.Forward, 5)
-    CursorPage.withPagination[Id, String, Int, Int, Int](limit, idSort, cursor = Some(fwd))(
+    CursorPage.withPagination[Identity, String, Int, Int, Int](limit, idSort, cursor = Some(fwd))(
       decodeCursor = decodeCursor,
       mapItem = identity,
       makeCursor = makeCursor
@@ -125,7 +135,7 @@ object CursorPageSuite extends SimpleIOSuite:
   pureTest("backward cursor flips sort and passes decoded cursor to fetch"):
     var captured: (Int, Sort[String], Option[Int]) = null
     val bwd = makeCursor(Cursor.Direction.Backward, 5)
-    CursorPage.withPagination[Id, String, Int, Int, Int](limit, idSort, cursor = Some(bwd))(
+    CursorPage.withPagination[Identity, String, Int, Int, Int](limit, idSort, cursor = Some(bwd))(
       decodeCursor = decodeCursor,
       mapItem = identity,
       makeCursor = makeCursor
@@ -137,7 +147,7 @@ object CursorPageSuite extends SimpleIOSuite:
       expect.same(captured._3, Some(5))
 
   pureTest("items are mapped through mapItem"):
-    val page = CursorPage.withPagination[Id, String, Int, Int, String](limit, idSort, cursor = None)(
+    val page = CursorPage.withPagination[Identity, String, Int, Int, String](limit, idSort, cursor = None)(
       decodeCursor = decodeCursor,
       mapItem = n => s"msg-$n",
       makeCursor = (dir, s) => Cursor.encode(dir, "id", s, 0L)

@@ -24,6 +24,7 @@ package pgmq4s.doobie
 import cats.effect.Sync
 import org.typelevel.doobie.Transactor
 import pgmq4s.PgmqClient
+import pgmq4s.cats.given
 
 object DoobiePgmqClient:
 

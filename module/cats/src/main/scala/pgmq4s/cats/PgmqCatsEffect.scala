@@ -19,14 +19,20 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.anorm
+package pgmq4s.cats
 
-import pgmq4s.PgmqAdmin
+import _root_.cats.MonadThrow
+import pgmq4s.PgmqEffect
 
-import javax.sql.DataSource
-import scala.concurrent.{ ExecutionContext, Future }
+/** Adapt any Cats `MonadThrow` to the operational capability required by pgmq4s. */
+given [F[_]](using monad: MonadThrow[F]): PgmqEffect[F] with
+  def map[A, B](effect: F[A])(transform: A => B): F[B] =
+    monad.map(effect)(transform)
 
-object AnormPgmqAdmin:
+  def mapOrRaise[A, B](effect: F[A])(transform: A => Either[Throwable, B]): F[B] =
+    monad.flatMap(effect): value =>
+      transform(value) match
+        case Right(result) => monad.pure(result)
+        case Left(error)   => monad.raiseError(error)
 
-  def apply(dataSource: DataSource)(using ExecutionContext): PgmqAdmin[Future] =
-    PgmqAdmin(AnormPgmqAdminBackend(dataSource))
+  def raiseError[A](error: Throwable): F[A] = monad.raiseError(error)

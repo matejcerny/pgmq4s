@@ -29,5 +29,4 @@ import scala.concurrent.{ ExecutionContext, Future }
 object AnormPgmqClient:
 
   def apply(dataSource: DataSource)(using ExecutionContext): PgmqClient[Future] =
-    import cats.instances.future.*
     PgmqClient(AnormPgmqClientBackend(dataSource))

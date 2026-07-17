@@ -24,6 +24,7 @@ package pgmq4s.skunk
 import _root_.skunk.Session
 import cats.effect.{ Resource, Temporal }
 import pgmq4s.PgmqInspector
+import pgmq4s.cats.given
 
 object SkunkPgmqInspector:
 

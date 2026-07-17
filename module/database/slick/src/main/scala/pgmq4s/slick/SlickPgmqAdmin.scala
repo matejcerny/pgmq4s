@@ -29,5 +29,4 @@ import scala.concurrent.{ ExecutionContext, Future }
 object SlickPgmqAdmin:
 
   def apply(db: Database)(using ExecutionContext): PgmqAdmin[Future] =
-    import cats.instances.future.*
     PgmqAdmin(SlickPgmqAdminBackend(db))

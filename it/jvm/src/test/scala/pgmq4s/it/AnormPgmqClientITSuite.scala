@@ -204,10 +204,12 @@ object AnormPgmqClientITSuite extends PgmqClientITSuite:
 
   private given ExecutionContext = ExecutionContext.global
 
+  private val config = PgmqTestConfig.default
+
   private val ds = new org.postgresql.ds.PGSimpleDataSource()
-  ds.setURL("jdbc:postgresql://localhost:5432/pgmq")
-  ds.setUser("pgmq")
-  ds.setPassword("pgmq")
+  ds.setURL(config.jdbcUrl)
+  ds.setUser(config.user)
+  ds.setPassword(config.password)
 
   private val anormClient = AnormPgmqClient(ds)
   private val anormAdmin = AnormPgmqAdmin(ds)

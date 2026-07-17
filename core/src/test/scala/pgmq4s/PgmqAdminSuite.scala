@@ -23,6 +23,7 @@ package pgmq4s
 
 import cats.effect.{ IO, Ref }
 import cats.syntax.all.*
+import pgmq4s.PgmqEffectTestInstances.given
 import pgmq4s.domain.*
 import weaver.{ Expectations, SimpleIOSuite }
 
