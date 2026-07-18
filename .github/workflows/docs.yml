@@ -39,7 +39,7 @@ jobs:
           SITE_URL: https://matejcerny.github.io/pgmq4s
         run: |
           mkdir -p "deploy/$VERSION"
-          cp -r core/.jvm/target/scala-3.3.8/api/* "deploy/$VERSION/"
+          cp -r core/.jvm/target/scala-3.8.4/api/* "deploy/$VERSION/"
 
           curl -sf "$SITE_URL/versions.json" -o deploy/versions.json || echo '{"versions":{}}' > deploy/versions.json
           jq --arg ver "$VERSION" --arg url "$SITE_URL/$VERSION/docs/index.html" \
