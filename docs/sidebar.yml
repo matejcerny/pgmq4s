@@ -25,3 +25,5 @@ subsection:
         title: Anorm
       - page: slick.md
         title: Slick
+      - page: kyo.md
+        title: Kyo

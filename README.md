@@ -20,6 +20,7 @@ Database backends:
 - Doobie
 - Skunk
 - Slick
+- Kyo (kyo-sql)
 
 JSON codecs
 - Circe
@@ -45,8 +46,9 @@ Add to your `build.sbt` (replace `<version>` with the latest version shown in th
 
 ```scala
 libraryDependencies ++= Seq(
+  "io.github.matejcerny" %% "pgmq4s-core"  % "<version>",
   "io.github.matejcerny" %% "pgmq4s-circe"  % "<version>",  // or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-spray-json, pgmq4s-upickle
-  "io.github.matejcerny" %% "pgmq4s-doobie" % "<version>"   // or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick
+  "io.github.matejcerny" %% "pgmq4s-doobie" % "<version>"   // or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick, pgmq4s-kyo
 )
 ```
 

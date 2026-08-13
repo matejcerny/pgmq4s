@@ -4,8 +4,11 @@ Thanks for your interest in contributing! This guide covers the basics you need 
 
 ## Prerequisites
 
-- JDK 17+
+- JDK 25
 - SBT
+
+JDK 25 is required to build the whole repository because the Kyo module requires it. Published JVM artifacts remain
+compatible with JDK 17, except `pgmq4s-kyo`, which requires JDK 25.
 
 ## Building
 
