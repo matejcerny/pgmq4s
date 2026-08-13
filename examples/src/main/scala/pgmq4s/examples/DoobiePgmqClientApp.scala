@@ -1,8 +1,8 @@
 package pgmq4s.examples
 
 import cats.effect.{ IO, IOApp, Resource }
-import doobie.ExecutionContexts
-import doobie.hikari.HikariTransactor
+import org.typelevel.doobie.ExecutionContexts
+import org.typelevel.doobie.hikari.HikariTransactor
 import pgmq4s.*
 import pgmq4s.domain.*
 import pgmq4s.doobie.{ DoobiePgmqAdmin, DoobiePgmqClient }

@@ -29,8 +29,17 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
         scala: [3]
-        java: [temurin@17]
-        project: [rootJS, rootJVM, rootNative]
+        java: [temurin@25, temurin@17]
+        project: [rootJS, rootJVM, rootNative, jdk17JVM]
+        exclude:
+          - project: rootJS
+            java: temurin@17
+          - project: rootNative
+            java: temurin@17
+          - project: rootJVM
+            java: temurin@17
+          - project: jdk17JVM
+            java: temurin@25
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -41,6 +50,19 @@ jobs:
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+
+      - name: Setup Java (temurin@25)
+        id: setup-java-temurin-25
+        if: matrix.java == 'temurin@25'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+
+      - name: sbt update
+        if: matrix.java == 'temurin@25' && steps.setup-java-temurin-25.outputs.cache-hit == 'false'
+        run: sbt +update
 
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
@@ -63,7 +85,7 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Check headers and formatting
-        if: matrix.java == 'temurin@17' && matrix.os == 'ubuntu-22.04'
+        if: matrix.java == 'temurin@25' && matrix.os == 'ubuntu-22.04'
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' headerCheckAll scalafmtCheckAll 'project /' scalafmtSbtCheck
 
       - name: scalaJSLink
@@ -78,23 +100,27 @@ jobs:
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' test
 
       - name: Check binary compatibility
-        if: matrix.java == 'temurin@17' && matrix.os == 'ubuntu-22.04'
+        if: matrix.java == 'temurin@25' && matrix.os == 'ubuntu-22.04'
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' mimaReportBinaryIssues
 
       - name: Generate API documentation
-        if: matrix.java == 'temurin@17' && matrix.os == 'ubuntu-22.04'
+        if: matrix.java == 'temurin@25' && matrix.os == 'ubuntu-22.04'
         run: sbt 'project ${{ matrix.project }}' '++ ${{ matrix.scala }}' doc
 
       - name: Start Postgres for integration tests
-        if: matrix.project == 'rootJVM' || matrix.project == 'rootNative'
+        if: matrix.project == 'rootJVM' || matrix.project == 'jdk17JVM' || matrix.project == 'rootNative'
         run: |
           docker compose up -d postgres
           for i in {1..30}; do docker compose exec -T postgres pg_isready -U pgmq && break; sleep 2; done
           docker compose exec -T postgres psql -U pgmq -d pgmq -c "CREATE EXTENSION IF NOT EXISTS pgmq;"
 
+      - name: Run JVM integration tests on JDK 17
+        if: matrix.project == 'jdk17JVM'
+        run: sbt integrationJVM/test
+
       - name: Run coverage
         if: matrix.project == 'rootJVM'
-        run: sbt clean coverage rootJVM/test integrationJVM/test rootJVM/coverageAggregate
+        run: sbt clean coverage rootJVM/test integrationJVM/test kyoIntegration/test rootJVM/coverageAggregate
 
       - name: Upload coverage to Codecov
         if: matrix.project == 'rootJVM'
@@ -108,11 +134,11 @@ jobs:
 
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: mkdir -p module/json/play-json/target module/database/skunk/.js/target examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target module/database/slick/target module/json/upickle/.js/target module/cats/.native/target module/database/doobie/target core/.native/target module/database/skunk/.jvm/target module/stream/.native/target module/json/spray-json/target module/json/jsoniter/.jvm/target core/.js/target it/native/target it/jvm/target module/json/circe/.js/target module/database/skunk/.native/target core/.jvm/target module/json/upickle/.jvm/target module/json/jsoniter/.native/target module/stream/.js/target module/json/circe/.native/target module/database/anorm/target module/cats/.js/target module/stream/.jvm/target module/json/upickle/.native/target module/cats/.jvm/target project/target
+        run: mkdir -p module/json/play-json/target module/database/skunk/.js/target examples/target it-kyo/target module/json/jsoniter/.js/target module/json/circe/.jvm/target module/database/slick/target module/json/upickle/.js/target module/cats/.native/target module/database/doobie/target core/.native/target module/database/skunk/.jvm/target module/stream/.native/target module/json/spray-json/target module/json/jsoniter/.jvm/target core/.js/target it/native/target it/jvm/target module/json/circe/.js/target module/database/skunk/.native/target target/jdk17-jvm/target module/database/kyo/target core/.jvm/target module/json/upickle/.jvm/target module/json/jsoniter/.native/target module/stream/.js/target module/json/circe/.native/target module/database/anorm/target module/cats/.js/target module/stream/.jvm/target module/json/upickle/.native/target module/cats/.jvm/target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: tar cf targets.tar module/json/play-json/target module/database/skunk/.js/target examples/target module/json/jsoniter/.js/target module/json/circe/.jvm/target module/database/slick/target module/json/upickle/.js/target module/cats/.native/target module/database/doobie/target core/.native/target module/database/skunk/.jvm/target module/stream/.native/target module/json/spray-json/target module/json/jsoniter/.jvm/target core/.js/target it/native/target it/jvm/target module/json/circe/.js/target module/database/skunk/.native/target core/.jvm/target module/json/upickle/.jvm/target module/json/jsoniter/.native/target module/stream/.js/target module/json/circe/.native/target module/database/anorm/target module/cats/.js/target module/stream/.jvm/target module/json/upickle/.native/target module/cats/.jvm/target project/target
+        run: tar cf targets.tar module/json/play-json/target module/database/skunk/.js/target examples/target it-kyo/target module/json/jsoniter/.js/target module/json/circe/.jvm/target module/database/slick/target module/json/upickle/.js/target module/cats/.native/target module/database/doobie/target core/.native/target module/database/skunk/.jvm/target module/stream/.native/target module/json/spray-json/target module/json/jsoniter/.jvm/target core/.js/target it/native/target it/jvm/target module/json/circe/.js/target module/database/skunk/.native/target target/jdk17-jvm/target module/database/kyo/target core/.jvm/target module/json/upickle/.jvm/target module/json/jsoniter/.native/target module/stream/.js/target module/json/circe/.native/target module/database/anorm/target module/cats/.js/target module/stream/.jvm/target module/json/upickle/.native/target module/cats/.jvm/target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
@@ -128,7 +154,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        java: [temurin@17]
+        java: [temurin@25]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (full)
@@ -138,6 +164,19 @@ jobs:
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+
+      - name: Setup Java (temurin@25)
+        id: setup-java-temurin-25
+        if: matrix.java == 'temurin@25'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+
+      - name: sbt update
+        if: matrix.java == 'temurin@25' && steps.setup-java-temurin-25.outputs.cache-hit == 'false'
+        run: sbt +update
 
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
@@ -212,7 +251,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        java: [temurin@17]
+        java: [temurin@25]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (full)
@@ -222,6 +261,19 @@ jobs:
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+
+      - name: Setup Java (temurin@25)
+        id: setup-java-temurin-25
+        if: matrix.java == 'temurin@25'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: sbt
+
+      - name: sbt update
+        if: matrix.java == 'temurin@25' && steps.setup-java-temurin-25.outputs.cache-hit == 'false'
+        run: sbt +update
 
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
