@@ -1,5 +1,6 @@
 ThisBuild / tlBaseVersion := "0.14"
 ThisBuild / scalaVersion := "3.3.8"
+ThisBuild / tlJdkRelease := Some(17)
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"
 ThisBuild / startYear := Some(2026)
@@ -7,7 +8,18 @@ ThisBuild / licenses := Seq(License.MIT)
 ThisBuild / developers := List(tlGitHubDev("matejcerny", "Matej Cerny"))
 
 // === CI/CD WORKFLOWS ===
-ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
+val Java17 = JavaSpec.temurin("17")
+val Java25 = JavaSpec.temurin("25")
+
+// The first version builds published artifacts. Kyo requires JDK 25; JDK 17 verifies all other JVM modules.
+ThisBuild / githubWorkflowJavaVersions := Seq(Java25, Java17)
+ThisBuild / githubWorkflowBuildMatrixAdditions ~= { matrix =>
+  matrix.updated("project", matrix("project") :+ "jdk17JVM")
+}
+ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
+  MatrixExclude(Map("project" -> "rootJVM", "java" -> Java17.render)),
+  MatrixExclude(Map("project" -> "jdk17JVM", "java" -> Java25.render))
+)
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Run(
     name = Some("Install native dependencies"),
@@ -19,7 +31,9 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 ThisBuild / githubWorkflowBuildPostamble ++= Seq(
   WorkflowStep.Run(
     name = Some("Start Postgres for integration tests"),
-    cond = Some("matrix.project == 'rootJVM' || matrix.project == 'rootNative'"),
+    cond = Some(
+      "matrix.project == 'rootJVM' || matrix.project == 'jdk17JVM' || matrix.project == 'rootNative'"
+    ),
     commands = List(
       "docker compose up -d postgres",
       "for i in {1..30}; do docker compose exec -T postgres pg_isready -U pgmq && break; sleep 2; done",
@@ -27,9 +41,14 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
     )
   ),
   WorkflowStep.Run(
+    name = Some("Run JVM integration tests on JDK 17"),
+    cond = Some("matrix.project == 'jdk17JVM'"),
+    commands = List("sbt integrationJVM/test")
+  ),
+  WorkflowStep.Run(
     name = Some("Run coverage"),
     cond = Some("matrix.project == 'rootJVM'"),
-    commands = List("sbt clean coverage rootJVM/test integrationJVM/test rootJVM/coverageAggregate")
+    commands = List("sbt clean coverage rootJVM/test integrationJVM/test kyoIntegration/test rootJVM/coverageAggregate")
   ),
   WorkflowStep.Use(
     UseRef.Public("codecov", "codecov-action", "v5"),
@@ -54,6 +73,9 @@ val Fs2V = "3.13.0"
 val SkunkV = "1.0.0"
 val ScalaJavaTimeV = "2.7.0"
 val JsoniterV = "2.40.1"
+val KyoV = "1.0.0-RC6"
+val KyoScalaV = "3.8.4"
+val KyoJdkV = 25
 val PostgresV = "42.7.10"
 val PlayJsonV = "3.0.6"
 val SlickV = "3.6.1"
@@ -75,26 +97,29 @@ lazy val root = tlCrossRootProject
     anorm,
     doobie,
     skunk,
-    slick
+    slick,
+    kyo
   )
 
-lazy val integration = crossProject(JVMPlatform, NativePlatform)
-  .crossType(CrossType.Full)
-  .in(file("it"))
-  .dependsOn(skunk, circe, stream)
-  .jvmConfigure(_.dependsOn(anorm, doobie, slick))
-  .settings(
-    name := "pgmq4s-it",
-    publish / skip := true,
-    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    Test / parallelExecution := false
+lazy val jdk17JVM = (project in file("target/jdk17-jvm"))
+  .aggregate(
+    core.jvm,
+    cats.jvm,
+    stream.jvm,
+    circe.jvm,
+    jsoniter.jvm,
+    playJson,
+    sprayJson,
+    upickle.jvm,
+    anorm,
+    doobie,
+    skunk.jvm,
+    slick
   )
-  .jvmSettings(
-    libraryDependencies ++= Seq(
-      "org.typelevel" %% "doobie-hikari" % DoobieV % Test,
-      "com.typesafe.slick" %% "slick-hikaricp" % SlickV % Test,
-      "org.postgresql" % "postgresql" % PostgresV % Test
-    )
+  .settings(
+    name := "pgmq4s-jdk17-ci",
+    publish / skip := true,
+    mimaPreviousArtifacts := Set.empty
   )
 
 lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -204,6 +229,19 @@ lazy val slick = (project in file("module/database/slick"))
     libraryDependencies += "com.typesafe.slick" %% "slick" % SlickV
   )
 
+lazy val kyo = (project in file("module/database/kyo"))
+  .dependsOn(core.jvm)
+  .settings(
+    name := "pgmq4s-kyo",
+    scalaVersion := KyoScalaV,
+    tlJdkRelease := Some(KyoJdkV),
+    libraryDependencies ++= Seq(
+      "io.getkyo" %% "kyo-sql" % KyoV,
+      "io.getkyo" %% "kyo-sql-postgres" % KyoV
+    ),
+    mimaPreviousArtifacts := Set.empty
+  )
+
 // === JSON ===
 lazy val circe = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
@@ -257,12 +295,53 @@ lazy val sprayJson = (project in file("module/json/spray-json"))
     libraryDependencies += "org.typelevel" %% "weaver-cats" % WeaverV % Test
   )
 
+// === Integration tests ===
+
+lazy val integration = crossProject(JVMPlatform, NativePlatform)
+  .crossType(CrossType.Full)
+  .in(file("it"))
+  .dependsOn(skunk, circe, stream)
+  .jvmConfigure(_.dependsOn(anorm, doobie, slick))
+  .settings(
+    name := "pgmq4s-it",
+    publish / skip := true,
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
+    Test / parallelExecution := false
+  )
+  .jvmSettings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "doobie-hikari" % DoobieV % Test,
+      "com.typesafe.slick" %% "slick-hikaricp" % SlickV % Test,
+      "org.postgresql" % "postgresql" % PostgresV % Test
+    )
+  )
+
+lazy val kyoIntegration = (project in file("it-kyo"))
+  .dependsOn(kyo)
+  .settings(
+    name := "pgmq4s-it-kyo",
+    publish / skip := true,
+    scalaVersion := KyoScalaV,
+    tlJdkRelease := Some(KyoJdkV),
+    libraryDependencies ++= Seq(
+      "io.getkyo" %% "kyo-test-api" % KyoV % Test,
+      "io.getkyo" %% "kyo-test-runner" % KyoV % Test
+    ),
+    testFrameworks += new TestFramework("kyo.test.runner.SbtFramework"),
+    Test / parallelExecution := false,
+    mimaPreviousArtifacts := Set.empty
+  )
+
+// === Examples ===
+
 lazy val examples = (project in file("examples"))
-  .dependsOn(core.jvm, circe.jvm, anorm, doobie, skunk.jvm, slick)
+  .dependsOn(core.jvm, circe.jvm, anorm, doobie, skunk.jvm, slick, kyo)
   .disablePlugins(HeaderPlugin)
   .settings(
     name := "pgmq4s-examples",
     publish / skip := true,
+    scalaVersion := KyoScalaV,
+    tlJdkRelease := Some(KyoJdkV),
     mimaPreviousArtifacts := Set.empty,
     coverageEnabled := false,
     libraryDependencies ++= Seq(
