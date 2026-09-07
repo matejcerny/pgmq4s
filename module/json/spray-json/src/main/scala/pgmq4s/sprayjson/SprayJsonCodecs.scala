@@ -27,7 +27,7 @@ import spray.json.{ JsonReader as SprayReader, JsonWriter as SprayWriter, enrich
 import scala.util.Try
 
 given pgmqEncoderFromSprayJson[A](using sw: SprayWriter[A]): PgmqEncoder[A] =
-  PgmqEncoder.instance[A](a => sw.write(a).compactPrint)
+  PgmqEncoder.instance[A](sw.write(_).compactPrint)
 
 given pgmqDecoderFromSprayJson[A: SprayReader]: PgmqDecoder[A] =
   PgmqDecoder.instance[A](json => Try(json.parseJson.convertTo[A]).toEither)

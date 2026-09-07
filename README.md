@@ -28,6 +28,7 @@ JSON codecs
 - Play JSON
 - Spray JSON
 - uPickle
+- Kyo (kyo-schema-json)
 
 Need a specific DB backend or JSON bridge? Create an issue [here](https://github.com/matejcerny/pgmq4s/issues/new).
 
@@ -47,7 +48,7 @@ Add to your `build.sbt` (replace `<version>` with the latest version shown in th
 ```scala
 libraryDependencies ++= Seq(
   "io.github.matejcerny" %% "pgmq4s-core"  % "<version>",
-  "io.github.matejcerny" %% "pgmq4s-circe"  % "<version>",  // or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-spray-json, pgmq4s-upickle
+  "io.github.matejcerny" %% "pgmq4s-circe"  % "<version>",  // or pgmq4s-jsoniter, pgmq4s-play-json, pgmq4s-spray-json, pgmq4s-upickle, pgmq4s-kyo-json
   "io.github.matejcerny" %% "pgmq4s-doobie" % "<version>"   // or pgmq4s-anorm, pgmq4s-skunk, pgmq4s-slick, pgmq4s-kyo
 )
 ```

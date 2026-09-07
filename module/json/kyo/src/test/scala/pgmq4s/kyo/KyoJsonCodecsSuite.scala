@@ -19,18 +19,16 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package pgmq4s.jsoniter
+package pgmq4s.kyo
 
-import com.github.plokhotnyuk.jsoniter_scala.core.*
+import _root_.kyo.Schema
 import pgmq4s.*
+import weaver.SimpleIOSuite
 
-import scala.util.Try
+object KyoJsonCodecsSuite extends SimpleIOSuite with JsonCodecsSuite:
 
-given pgmqEncoderFromJsoniter[A: JsonValueCodec]: PgmqEncoder[A] =
-  PgmqEncoder.instance[A](writeToString(_))
+  private given Schema[Payload] = Schema.derived
 
-given pgmqDecoderFromJsoniter[A: JsonValueCodec]: PgmqDecoder[A] =
-  PgmqDecoder.instance[A](json => Try(readFromString[A](json)).toEither)
-
-given pgmqCodecFromJsoniter[A: JsonValueCodec]: PgmqCodec[A] =
-  PgmqCodec.from(pgmqEncoderFromJsoniter[A], pgmqDecoderFromJsoniter[A])
+  def payloadEncoder: PgmqEncoder[Payload] = summon
+  def payloadDecoder: PgmqDecoder[Payload] = summon
+  def payloadCodec: PgmqCodec[Payload] = summon

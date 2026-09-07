@@ -33,7 +33,7 @@ import pgmq4s.*
 import scala.util.Try
 
 given pgmqEncoderFromUpickle[A: UpickleWriter]: PgmqEncoder[A] =
-  PgmqEncoder.instance[A](a => write(a))
+  PgmqEncoder.instance[A](write(_))
 
 given pgmqDecoderFromUpickle[A: UpickleReader]: PgmqDecoder[A] =
   PgmqDecoder.instance[A](json => Try(read[A](json)).toEither)
