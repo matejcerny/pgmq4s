@@ -47,6 +47,22 @@ import pgmq4s.upickle.given
 case class OrderCreated(orderId: Long, email: String) derives ReadWriter
 ```
 
+## Kyo
+
+**Platforms:** JVM, JS, Native (requires JDK 25)
+
+```scala
+libraryDependencies += "io.github.matejcerny" %% "pgmq4s-kyo-json" % "{{ projectVersion }}"
+```
+
+```scala
+import _root_.kyo.Schema
+import pgmq4s.kyo.given
+
+case class OrderCreated(orderId: Long, email: String)
+given Schema[OrderCreated] = Schema.derived
+```
+
 ## Play JSON
 
 **Platforms:** JVM only

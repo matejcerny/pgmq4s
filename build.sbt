@@ -83,15 +83,6 @@ val SprayJsonV = "1.3.6"
 val UpickleV = "4.4.3"
 val WeaverV = "0.13.0"
 
-// kyo-net's native TLS shim needs system OpenSSL; Homebrew's openssl@3 is keg-only, so add its lib dir.
-val opensslLinkingOptions: Seq[String] = {
-  val homebrewPrefix =
-    if (System.getProperty("os.name").toLowerCase.contains("mac"))
-      scala.util.Try(scala.sys.process.Process("brew --prefix openssl@3").!!.trim).toOption.filter(_.nonEmpty)
-    else None
-  homebrewPrefix.map(prefix => s"-L$prefix/lib").toSeq ++ Seq("-lssl", "-lcrypto")
-}
-
 lazy val root = tlCrossRootProject
   .settings(name := "pgmq4s")
   .aggregate(
@@ -107,7 +98,8 @@ lazy val root = tlCrossRootProject
     doobie,
     skunk,
     slick,
-    kyo
+    kyo,
+    kyoJson
   )
 
 lazy val jdk17JVM = (project in file("target/jdk17-jvm"))
@@ -254,6 +246,14 @@ lazy val kyo = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     nativeConfig ~= { config =>
+      val opensslLinkingOptions: Seq[String] = {
+        val homebrewPrefix =
+          if (System.getProperty("os.name").toLowerCase.contains("mac"))
+            scala.util.Try(scala.sys.process.Process("brew --prefix openssl@3").!!.trim).toOption.filter(_.nonEmpty)
+          else None
+        homebrewPrefix.map(prefix => s"-L$prefix/lib").toSeq ++ Seq("-lssl", "-lcrypto")
+      }
+
       config.withLinkingOptions(config.linkingOptions ++ opensslLinkingOptions)
     }
   )
@@ -293,6 +293,19 @@ lazy val upickle = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     name := "pgmq4s-upickle",
     libraryDependencies += "com.lihaoyi" %%% "upickle" % UpickleV,
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test
+  )
+
+lazy val kyoJson = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("module/json/kyo"))
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "pgmq4s-kyo-json",
+    scalaVersion := KyoScalaV,
+    tlJdkRelease := Some(KyoJdkV),
+    libraryDependencies += "io.getkyo" %%% "kyo-schema-json" % KyoV,
+    libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
+    mimaPreviousArtifacts := Set.empty
   )
 
 lazy val playJson = (project in file("module/json/play-json"))

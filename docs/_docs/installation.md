@@ -52,27 +52,28 @@ libraryDependencies ++= Seq(
 
 <div class="admonition warning">
 <div class="admonition-title">Warning</div>
-<p>Play JSON, Spray JSON, Anorm, Doobie, and Slick are <strong>JVM-only</strong>. Skunk, Kyo, and the cross-platform codec modules (Circe, Jsoniter, uPickle) are available on JS and Native.</p>
+<p>Play JSON, Spray JSON, Anorm, Doobie, and Slick are <strong>JVM-only</strong>. Skunk, Kyo, and the cross-platform codec modules (Circe, Jsoniter, uPickle, Kyo JSON) are available on JS and Native.</p>
 </div>
 
 <div class="admonition warning">
 <div class="admonition-title">Warning</div>
-<p>The Kyo backend requires <strong>JDK 25</strong>. Every other module targets JDK 17.</p>
+<p>The Kyo modules require <strong>JDK 25</strong>. Every other module targets JDK 17.</p>
 </div>
 
 ## Available Artifacts
 
-| Artifact            | Description                      | Platforms               |
-|---------------------|----------------------------------|-------------------------|
-| `pgmq4s-core`       | Core types and algebra           | JVM, JS, Native         |
-| `pgmq4s-cats`       | Cats `MonadThrow` effect adapter | JVM, JS, Native         |
-| `pgmq4s-circe`      | Circe JSON codec bridge          | JVM, JS, Native         |
-| `pgmq4s-jsoniter`   | Jsoniter-scala JSON codec bridge | JVM, JS, Native         |
-| `pgmq4s-upickle`    | uPickle JSON codec bridge        | JVM, JS, Native         |
-| `pgmq4s-play-json`  | Play JSON codec bridge           | JVM only                |
-| `pgmq4s-spray-json` | Spray JSON codec bridge          | JVM only                |
-| `pgmq4s-skunk`      | Skunk backend                    | JVM, JS, Native         |
-| `pgmq4s-doobie`     | Doobie backend                   | JVM only                |
-| `pgmq4s-anorm`      | Anorm backend                    | JVM only                |
-| `pgmq4s-slick`      | Slick backend                    | JVM only                |
-| `pgmq4s-kyo`        | Kyo backend (kyo-sql)            | JVM, JS, Native; JDK 25 |
+| Artifact            | Description                             | Platforms               |
+|---------------------|-----------------------------------------|-------------------------|
+| `pgmq4s-core`       | Core types and algebra                  | JVM, JS, Native         |
+| `pgmq4s-cats`       | Cats `MonadThrow` effect adapter        | JVM, JS, Native         |
+| `pgmq4s-circe`      | Circe JSON codec bridge                 | JVM, JS, Native         |
+| `pgmq4s-jsoniter`   | Jsoniter-scala JSON codec bridge        | JVM, JS, Native         |
+| `pgmq4s-upickle`    | uPickle JSON codec bridge               | JVM, JS, Native         |
+| `pgmq4s-play-json`  | Play JSON codec bridge                  | JVM only                |
+| `pgmq4s-spray-json` | Spray JSON codec bridge                 | JVM only                |
+| `pgmq4s-skunk`      | Skunk backend                           | JVM, JS, Native         |
+| `pgmq4s-doobie`     | Doobie backend                          | JVM only                |
+| `pgmq4s-anorm`      | Anorm backend                           | JVM only                |
+| `pgmq4s-slick`      | Slick backend                           | JVM only                |
+| `pgmq4s-kyo`        | Kyo backend (kyo-sql)                   | JVM, JS, Native; JDK 25 |
+| `pgmq4s-kyo-json`   | Kyo JSON codec bridge (kyo-schema-json) | JVM, JS, Native; JDK 25 |
