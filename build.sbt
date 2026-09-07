@@ -1,4 +1,4 @@
-ThisBuild / tlBaseVersion := "0.14"
+ThisBuild / tlBaseVersion := "0.15"
 ThisBuild / scalaVersion := "3.3.8"
 ThisBuild / tlJdkRelease := Some(17)
 ThisBuild / organization := "io.github.matejcerny"
@@ -171,7 +171,7 @@ lazy val cats = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %%% "cats-effect" % CatsEffectV % Test,
       "org.typelevel" %%% "weaver-cats" % WeaverV % Test
     ),
-    mimaPreviousArtifacts := Set.empty
+    tlVersionIntroduced := Map("3" -> "0.14.0")
   )
 
 lazy val stream = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -185,6 +185,7 @@ lazy val stream = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %%% "cats-effect" % CatsEffectV,
       "org.typelevel" %%% "weaver-cats" % WeaverV % Test
     ),
+    // Stream API is still WIP.
     mimaPreviousArtifacts := Set.empty
   )
 
@@ -242,7 +243,7 @@ lazy val kyo = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "io.getkyo" %%% "kyo-sql" % KyoV,
       "io.getkyo" %%% "kyo-sql-postgres" % KyoV
     ),
-    mimaPreviousArtifacts := Set.empty
+    tlVersionIntroduced := Map("3" -> "0.15.0")
   )
   .nativeSettings(
     nativeConfig ~= { config =>
@@ -305,7 +306,7 @@ lazy val kyoJson = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     tlJdkRelease := Some(KyoJdkV),
     libraryDependencies += "io.getkyo" %%% "kyo-schema-json" % KyoV,
     libraryDependencies += "org.typelevel" %%% "weaver-cats" % WeaverV % Test,
-    mimaPreviousArtifacts := Set.empty
+    tlVersionIntroduced := Map("3" -> "0.15.0")
   )
 
 lazy val playJson = (project in file("module/json/play-json"))
