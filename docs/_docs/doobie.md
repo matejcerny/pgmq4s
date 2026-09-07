@@ -4,7 +4,7 @@
 
 <div class="admonition info">
 <div class="admonition-title">Note</div>
-<p>Doobie is <strong>JVM-only</strong>. For cross-platform support (JS, Native), use the <a href="skunk.html">Skunk backend</a>.</p>
+<p>Doobie is <strong>JVM-only</strong>. For cross-platform support (JS, Native), use the <a href="skunk.html">Skunk</a> or <a href="kyo.html">Kyo</a> backend.</p>
 </div>
 
 ## Dependency

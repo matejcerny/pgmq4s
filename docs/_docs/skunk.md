@@ -4,7 +4,7 @@
 
 <div class="admonition info">
 <div class="admonition-title">Note</div>
-<p>Skunk is the only <strong>cross-platform</strong> backend — it works on JVM, Scala.js, and Scala Native.</p>
+<p>Skunk is <strong>cross-platform</strong> — it works on JVM, Scala.js, and Scala Native.</p>
 </div>
 
 ## Dependency

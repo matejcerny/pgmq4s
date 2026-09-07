@@ -2,9 +2,14 @@
 
 [Kyo](https://getkyo.io/) is an algebraic effect system for Scala. pgmq4s provides `KyoPgmqClient` and `KyoPgmqAdmin` backed by a [kyo-sql](https://getkyo.io/) `SqlClient`.
 
+<div class="admonition info">
+<div class="admonition-title">Note</div>
+<p>Kyo is <strong>cross-platform</strong> — it works on JVM, Scala.js, and Scala Native.</p>
+</div>
+
 <div class="admonition warning">
 <div class="admonition-title">Warning</div>
-<p>Kyo supports <strong>JVM, Scala.js, and Scala Native</strong> and requires <strong>JDK 25</strong> to build. Scala.js database connections require Node.js; browsers cannot open PostgreSQL TCP connections.</p>
+<p>The Kyo modules require <strong>JDK 25</strong>.</p>
 </div>
 
 ## Dependency
