@@ -243,7 +243,8 @@ lazy val kyo = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "io.getkyo" %%% "kyo-sql" % KyoV,
       "io.getkyo" %%% "kyo-sql-postgres" % KyoV
     ),
-    tlVersionIntroduced := Map("3" -> "0.15.0")
+    // Kyo RCs change binary compatibility
+    mimaPreviousArtifacts := Set.empty
   )
   .nativeSettings(
     nativeConfig ~= { config =>
