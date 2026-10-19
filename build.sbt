@@ -67,14 +67,14 @@ ThisBuild / githubWorkflowBuildPostamble ++= Seq(
 val AnormV = "3.1.0"
 val CatsV = "2.13.0"
 val CatsEffectV = "3.7.1"
-val CirceV = "0.14.16"
+val CirceV = "0.14.17"
 val DoobieV = "1.0.0-RC13"
-val Fs2V = "3.13.0"
+val Fs2V = "3.14.0"
 val SkunkV = "1.0.0"
 val ScalaJavaTimeV = "2.8.0"
-val JsoniterV = "2.40.1"
-val KyoV = "1.0.0-RC6"
-val KyoScalaV = "3.8.4"
+val JsoniterV = "2.41.6"
+val KyoV = "1.0.0-RC7"
+val KyoScalaV = "3.9.0"
 val KyoJdkV = 25
 val PostgresV = "42.7.10"
 val PlayJsonV = "3.0.6"
@@ -243,7 +243,8 @@ lazy val kyo = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "io.getkyo" %%% "kyo-sql" % KyoV,
       "io.getkyo" %%% "kyo-sql-postgres" % KyoV
     ),
-    tlVersionIntroduced := Map("3" -> "0.15.0")
+    // Kyo RCs change binary compatibility
+    mimaPreviousArtifacts := Set.empty
   )
   .nativeSettings(
     nativeConfig ~= { config =>
