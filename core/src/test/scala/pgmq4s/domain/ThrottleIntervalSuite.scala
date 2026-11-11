@@ -39,7 +39,7 @@ object ThrottleIntervalSuite extends SimpleIOSuite:
     expect(clue(ThrottleInterval(0.millis)).isLeft)
 
   pureTest("ThrottleInterval.apply rejects negative durations"):
-    expect(clue(ThrottleInterval(-1.millis)).isLeft)
+    expect(clue(ThrottleInterval((-1).millis)).isLeft)
 
   pureTest("ThrottleInterval.unsafe accepts positive durations"):
     expect.same(ThrottleInterval.unsafe(250.millis).toMillis, 250)
@@ -47,5 +47,5 @@ object ThrottleIntervalSuite extends SimpleIOSuite:
   pureTest("ThrottleInterval.unsafe throws on non-positive durations"):
     List(
       expect(Try(ThrottleInterval.unsafe(0.millis)).isFailure),
-      expect(Try(ThrottleInterval.unsafe(-1.millis)).isFailure)
+      expect(Try(ThrottleInterval.unsafe((-1).millis)).isFailure)
     ).combineAll

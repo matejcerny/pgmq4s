@@ -37,14 +37,14 @@ object VisibilityTimeoutSuite extends SimpleIOSuite:
     ).combineAll
 
   pureTest("VisibilityTimeout.apply rejects negative durations"):
-    expect(clue(VisibilityTimeout(-1.seconds)).isLeft)
+    expect(clue(VisibilityTimeout((-1).seconds)).isLeft)
 
   pureTest("VisibilityTimeout.Zero and secondsVisibility convert to correct seconds"):
     expect.same(VisibilityTimeout.Zero.toSeconds, 0) and
       expect.same(30.secondsVisibility.toSeconds, 30)
 
   pureTest("VisibilityTimeout.unsafe throws on negative durations"):
-    expect(Try(VisibilityTimeout.unsafe(-1.seconds)).isFailure)
+    expect(Try(VisibilityTimeout.unsafe((-1).seconds)).isFailure)
 
   pureTest("VisibilityTimeout.toSeconds converts correctly"):
     expect.same(2.minutesVisibility.toSeconds, 120) and
