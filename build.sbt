@@ -1,5 +1,5 @@
 ThisBuild / tlBaseVersion := "0.15"
-ThisBuild / scalaVersion := "3.3.8"
+ThisBuild / scalaVersion := "3.3.9"
 ThisBuild / tlJdkRelease := Some(17)
 ThisBuild / organization := "io.github.matejcerny"
 ThisBuild / organizationName := "Matej Cerny"

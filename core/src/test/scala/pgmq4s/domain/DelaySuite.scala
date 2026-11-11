@@ -37,14 +37,14 @@ object DelaySuite extends SimpleIOSuite:
     ).combineAll
 
   pureTest("Delay.apply rejects negative durations"):
-    expect(clue(Delay(-1.seconds)).isLeft)
+    expect(clue(Delay((-1).seconds)).isLeft)
 
   pureTest("secondsDelay converts to correct seconds"):
     expect.same(30.secondsDelay.toSeconds, 30) and
       expect.same(0.secondsDelay.toSeconds, 0)
 
   pureTest("Delay.unsafe throws on negative durations"):
-    expect(Try(Delay.unsafe(-1.seconds)).isFailure)
+    expect(Try(Delay.unsafe((-1).seconds)).isFailure)
 
   pureTest("secondsDelay creates Delay from literal"):
     expect.same(10.secondsDelay, Delay.trusted(10.seconds)) and
